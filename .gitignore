@@ -1,0 +1,13 @@
+others/
+*.dat
+*.out
+*.x
+
+*.ipch
+*.bin
+bin/
+build/
+
+.ipynb_checkpoints/
+psuedocode.txt
+Debug_Plots.ipynb
