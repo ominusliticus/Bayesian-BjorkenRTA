@@ -30,9 +30,9 @@ namespace exact{
     {
         double m = params.mass;
         double Ep = sqrt(p * p + m * m);
-	    double f_equilibrium = exp(-Ep / temp);
+        double f_equilibrium = exp(-Ep / temp);
 
-	    return 2.0 * p * p * Ep * f_equilibrium / (4.0 * PI * PI );
+        return 2.0 * p * p * Ep * f_equilibrium / (4.0 * PI * PI );
     }
     // -------------------------------------
 
@@ -64,12 +64,12 @@ namespace exact{
         double copy(0.0) , prec = 1.e-6;
         int n = 0;
         int flag_1 = 0;
-		do
-		{
+        do
+        {
             mid = (x1 + x2) / 2.0;
             double e_mid = EquilibriumEnergyDensity(mid, params);
             double e1 = EquilibriumEnergyDensity(x1, params);
-            
+
 
             if (abs(e_mid - e) < prec) 
                 break;
@@ -78,18 +78,18 @@ namespace exact{
                 x2=mid;
             else
                 x1=mid;
-            
+
             n++;        
             if (n == 1) 
                 copy = mid;
-        
+
             if (n > 4)
             {
                 if (abs(copy - mid) < prec)
                 flag_1 = 1;	
                 copy = mid;
             }
-		}while (flag_1 != 1 && n <= 2000);
+        }while (flag_1 != 1 && n <= 2000);
 
         return mid;	
     }
@@ -101,7 +101,7 @@ namespace exact{
     {
         double T = GetTemperature(tau, params);
         double eta_s = params.eta_s;
-	    return 5.0 * eta_s / T;
+        return 5.0 * eta_s / T;
     }
     // -------------------------------------
 
@@ -151,12 +151,12 @@ namespace exact{
         double m = params.mass;
         double T = GetTemperature(z, params);
         double gamma = z / tau;
-		double zeta = m / T;
-        
-	    double integrand_z = pow(T, 4.0) / (4.0 * PI * PI) * H2Tilde(gamma,zeta);
-	
+        double zeta = m / T;
 
-		return integrand_z;
+        double integrand_z = pow(T, 4.0) / (4.0 * PI * PI) * H2Tilde(gamma,zeta);
+
+
+        return integrand_z;
     }
     // -------------------------------------
 
@@ -219,7 +219,7 @@ namespace exact{
         double y0 = tau_0 / (tau * sqrt(1.0 + xi_0));
         double z0 = m / Lambda_0;
 
-	    return pow(Lambda_0, 4.0) * H2Tilde(y0, z0) / (4.0 * PI * PI * alpha_0);
+        return pow(Lambda_0, 4.0) * H2Tilde(y0, z0) / (4.0 * PI * PI * alpha_0);
     }
     // -------------------------------------
 
