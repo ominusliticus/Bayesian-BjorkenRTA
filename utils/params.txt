@@ -1,0 +1,33 @@
+# params.txt
+
+# Starting time for hydrodynamics
+tau_0 0.1
+
+# Initial anisotropic pressure
+# 0.1333188 / 0.197
+Lambda_0 0.676735026
+
+# Initial anisotropy parameter
+xi_0 100.0
+
+# Another initial anisotropy parameter
+# 7.79274 * pow(10, -5) / 0.197
+alpha_0 3.9557056e-4
+
+# Stopping simulation time
+ul 100.1
+
+# Start simulation time
+ll 0.1
+
+# Mass of particles
+# 0.05 / 0.197
+mass 0.2538071
+
+# Initial viscous transport coefficient
+# 10 / (4.0 * PI)
+eta_s 0.795774715
+
+# Steps to take in simulation
+steps 10001
+
