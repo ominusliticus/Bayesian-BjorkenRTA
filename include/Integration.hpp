@@ -70,6 +70,10 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
 template<typename Functor, typename...Args>
 double GausQuadAux(Functor&& func, double _low, double _high, double result, double tol, int depth, bool improper_top, Args&&... args)
 {
+    // Quick check to ensure that we should do calculation
+    if (depth <= 0)
+        return result;
+
     double high = _high;
     double low  = _low;
 
@@ -101,9 +105,7 @@ double GausQuadAux(Functor&& func, double _low, double _high, double result, dou
 
     double result2 = interval1_result + interval2_result;
 
-    if (depth <= 0)
-        return result;
-    if (fabs(result - result2) / result < 1e-4)
+    if (fabs(result - result2) / result < tol)
         return result;
     else 
         return GausQuadAux(func, low, middle, interval1_result, tol, depth-1, improper_top, std::forward<Args>(args)...) + GausQuadAux(func, middle, high, interval2_result, tol, depth-1, improper_top, std::forward<Args>(args)...);
