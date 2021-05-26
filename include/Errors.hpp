@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ERRORS_HPP
+#define ERRORS_HPP
 #include <iostream>
 // #include <fmt/core.h>
 // #include <fmt/format.h>
@@ -26,4 +27,6 @@ void Print_Error(std::ostream& out, Args&&... args)
 #define PRINT_DEBUG(n)  std::cout << n << std::endl;
 #else
 #define PRINT_DEBUG(x) 
+#endif
+
 #endif

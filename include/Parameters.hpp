@@ -1,4 +1,6 @@
-#pragma once
+#ifndef PARAMETERS_HPP
+#define PARAMETERS_HPP
+
 #include "Errors.hpp"
 
 #include <vector>
@@ -26,3 +28,5 @@ struct SimulationParameters
 
     std::vector<double> D;
 }; // end struct SimulationParameters
+
+#endif

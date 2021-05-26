@@ -1,4 +1,6 @@
-#pragma once
+#ifndef EXACTSOLUTION_HPP
+#define EXACTSOLUTION_HPP
+
 #include <vector>
 
 #include "Errors.hpp"
@@ -48,3 +50,5 @@ namespace exact{
     // Evolve simulation and output results;
     void Run(std::ostream& out, SP& params);
 }
+
+#endif

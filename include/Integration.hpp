@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INTEGRATION_HPP
+#define INTEGRATION_HPP
 #include "Errors.hpp"
 
 constexpr double inf = std::numeric_limits<double>::infinity();
@@ -176,3 +177,5 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
 
     return GausQuadAux(func, low, high, result, tol, maxDepth, improper_top, std::forward<Args>(args)...);
 }
+
+#endif
