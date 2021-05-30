@@ -1,3 +1,6 @@
+//
+// Author: Kevin Ingles
+
 #include "../include/Parameters.hpp"
 
 #include <fstream>

@@ -1,10 +1,13 @@
+//
+// Author: Kevin Ingles
+
 #ifndef ERRORS_HPP
 #define ERRORS_HPP
 #include <iostream>
 // #include <fmt/core.h>
 // #include <fmt/format.h>
 
-// switch to using fmt library...
+// TODO: switch to using fmt library...
 template<typename... Args>
 void Print(std::ostream& out, Args&&... args)
 {

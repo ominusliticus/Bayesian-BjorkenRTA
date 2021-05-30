@@ -1,3 +1,6 @@
+// 
+// Author: Kevin Ingles
+// Credit: Chandrodoy Chattopdhyay for first version
 #include "../include/ExactSolution.hpp"
 #include "../include/Integration.hpp"
 
@@ -20,7 +23,7 @@ namespace exact{
     
     double EquilibriumEnergyDensity(double temp, SP& params)
     {
-        return GausQuad(EquilibriumEnergyDensityAux, 0.0, 50.0 * temp, tol, max_depth, temp, params);
+        return GausQuad(EquilibriumEnergyDensityAux, 0.0, inf, tol, max_depth, temp, params);
     }
     // -------------------------------------
 
@@ -131,7 +134,7 @@ namespace exact{
 
     double H2Tilde(double y, double z)
     {
-        return GausQuad(H2TildeAux, 0, 50.0, tol, max_depth, y, z);
+        return GausQuad(H2TildeAux, 0, inf, tol, max_depth, y, z);
     }
     // -------------------------------------
     
@@ -146,7 +149,7 @@ namespace exact{
 
     
 
-    double EquilibriumDistribution(double tau, double z, SP& params)
+    double EquilibriumEnergyDensity(double tau, double z, SP& params)
     {
         double m = params.mass;
         double T = GetTemperature(z, params);
@@ -157,25 +160,6 @@ namespace exact{
 
 
         return integrand_z;
-    }
-    // -------------------------------------
-
-
-
-    double InitialDistribution(double theta, double p, double tau, SP& params)
-    {
-        double m        = params.mass;
-        double tau_0    = params.tau_0;
-        double xi_0     = params.xi_0;
-        double alpha_0  = params.alpha_0;
-        double Lambda_0 = params.Lambda_0;
-
-        double Ep = sqrt(p * p + m * m);
-        double k = tau / tau_0;
-        double Ep3 = sqrt(p * p * sin(theta) * sin(theta) + (1.0 + xi_0) * p * p * cos(theta) * cos(theta) * k * k + m * m);
-        double f_in3 = (1.0 / alpha_0) * exp(-Ep3 / Lambda_0);
-        
-        return 2.0 * p * p * Ep * sin(theta) * f_in3 / (4.0 * PI * PI);
     }
     // -------------------------------------
 
@@ -201,7 +185,7 @@ namespace exact{
 
     double EquilibriumContributionAux(double x, double tau, SP& params)
     {
-        return DecayFactor(tau, x, params) * EquilibriumDistribution(tau, x, params) / TauRelaxation(x, params);
+        return DecayFactor(tau, x, params) * EquilibriumEnergyDensity(tau, x, params) / TauRelaxation(x, params);
     }
     // -------------------------------------
 
@@ -225,10 +209,75 @@ namespace exact{
 
 
 
+    double InitialDistribution(double w, double pT, SP& params)
+    {
+        double m        = params.mass;
+        double tau_0    = params.tau_0;
+        double xi_0     = params.xi_0;
+        double alpha_0  = params.alpha_0;
+        double Lambda_0 = params.Lambda_0;
+
+        double vp = sqrt((1 + xi_0) * w * w  + (pT * pT + m * m) * tau_0 * tau_0);
+        double f_in3 = (1.0 / alpha_0) * exp(-vp / (Lambda_0 * tau_0));
+        
+        return f_in3 / (4.0 * PI * PI);
+    }
+    // -------------------------------------
+
+
+
+    double EquilibriumDistribution(double w, double pT, double tau, SP& params)
+    {
+        double T   = GetTemperature(tau, params);
+        double m   = params.mass;
+        double vp  = sqrt(w * w  + (pT * pT + m * m) * tau * tau);
+        double feq = exp(-vp / (T * tau));
+
+        return feq / (4.0 * PI * PI);
+    }
+    // -------------------------------------
+
+
+
+    double EaxctDisbtribution(double w, double pT, double tau, SP& params)
+    {
+        double tau_0 = params.tau_0;
+        double feq_contrib = GausQuad([tau](double t, double p, double w, SP& params){ 
+            return DecayFactor(tau, t, params) * EquilibriumDistribution(w, p, t, params) / TauRelaxation(t, params);
+        }, tau_0, tau, tol, max_depth2, pT, w, params);
+
+        return DecayFactor(tau, tau_0, params) * InitialDistribution(w, pT, params) + feq_contrib;
+    }
+    // -------------------------------------
+
+
+
     double GetMoments(double tau, SP& params)
     {
         double tau_0 = params.tau_0;
         return DecayFactor(tau, tau_0, params) * InitialEnergyDensity(tau, params) + EquilibriumContribution(tau, params);
+    }
+    // -------------------------------------
+
+
+
+    double GetMoments2(double tau, SP& params)
+    {
+        return GausQuad([](double pT, double tau, SP& params){
+            return pT * GetMoments2Aux(pT, tau, params); 
+        }, 0, inf, tol, max_depth2, tau, params);
+    }
+    // -------------------------------------
+
+
+
+    double GetMoments2Aux(double pT, double tau, SP& params)
+    {
+        return GausQuad([](double w, double pT, double tau, SP&params){ 
+            double m = params.mass;
+            double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+            return 2.0 * vp * EaxctDisbtribution(w, pT, tau, params) / (tau * tau) ; 
+            }, 0, inf, tol, max_depth2, pT, tau, params);
     }
     // -------------------------------------
 
@@ -261,10 +310,6 @@ namespace exact{
             std::cout << "n: " << n << std::endl;
             double tau = tau_0;
 
-            // omp_set_dynamic(0);   // Ensure no subthreading
-            // omp_set_num_threads(6);
-            // int i;
-            // #pragma omp parallel for shared(e, steps) private(i) schedule(static,1)
             for (int i = 0; i < steps; i++)
             {
                 e[i] = GetMoments(tau, params);

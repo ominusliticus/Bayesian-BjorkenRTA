@@ -1,3 +1,6 @@
+//
+// Author: Kevin Ingles
+
 #ifndef GLOBALCONSTANTS_HPP
 #define GLOBALCONSTANTS_HPP
 #include <math.h>

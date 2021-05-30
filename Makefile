@@ -1,7 +1,9 @@
+# TO DO: Switch to CMake
+
 CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
 OPT = -O2 -funroll-loops -finline-functions -fopenmp
-LIBS = -lpthread
-INCLUDES = -I /usr/local/include 
+LIBS = -lpthread -lfmt
+INCLUDES = -I /usr/local/include
 
 SRC = ./src/
 INC = ./include/
@@ -12,7 +14,7 @@ OBJ_FILES := $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(FILES))
 
 CFLAGS = $(OPT)
 
-EXE = exact_solution.x
+EXE = ./build/exact_solution.x
 
 all: $(EXE)
 
