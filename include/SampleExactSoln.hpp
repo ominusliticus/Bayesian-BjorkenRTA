@@ -41,6 +41,13 @@ class Sampler
     int acceptances;    // number of samples kept: used to calculate sample efficiency
 
     SimulationParameters _params;
+
+    double _tau_f;                  // Sampling time (more generically freeze out time)
+    double _temperature_f;          // Sampling temperature (more genericaly freeze out temperature)
+    double _total_energy_density;   // Total energy density at time tau_f
+
+    // Helper functions that don't need to be public
+    double GaussianKernel(MilneMomentum p_mu);
 };
 
 #endif
