@@ -239,14 +239,76 @@ namespace exact{
 
 
 
-    double EaxctDisbtribution(double w, double pT, double tau, SP& params)
+    double EaxctDistribution(double w, double pT, double tau, SP& params)
     {
         double tau_0 = params.tau_0;
-        double feq_contrib = GausQuad([tau](double t, double p, double w, SP& params){ 
-            return DecayFactor(tau, t, params) * EquilibriumDistribution(w, p, t, params) / TauRelaxation(t, params);
+        double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
+            return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
         }, tau_0, tau, tol, max_depth2, pT, w, params);
 
         return DecayFactor(tau, tau_0, params) * InitialDistribution(w, pT, params) + feq_contrib;
+    }
+    // -------------------------------------
+
+
+
+    double ThetaIntegratedExactDistribution(double p, double tau, SP& params)
+    {
+        return GausQuad([](double theta, double p, double tau, SP& params)
+        {
+            double costheta = cos(theta);
+            double sintheta = sin(theta);
+
+            double pz = p * costheta;
+            double pT = p * sintheta;
+            return sintheta * EaxctDistribution(pz / tau, pT, tau, params);
+
+        }, 0, PI, tol, max_depth, p, tau, params);
+    }
+    // -------------------------------------
+
+
+
+    std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params)
+    {
+        double tau_0 = params.tau_0;
+        double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
+            return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
+        }, tau_0, tau, tol, max_depth2, pT, w, params);
+        double initial_contrib = DecayFactor(tau, tau_0, params) * InitialDistribution(w, pT, params);
+        return std::make_tuple(initial_contrib, feq_contrib);
+    }
+    // -------------------------------------
+
+
+
+    std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params)
+    {
+        double initial_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        {
+            double costheta = cos(theta);
+            double sintheta = sin(theta);
+
+            double pz = p * costheta;
+            double pT = p * sintheta;
+            return sintheta * DecayFactor(tau, params.tau_0, params) * InitialDistribution(pz / tau, pT, params);
+
+        }, 0, PI, tol, max_depth, p, tau, params);
+
+        double equilibrium_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        {
+            double costheta = cos(theta);
+            double sintheta = sin(theta);
+
+            double pz = p * costheta;
+            double pT = p * sintheta;
+            return sintheta * (GausQuad([tau](double t, double pT, double w, SP& params){ 
+                                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
+                                }, params.tau_0, tau, tol, max_depth2, pT, pz / tau, params));
+
+        }, 0, PI, tol, max_depth, p, tau, params);
+
+        return std::make_tuple(initial_contrib, equilibrium_contrib);
     }
     // -------------------------------------
 
@@ -276,7 +338,7 @@ namespace exact{
         return GausQuad([](double w, double pT, double tau, SP&params){ 
             double m = params.mass;
             double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
-            return 2.0 * vp * EaxctDisbtribution(w, pT, tau, params) / (tau * tau) ; 
+            return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
             }, 0, inf, tol, max_depth2, pT, tau, params);
     }
     // -------------------------------------
@@ -313,19 +375,14 @@ namespace exact{
             for (int i = 0; i < steps; i++)
             {
                 e[i] = GetMoments(tau, params);
-                double Temp = InvertEnergyDensity(e[i], params);
-                params.D[i] = 1.0 / Temp;
                 tau += step_size;
             }
-            // Note: including the params.D update statement int the loop above, leads to a much faster
-            // convergence. Is this a bug, or a feature?
 
-            // for (int i = 0; i < steps; i++)
-            // {
-            //     double Temp = InvertEnergyDensity(e[i], params);
-            //     Print(out, tau, Temp);
-            //     params.D[i] = 1.0 / Temp;
-            // }
+            for (int i = 0; i < steps; i++)
+            {
+                double Temp = InvertEnergyDensity(e[i], params);
+                params.D[i] = 1.0 / Temp;
+            }
             err = abs(last_D - params.D[steps - 1]) / params.D[steps - 1];
             last_D = params.D[steps - 1];
             n++;
@@ -338,4 +395,3 @@ namespace exact{
         }
     }
 }
-

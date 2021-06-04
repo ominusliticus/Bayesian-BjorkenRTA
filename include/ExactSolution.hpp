@@ -2,10 +2,11 @@
 // Author: Kevin Ingles
 // Credit: Chandrodoy Chattopadhyay for original code
 
-#ifndef EXACTSOLUTION_HPP
-#define EXACTSOLUTION_HPP
+#ifndef EXACT_SOLUTION_HPP
+#define EXACT_SOLUTION_HPP
 
 #include <vector>
+#include <tuple>
 
 #include "Errors.hpp"
 #include "GlobalConstants.hpp"
@@ -14,6 +15,7 @@
 using SP = SimulationParameters;
 
 // TODO: Functions defined on Euclidean 3-momentum. Need to change to Milne coordinates
+// TODO: Add documentation to comments that explain what all the variables used mean (can be done in implementation file)
 
 namespace exact{
 
@@ -54,12 +56,17 @@ namespace exact{
     double InitialEnergyDensity(double tau, SP& params);
 
     // exact solution for distribution function
-    double EaxctDisbtribution(double w, double pT, double tau, SP& params);
+    double EaxctDistribution(double w, double pT, double tau, SP& params);
+    double ThetaIntegratedExactDistribution(double p, double tau, SP& params);
+    std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params);
+    std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params);
 
-    // Returns nth moment for particle distribution function, needs modification...
+    // Returns nth moment for particle distribution function
+    // Using analytic expressions
     double GetMoments(double tau, SP& params);
+    // Doing momenta integrals
     double GetMoments2(double tau, SP& params);
-    double GetMoments2Aux(double p, double tau, SP& params);
+    double GetMoments2Aux(double pT, double tau, SP& params);
 
     // Evolve simulation and output results;
     void Run(std::ostream& out, SP& params);
