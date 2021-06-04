@@ -1,8 +1,8 @@
 //
 // Author: Kevin Ingles
 
-#ifndef GLOBALCONSTANTS_HPP
-#define GLOBALCONSTANTS_HPP
+#ifndef GLOBAL_CONSTANTS_HPP
+#define GLOBAL_CONSTANTS_HPP
 #include <math.h>
 
 // fixed constants that I don't want to be global variables

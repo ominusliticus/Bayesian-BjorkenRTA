@@ -1,10 +1,12 @@
 //
 // Author: Kevin Ingles
 
-
 #ifndef INTEGRATION_HPP
 #define INTEGRATION_HPP
+
 #include "Errors.hpp"
+
+#include <limits>
 
 constexpr double inf = std::numeric_limits<double>::infinity();
 

@@ -16,10 +16,10 @@ struct SimulationParameters
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
-    double tau_0;
-    double Lambda_0;
-    double xi_0;
-    double alpha_0;
+    double tau_0;     // Starting time
+    double Lambda_0;  // Initial anisotropic temperature
+    double xi_0;      // Initial anisotropy parameter
+    double alpha_0;   // Initial bulk pressure parameter
 
     // For exact solution code - specific
     double ul; // Stopping time for simulation

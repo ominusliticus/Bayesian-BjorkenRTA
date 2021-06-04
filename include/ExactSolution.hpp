@@ -14,6 +14,10 @@
 
 using SP = SimulationParameters;
 
+<<<<<<< HEAD
+=======
+// TODO: Functions defined on Euclidean 3-momentum. Need to change to Milne coordinates
+>>>>>>> Initial commit to add_sampler branch
 // TODO: Add documentation to comments that explain what all the variables used mean (can be done in implementation file)
 
 namespace exact{
@@ -84,6 +88,7 @@ namespace exact{
     std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params);
 
 
+<<<<<<< HEAD
 
 
     ////////////////////////////////////////////////////////////
@@ -96,6 +101,20 @@ namespace exact{
 
     // Return temperature corresponding to a given energy density e
     double InvertEnergyDensity(double e, SP& params);
+=======
+    // exact solution for distribution function
+    double EaxctDistribution(double w, double pT, double tau, SP& params);
+    double ThetaIntegratedExactDistribution(double p, double tau, SP& params);
+    std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params);
+    std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params);
+
+    // Returns nth moment for particle distribution function
+    // Using analytic expressions
+    double GetMoments(double tau, SP& params);
+    // Doing momenta integrals
+    double GetMoments2(double tau, SP& params);
+    double GetMoments2Aux(double pT, double tau, SP& params);
+>>>>>>> Initial commit to add_sampler branch
 
     // Evolve simulation and output results;
     void Run(std::ostream& out, SP& params);

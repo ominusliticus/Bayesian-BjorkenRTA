@@ -279,6 +279,54 @@ namespace exact{
 
 
     std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params)
+<<<<<<< HEAD
+=======
+    {
+        double tau_0 = params.tau_0;
+        double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
+            return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
+        }, tau_0, tau, tol, max_depth2, pT, w, params);
+        double initial_contrib = DecayFactor(tau, tau_0, params) * InitialDistribution(w, pT, params);
+        return std::make_tuple(initial_contrib, feq_contrib);
+    }
+    // -------------------------------------
+
+
+
+    std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params)
+    {
+        double initial_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        {
+            double costheta = cos(theta);
+            double sintheta = sin(theta);
+
+            double pz = p * costheta;
+            double pT = p * sintheta;
+            return sintheta * DecayFactor(tau, params.tau_0, params) * InitialDistribution(pz / tau, pT, params);
+
+        }, 0, PI, tol, max_depth, p, tau, params);
+
+        double equilibrium_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        {
+            double costheta = cos(theta);
+            double sintheta = sin(theta);
+
+            double pz = p * costheta;
+            double pT = p * sintheta;
+            return sintheta * (GausQuad([tau](double t, double pT, double w, SP& params){ 
+                                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
+                                }, params.tau_0, tau, tol, max_depth2, pT, pz / tau, params));
+
+        }, 0, PI, tol, max_depth, p, tau, params);
+
+        return std::make_tuple(initial_contrib, equilibrium_contrib);
+    }
+    // -------------------------------------
+
+
+
+    double GetMoments(double tau, SP& params)
+>>>>>>> Initial commit to add_sampler branch
     {
         double tau_0 = params.tau_0;
         double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
@@ -356,6 +404,7 @@ namespace exact{
 
     double GetMoments2Aux(double pT, double tau, SP& params, Moment flag)
     {
+<<<<<<< HEAD
         switch (flag)
         {
             case Moment::ED:
@@ -442,6 +491,13 @@ namespace exact{
         }while (flag_1 != 1 && n <= 2000);
 
         return mid;	
+=======
+        return GausQuad([](double w, double pT, double tau, SP&params){ 
+            double m = params.mass;
+            double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+            return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
+            }, 0, inf, tol, max_depth2, pT, tau, params);
+>>>>>>> Initial commit to add_sampler branch
     }
     // -------------------------------------
 
@@ -476,7 +532,11 @@ namespace exact{
 
             for (int i = 0; i < steps; i++)
             {
+<<<<<<< HEAD
                 e[i] = GetMoments(tau, params, Moment::ED);
+=======
+                e[i] = GetMoments(tau, params);
+>>>>>>> Initial commit to add_sampler branch
                 tau += step_size;
             }
 

@@ -3,6 +3,7 @@
 # Starting time for hydrodynamics
 tau_0 0.1
 
+<<<<<<< HEAD
 # Initial anisotropic pressure
 Lambda_0 1.64720404472724
 
@@ -11,6 +12,19 @@ xi_0 -0.832036509976845
 
 # Another initial anisotropy parameter
 alpha_0 0.654868759801639
+=======
+# Initial anisotropic temperature
+# 0.1333188 / 0.197
+Lambda_0 0.676735026
+
+# Initial anisotropy parameter
+xi_0 1.0
+
+# Generate large initial bulk pressure
+# 7.79274 * pow(10, -5) / 0.197
+alpha_0 1.0
+# 3.9557056e-4
+>>>>>>> Initial commit to add_sampler branch
 
 # Stopping simulation time
 ul 100.1

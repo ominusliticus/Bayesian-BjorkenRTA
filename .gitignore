@@ -1,14 +1,15 @@
+.ipynb_checkpoints/
+bin/
+build/
 others/
+output/
+
+*.bin
 *.dat
+*.ipch
 *.out
 *.x
 
-*.ipch
-*.bin
-bin/
-build/
-
-.ipynb_checkpoints/
 psuedocode.txt
 Debug_Plots.ipynb
 useful_for_calculations.ipynb
