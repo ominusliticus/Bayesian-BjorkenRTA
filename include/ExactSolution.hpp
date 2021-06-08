@@ -14,10 +14,10 @@
 
 using SP = SimulationParameters;
 
-// TODO: Functions defined on Euclidean 3-momentum. Need to change to Milne coordinates
 // TODO: Add documentation to comments that explain what all the variables used mean (can be done in implementation file)
 
 namespace exact{
+    enum class Moment { ED = 0, PL, PT };
 
     // Calculate the equilibrium energy density at temperature T_eq 
     // with momemtum integration
@@ -65,8 +65,8 @@ namespace exact{
     // Using analytic expressions
     double GetMoments(double tau, SP& params);
     // Doing momenta integrals
-    double GetMoments2(double tau, SP& params);
-    double GetMoments2Aux(double pT, double tau, SP& params);
+    double GetMoments2(double tau, SP& params, Moment flag);
+    double GetMoments2Aux(double pT, double tau, SP& params, Moment flag);
 
     // Evolve simulation and output results;
     void Run(std::ostream& out, SP& params);

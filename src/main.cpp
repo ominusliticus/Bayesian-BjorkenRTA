@@ -21,30 +21,13 @@ int main()
     fout.close();
 
     fout = std::fstream("./output/e_density_comparison.dat", std::fstream::out);
-    for (double tau = params.tau_0; tau <= 50.1; tau += 1.0)
+    for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
     {
-        std::fstream fwrite1(fmt::format("./output/extact_solution_tuple_{:.{}f}.dat", tau, 1), std::fstream::out);
-        std::fstream fwrite2(fmt::format("./output/exact_solution_tuple_theta_intergrate_{:.{}f}.dat", tau, 1), std::fstream::out);
         Print(std::cout, fmt::format("Evaluating for time {}", tau));
-        // for (double w = -3.0; w <= 3.0; w += 0.02)
-        //     for (double pT = -3.0; pT <= 3.0; pT += 0.02)
-        //         Print(fwrite, w, pT, exact::EaxctDistribution(w, pT, tau, params));
-        // fwrite.close();
-
-        for (double p = 0.0; p <= 3.0; p += 0.01)
-        {
-            auto [first1, second1] = exact::EaxctDistributionTuple(0, p, tau, params);
-            Print(fwrite1, p, first1, second1);
-            
-            auto [first2, second2] = exact::ThetaIntegratedExactDistributionTuple(p, tau, params);
-            Print(fwrite2, p, first2, second2);
-        }
-        fwrite1.close();
-        fwrite2.close();
-
-        double old_e_density = exact::GetMoments(tau, params);
-        double new_e_density = exact::GetMoments2(tau, params);
-        Print(fout, tau, old_e_density, new_e_density);
+        double new_e_density = exact::GetMoments2(tau, params, exact::Moment::ED);
+        double new_pL        = exact::GetMoments2(tau, params, exact::Moment::PL);
+        double new_pT        = exact::GetMoments2(tau, params, exact::Moment::PT);
+        Print(fout, tau, new_e_density, new_pL, new_pT);
     }
     fout.close();
     return 0;

@@ -12,6 +12,7 @@ constexpr double inf = std::numeric_limits<double>::infinity();
 constexpr int NSUM48 = 24;
 
 
+// constexpr keyword is to ensure there are not defined in multiple translation units
 constexpr double x48[NSUM48] = { 0.0323801709628694,
                     0.0970046992094627,
                     0.1612223560688917,

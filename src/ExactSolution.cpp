@@ -23,6 +23,7 @@ namespace exact{
     
     double EquilibriumEnergyDensity(double temp, SP& params)
     {
+        // 
         return GausQuad(EquilibriumEnergyDensityAux, 0.0, inf, tol, max_depth, temp, params);
     }
     // -------------------------------------
@@ -119,12 +120,12 @@ namespace exact{
         if (abs(alpha) < 1)
         {
             beta = sqrt((1.0 - alpha * alpha) / (alpha * alpha + zeta * zeta));
-            return alpha * (sqrt(alpha * alpha + zeta * zeta) +  (1.0 + zeta * zeta) / sqrt(1.0-alpha * alpha) * atan(beta));
+            return alpha * (sqrt(alpha * alpha + zeta * zeta) + (1.0 + zeta * zeta) / sqrt(1.0 - alpha * alpha) * atan(beta));
         }
         else if (abs(alpha) > 1)
         {
             beta = sqrt( (alpha*alpha - 1)/(alpha*alpha + zeta*zeta) );
-            return ( alpha*(sqrt(alpha*alpha + zeta*zeta) +  (1.0 + zeta*zeta)/sqrt(alpha*alpha-1)*atanh(beta) )  );
+            return alpha * (sqrt(alpha * alpha + zeta * zeta) + (1.0 + zeta * zeta) / sqrt(alpha * alpha - 1) * atanh(beta));
         }
         else return 0;
     }
@@ -323,23 +324,59 @@ namespace exact{
 
 
 
-    double GetMoments2(double tau, SP& params)
+    double GetMoments2(double tau, SP& params, Moment flag)
     {
-        return GausQuad([](double pT, double tau, SP& params){
-            return pT * GetMoments2Aux(pT, tau, params); 
-        }, 0, inf, tol, max_depth2, tau, params);
+        switch (flag)
+        {
+            case Moment::ED:
+                return GausQuad([](double pT, double tau, SP& params, Moment flag){
+                    return pT * GetMoments2Aux(pT, tau, params, flag); 
+                }, 0, inf, tol, max_depth2, tau, params, flag);
+            
+            case Moment::PL:
+                return GausQuad([](double pT, double tau, SP& params, Moment flag)
+                {
+                    return pT * GetMoments2Aux(pT, tau, params, flag);
+                }, 0, inf, tol, max_depth2, tau, params, flag);
+            
+            case Moment::PT:
+                return GausQuad([](double pT, double tau, SP& params, Moment flag)
+                {
+                    return pT * pT * pT * GetMoments2Aux(pT, tau, params, flag);
+                }, 0, inf, tol, max_depth2, tau, params, flag);
+        }
+        return -999;
     }
     // -------------------------------------
 
 
 
-    double GetMoments2Aux(double pT, double tau, SP& params)
+    double GetMoments2Aux(double pT, double tau, SP& params, Moment flag)
     {
-        return GausQuad([](double w, double pT, double tau, SP&params){ 
-            double m = params.mass;
-            double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
-            return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
-            }, 0, inf, tol, max_depth2, pT, tau, params);
+        switch (flag)
+        {
+            case Moment::ED:
+                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                    double m = params.mass;
+                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
+                }, 0, inf, tol, max_depth2, pT, tau, params);
+
+            case Moment::PL:
+                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                    double m = params.mass;
+                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    return 2.0 * w * w * EaxctDistribution(w, pT, tau, params) / (tau * tau * vp) ; 
+                }, 0, inf, tol, max_depth2, pT, tau, params);
+                
+            case Moment::PT:
+                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                    double m = params.mass;
+                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    return EaxctDistribution(w, pT, tau, params) / vp; 
+                }, 0, inf, tol, max_depth2, pT, tau, params);
+        }
+        return -999;
     }
     // -------------------------------------
 
@@ -362,7 +399,7 @@ namespace exact{
         }
 
 
-        // Iteratively approximate temperature evolution
+        // Iteratively solve for temperature evolution
         int n = 0;
         double err = inf;
         double last_D = 1.0 / T0;
