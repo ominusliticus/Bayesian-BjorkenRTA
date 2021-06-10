@@ -4,26 +4,22 @@
 tau_0 0.1
 
 # Initial anisotropic pressure
-# 0.1333188 / 0.197
-Lambda_0 0.676735026
+Lambda_0 1.64720404472724
 
 # Initial anisotropy parameter
-xi_0 5.0
+xi_0 -0.832036509976845
 
 # Another initial anisotropy parameter
-# 7.79274 * pow(10, -5) / 0.197
-alpha_0 1.0
-# 3.9557056e-4
+alpha_0 0.654868759801639
 
 # Stopping simulation time
-ul 10.1
+ul 100.1
 
 # Start simulation time
 ll 0.1
 
 # Mass of particles
-# 0.140 / 0.197
-mass 0.7106598984
+mass 1.015228426395939
 
 # Initial viscous transport coefficient
 # 10 / (4.0 * PI)

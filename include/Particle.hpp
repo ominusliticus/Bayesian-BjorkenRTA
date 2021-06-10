@@ -8,7 +8,7 @@
 #include "Parameters.hpp"
 
 // Struct to contain particle information
-// for now we are limit to massive Boltzmann particles or only one species
+// for now we are limited to massive Boltzmann particles or only one species
 struct Particle
 {
     // Default constructor, so I don't have to manually initialize all data vars

@@ -10,6 +10,7 @@
 
 struct SimulationParameters
 {
+    SimulationParameters() = default;
     SimulationParameters(const char* filename);
     ~SimulationParameters();
 

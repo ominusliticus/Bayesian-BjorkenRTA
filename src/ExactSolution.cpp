@@ -5,7 +5,7 @@
 #include "../include/Integration.hpp"
 
 #include <iomanip>
-#include <omp.h>
+#include <cmath>
 
 
 
@@ -20,28 +20,14 @@ namespace exact{
     const double tol     = eps; //eps;
     const int max_depth  = 0;
     const int max_depth2 = 1;
+
+
+
+
+    ////////////////////////////////////////////////////////////
+    ///        Code need by all subsequent functions         ///
+    ////////////////////////////////////////////////////////////
     
-    double EquilibriumEnergyDensity(double temp, SP& params)
-    {
-        // 
-        return GausQuad(EquilibriumEnergyDensityAux, 0.0, inf, tol, max_depth, temp, params);
-    }
-    // -------------------------------------
-
-
-
-    double EquilibriumEnergyDensityAux(double p, double temp, SP& params)
-    {
-        double m = params.mass;
-        double Ep = sqrt(p * p + m * m);
-        double f_equilibrium = exp(-Ep / temp);
-
-        return 2.0 * p * p * Ep * f_equilibrium / (4.0 * PI * PI );
-    }
-    // -------------------------------------
-
-
-
     double GetTemperature(double z, SP& params)
     {
         double tau_0 = params.tau_0;
@@ -55,112 +41,12 @@ namespace exact{
     // -------------------------------------
 
 
-
-    double InvertEnergyDensity(double e, SP& params)
-    {
-        double x1, x2, mid;
-        double T_min = .001/.197;
-        double T_max = 2.0/.197; 
-        x1 = T_min;
-        x2 = T_max;
-
-
-        double copy(0.0) , prec = 1.e-6;
-        int n = 0;
-        int flag_1 = 0;
-        do
-        {
-            mid = (x1 + x2) / 2.0;
-            double e_mid = EquilibriumEnergyDensity(mid, params);
-            double e1 = EquilibriumEnergyDensity(x1, params);
-
-
-            if (abs(e_mid - e) < prec) 
-                break;
-
-            if ((e_mid - e) * (e1 - e) <= 0.0) 
-                x2=mid;
-            else
-                x1=mid;
-
-            n++;        
-            if (n == 1) 
-                copy = mid;
-
-            if (n > 4)
-            {
-                if (abs(copy - mid) < prec)
-                flag_1 = 1;	
-                copy = mid;
-            }
-        }while (flag_1 != 1 && n <= 2000);
-
-        return mid;	
-    }
-    // -------------------------------------
-
-
-
+    
     double TauRelaxation(double tau, SP& params)
     {
         double T = GetTemperature(tau, params);
         double eta_s = params.eta_s;
         return 5.0 * eta_s / T;
-    }
-    // -------------------------------------
-
-
-
-    double H2(double alpha, double zeta)
-    {
-        if (abs(alpha - 1.0) < eps) alpha = 1.0 - eps;
-
-        double beta;
-
-        if (abs(alpha) < 1)
-        {
-            beta = sqrt((1.0 - alpha * alpha) / (alpha * alpha + zeta * zeta));
-            return alpha * (sqrt(alpha * alpha + zeta * zeta) + (1.0 + zeta * zeta) / sqrt(1.0 - alpha * alpha) * atan(beta));
-        }
-        else if (abs(alpha) > 1)
-        {
-            beta = sqrt( (alpha*alpha - 1)/(alpha*alpha + zeta*zeta) );
-            return alpha * (sqrt(alpha * alpha + zeta * zeta) + (1.0 + zeta * zeta) / sqrt(alpha * alpha - 1) * atanh(beta));
-        }
-        else return 0;
-    }
-    // -------------------------------------
-
-
-
-    double H2Tilde(double y, double z)
-    {
-        return GausQuad(H2TildeAux, 0, inf, tol, max_depth, y, z);
-    }
-    // -------------------------------------
-    
-
-
-    double H2TildeAux(double u, double y, double z)
-    {
-        if (abs(u) < eps) u = eps;
-        return u * u * u * exp(-sqrt(u * u + z * z)) * H2(y, z / u);
-    }
-    // -------------------------------------
-
-    
-
-    double EquilibriumEnergyDensity(double tau, double z, SP& params)
-    {
-        double m = params.mass;
-        double T = GetTemperature(z, params);
-        double gamma = z / tau;
-        double zeta = m / T;
-
-        double integrand_z = pow(T, 4.0) / (4.0 * PI * PI) * H2Tilde(gamma,zeta);
-
-
-        return integrand_z;
     }
     // -------------------------------------
 
@@ -175,24 +61,99 @@ namespace exact{
 
 
 
-    double EquilibriumContribution(double tau, SP& params)
+
+    ////////////////////////////////////////////////////////////
+    ///        Code for evaluating moments analytically      ///
+    ////////////////////////////////////////////////////////////
+
+    double H(double y, double z, Moment flag)
     {
-        double tau_0 = params.tau_0;
-        return GausQuad(EquilibriumContributionAux, tau_0, tau, tol, max_depth2, tau, params);
+        if (abs(y - 1.0) < eps) y = 1.0 - eps;
+
+        double x;
+        double atanh_val;
+        double sign;
+
+        // Checks to ensure H returns a real value
+        if (abs(y) < 1)
+        {
+            x = 1.0 - y * y;
+            atanh_val = atan(sqrt((1.0 - y * y) / (y * y + z * z)));
+            sign = -1.0; // from factoring out factors of i
+        }
+        else if (abs(y) > 1)
+        {
+            x = y * y - 1.0;
+            atanh_val = atanh(sqrt((y * y - 1) / (y * y + z * z)));
+            sign = 1.0;
+        }
+        else return 0;
+        
+    
+        switch (flag) // Note Moment::PEQ gets switched to ED in EquilibriumDistributionMoment
+        {
+            case Moment::ED:
+                return y * (sqrt(y * y + z * z) + (1 + z * z) / sqrt(x) * atanh_val);
+            
+            case Moment::PL:
+                return sign * y * y * y / pow(x, 1.5) * (sqrt(x *(y * y + z * z)) - (z * z + 1.0) * atanh_val);
+
+            case Moment::PT:
+                return sign * y / pow(x, 1.5) * (-sqrt(x * (y * y + z * z)) + ( z * z + 2.0 * y * y - 1.0) * atanh_val);
+        }
+
+        return -888;
     }
     // -------------------------------------
 
 
 
-    double EquilibriumContributionAux(double x, double tau, SP& params)
+    double HTilde(double y, double z, Moment flag)
     {
-        return DecayFactor(tau, x, params) * EquilibriumEnergyDensity(tau, x, params) / TauRelaxation(x, params);
+        return GausQuad(HTildeAux, 0, inf, tol, max_depth, y, z, flag);
+    }
+    // -------------------------------------
+    
+
+
+    double HTildeAux(double u, double y, double z, Moment flag)
+    {
+        if (abs(u) < eps) u = eps;
+        return u * u * u * exp(-sqrt(u * u + z * z)) * H(y, z / u, flag);
+    }
+    // -------------------------------------
+
+    
+
+    double EquilibriumDistributionMoment(double tau, double zeta, SP& params, Moment flag)
+    {
+        double m = params.mass;
+        double T = GetTemperature(zeta, params);
+        double y = zeta / tau;
+        double z = m / T;
+
+        switch (flag)
+        {
+            case Moment::ED:
+                return pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::ED);
+            
+            case Moment::PL:
+                return pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::PL);
+
+            case Moment::PT:
+                return pow(T, 4.0) / (8.0 * PI * PI) * HTilde(y, z, Moment::PT);
+
+            case Moment::PEQ:
+                return 0.0;
+        }
+
+        return -1111;
     }
     // -------------------------------------
 
 
 
-    double InitialEnergyDensity(double tau, SP& params)
+    double InitialDistributionMoment(double tau, SP& params, Moment flag)
     {
         double tau_0    = params.tau_0;
         double xi_0     = params.xi_0;
@@ -204,11 +165,58 @@ namespace exact{
         double y0 = tau_0 / (tau * sqrt(1.0 + xi_0));
         double z0 = m / Lambda_0;
 
-        return pow(Lambda_0, 4.0) * H2Tilde(y0, z0) / (4.0 * PI * PI * alpha_0);
+        switch (flag)
+        {
+            case Moment::ED:
+                return pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::ED);
+            
+            case Moment::PL:
+                return pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PL);
+
+            case Moment::PT:
+                return pow(Lambda_0, 4.0) / (8.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PT);
+
+            case Moment::PEQ:
+                // PEQ requires us to take moment w.r.t. equilibrium distribution
+                double T = GetTemperature(tau, params);
+                double z = params.mass / T;
+                return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z) / DecayFactor(tau, params.tau_0, params);
+        }
+
+        return -2222;
+    }
+    // -------------------------------------
+    
+    
+    
+    double EquilibriumContribution(double tau, SP& params, Moment flag)
+    {
+        return GausQuad(EquilibriumContributionAux, params.tau_0, tau, tol, max_depth2, tau, params, flag);
     }
     // -------------------------------------
 
 
+
+    double EquilibriumContributionAux(double x, double tau, SP& params, Moment flag)
+    {
+        return DecayFactor(tau, x, params) * EquilibriumDistributionMoment(tau, x, params, flag) / TauRelaxation(x, params);
+    }
+    // -------------------------------------
+
+
+
+    double GetMoments(double tau, SP& params, Moment flag)
+    {
+        return DecayFactor(tau, params.tau_0, params) * InitialDistributionMoment(tau, params, flag) + EquilibriumContribution(tau, params, flag);
+    }
+    // -------------------------------------
+
+
+
+
+    ////////////////////////////////////////////////////////////
+    ///        Code for evaluating moments numerically       ///
+    ////////////////////////////////////////////////////////////
 
     double InitialDistribution(double w, double pT, SP& params)
     {
@@ -315,15 +323,6 @@ namespace exact{
 
 
 
-    double GetMoments(double tau, SP& params)
-    {
-        double tau_0 = params.tau_0;
-        return DecayFactor(tau, tau_0, params) * InitialEnergyDensity(tau, params) + EquilibriumContribution(tau, params);
-    }
-    // -------------------------------------
-
-
-
     double GetMoments2(double tau, SP& params, Moment flag)
     {
         switch (flag)
@@ -344,6 +343,10 @@ namespace exact{
                 {
                     return pT * pT * pT * GetMoments2Aux(pT, tau, params, flag);
                 }, 0, inf, tol, max_depth2, tau, params, flag);
+
+            case Moment::PEQ:
+                Print_Error(std::cerr, "Error in exact::GetMoment2: Moment::PEQ option not available.");
+                break;
         }
         return -999;
     }
@@ -375,8 +378,70 @@ namespace exact{
                     double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return EaxctDistribution(w, pT, tau, params) / vp; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
+
+            case Moment::PEQ:
+                Print_Error(std::cerr, "Error in exact::GetMoment2Aux: Moment::PEQ option not available.");
+                break;
         }
         return -999;
+    }
+    // -------------------------------------
+
+
+
+    ////////////////////////////////////////////////////////////
+    ///        Code to solve temperature evolution           ///
+    ////////////////////////////////////////////////////////////
+
+    double EquilibriumEnergyDensity(double temp, SP& params)
+    {
+        double z = params.mass / temp;
+        return 3.0 * pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
+    }
+    // -------------------------------------
+
+
+
+    double InvertEnergyDensity(double e, SP& params)
+    {
+        double x1, x2, mid;
+        double T_min = .001/.197;
+        double T_max = 2.0/.197; 
+        x1 = T_min;
+        x2 = T_max;
+
+
+        double copy(0.0) , prec = 1.e-6;
+        int n = 0;
+        int flag_1 = 0;
+        do
+        {
+            mid = (x1 + x2) / 2.0;
+            double e_mid = EquilibriumEnergyDensity(mid, params);
+            double e1 = EquilibriumEnergyDensity(x1, params);
+
+
+            if (abs(e_mid - e) < prec) 
+                break;
+
+            if ((e_mid - e) * (e1 - e) <= 0.0) 
+                x2=mid;
+            else
+                x1=mid;
+
+            n++;        
+            if (n == 1) 
+                copy = mid;
+
+            if (n > 4)
+            {
+                if (abs(copy - mid) < prec)
+                flag_1 = 1;	
+                copy = mid;
+            }
+        }while (flag_1 != 1 && n <= 2000);
+
+        return mid;	
     }
     // -------------------------------------
 
@@ -389,7 +454,7 @@ namespace exact{
         double step_size = params.step_size;
         
         // Setting upp initial guess for temperature
-        double e0 = InitialEnergyDensity(tau_0, params);
+        double e0 = InitialDistributionMoment(tau_0, params, Moment::ED);
         double T0 = InvertEnergyDensity(e0, params);
 
         for (int i = 0; i < steps; i++)
@@ -411,7 +476,7 @@ namespace exact{
 
             for (int i = 0; i < steps; i++)
             {
-                e[i] = GetMoments(tau, params);
+                e[i] = GetMoments(tau, params, Moment::ED);
                 tau += step_size;
             }
 
@@ -430,5 +495,6 @@ namespace exact{
             double tau = tau_0 + (double)i * step_size;
             Print(out, std::setprecision(16), tau, params.D[i], 1.0/params.D[i]*.197); 
         }
+        Print(std::cout, "Temperature evolution calculation terminated successfully.");
     }
 }
