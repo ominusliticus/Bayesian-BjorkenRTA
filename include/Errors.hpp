@@ -9,7 +9,7 @@
 
 // TODO: switch to using fmt library...
 template<typename... Args>
-void Print(std::ostream& out, Args&&... args)
+inline void Print(std::ostream& out, Args&&... args)
 {
     // Uses C++17 Folding Expressions
     ((out << std::forward<Args>(args) << '\t'), ...);
@@ -17,7 +17,7 @@ void Print(std::ostream& out, Args&&... args)
 }
 
 template<typename... Args>
-void Print_Error(std::ostream& out, Args&&... args)
+inline void Print_Error(std::ostream& out, Args&&... args)
 {
     // Uses C++17 Folding Expressions
     ((out << std::forward<Args>(args) << '\t'), ...);

@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
 //
 // Author: Kevin Ingles
->>>>>>> Initial commit to add_sampler branch
 // Credit: iS3D/src/cpp/particle.h - https://github.com/derekeverett/iS3D.git
 
 #ifndef PARTICLE_HPP
