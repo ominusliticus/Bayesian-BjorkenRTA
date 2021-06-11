@@ -62,6 +62,8 @@ namespace sampler
 
             samples[i] = current_vector;
         }
+
+        return samples;
     }
 }
 
