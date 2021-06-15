@@ -30,6 +30,13 @@ struct SimulationParameters
     double steps;
     double step_size;
 
+    // parameters for hydrodynamic evolution equations
+    double pl_pt_ratio;
+    double eta_s_min;
+    double eta_s_slope;
+    double zeta_s_norm;
+    double T_c;
+
     std::vector<double> D;
 }; // end struct SimulationParameters
 

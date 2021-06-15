@@ -1,6 +1,7 @@
 # params.txt
 
 # Starting time for hydrodynamics
+# units fm/c
 tau_0 0.1
 
 # Initial anisotropic pressure
@@ -19,6 +20,7 @@ ul 100.1
 ll 0.1
 
 # Mass of particles
+# units fm^{-1}
 mass 1.015228426395939
 
 # Initial viscous transport coefficient
@@ -28,3 +30,22 @@ eta_s 0.795774715
 # Steps to take in simulation
 steps 10001
 
+#
+#   Parameters for anisotropic hydrodynamics
+#
+
+# PL-to-PT ratio 
+pl_pt_ratio 0.3
+
+# eta/S minimum, see Eq. (78) in arXiv:1803:01810
+eta_s_min 0.08
+
+# eta/S slope, see Eq. (78) in arXiv:1803.01810
+# units fm^{-3}
+eta_s_slope 4.314720812182
+
+# zeta/S normalization, see Eq. (79) in arXiv:1803.01810
+zeta_s_norm 1.25
+
+# Critical temperature
+T_c 154

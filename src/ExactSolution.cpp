@@ -55,7 +55,7 @@ namespace exact{
     double DecayFactor(double tau1, double tau2, SP& params)
     {
         double val = GausQuad([](double x, SP& params){ return 1.0 / TauRelaxation(x, params); }, tau2, tau1, tol, max_depth2, params);
-        return exp(-val);
+        return std::exp(-val);
     }
     // -------------------------------------
 
@@ -68,23 +68,23 @@ namespace exact{
 
     double H(double y, double z, Moment flag)
     {
-        if (abs(y - 1.0) < eps) y = 1.0 - eps;
+        if (std::abs(y - 1.0) < eps) y = 1.0 - eps;
 
         double x;
         double atanh_val;
         double sign;
 
         // Checks to ensure H returns a real value
-        if (abs(y) < 1)
+        if (std::abs(y) < 1)
         {
             x = 1.0 - y * y;
-            atanh_val = atan(sqrt((1.0 - y * y) / (y * y + z * z)));
+            atanh_val = std::atan(std::sqrt((1.0 - y * y) / (y * y + z * z)));
             sign = -1.0; // from factoring out factors of i
         }
-        else if (abs(y) > 1)
+        else if (std::abs(y) > 1)
         {
             x = y * y - 1.0;
-            atanh_val = atanh(sqrt((y * y - 1) / (y * y + z * z)));
+            atanh_val = std::atanh(std::sqrt((y * y - 1) / (y * y + z * z)));
             sign = 1.0;
         }
         else return 0;
@@ -93,13 +93,13 @@ namespace exact{
         switch (flag) // Note Moment::PEQ gets switched to ED in EquilibriumDistributionMoment
         {
             case Moment::ED:
-                return y * (sqrt(y * y + z * z) + (1 + z * z) / sqrt(x) * atanh_val);
+                return y * (std::sqrt(y * y + z * z) + (1 + z * z) / std::sqrt(x) * atanh_val);
             
             case Moment::PL:
-                return sign * y * y * y / pow(x, 1.5) * (sqrt(x *(y * y + z * z)) - (z * z + 1.0) * atanh_val);
+                return sign * y * y * y / std::pow(x, 1.5) * (std::sqrt(x *(y * y + z * z)) - (z * z + 1.0) * atanh_val);
 
             case Moment::PT:
-                return sign * y / pow(x, 1.5) * (-sqrt(x * (y * y + z * z)) + ( z * z + 2.0 * y * y - 1.0) * atanh_val);
+                return sign * y / std::pow(x, 1.5) * (-std::sqrt(x * (y * y + z * z)) + ( z * z + 2.0 * y * y - 1.0) * atanh_val);
         }
 
         return -888;
@@ -118,8 +118,8 @@ namespace exact{
 
     double HTildeAux(double u, double y, double z, Moment flag)
     {
-        if (abs(u) < eps) u = eps;
-        return u * u * u * exp(-sqrt(u * u + z * z)) * H(y, z / u, flag);
+        if (std::abs(u) < eps) u = eps;
+        return u * u * u * std::exp(-std::sqrt(u * u + z * z)) * H(y, z / u, flag);
     }
     // -------------------------------------
 
@@ -135,13 +135,13 @@ namespace exact{
         switch (flag)
         {
             case Moment::ED:
-                return pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::ED);
+                return std::pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::ED);
             
             case Moment::PL:
-                return pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::PL);
+                return std::pow(T, 4.0) / (4.0 * PI * PI) * HTilde(y, z, Moment::PL);
 
             case Moment::PT:
-                return pow(T, 4.0) / (8.0 * PI * PI) * HTilde(y, z, Moment::PT);
+                return std::pow(T, 4.0) / (8.0 * PI * PI) * HTilde(y, z, Moment::PT);
 
             case Moment::PEQ:
                 return 0.0;
@@ -162,25 +162,26 @@ namespace exact{
         double Lambda_0 = params.Lambda_0;
 
         // analytic result
-        double y0 = tau_0 / (tau * sqrt(1.0 + xi_0));
+        double y0 = tau_0 / (tau * std::sqrt(1.0 + xi_0));
         double z0 = m / Lambda_0;
 
         switch (flag)
         {
             case Moment::ED:
-                return pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::ED);
+                return std::pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::ED);
             
             case Moment::PL:
-                return pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PL);
+                return std::pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PL);
 
             case Moment::PT:
-                return pow(Lambda_0, 4.0) / (8.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PT);
+                return std::pow(Lambda_0, 4.0) / (8.0 * PI * PI * alpha_0) * HTilde(y0, z0, Moment::PT);
 
             case Moment::PEQ:
                 // PEQ requires us to take moment w.r.t. equilibrium distribution
                 double T = GetTemperature(tau, params);
                 double z = params.mass / T;
-                return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z) / DecayFactor(tau, params.tau_0, params);
+                // Notice that we divide by DecayFactor(...) to offset multiplying by it in GetMomets(...)
+                return z * z * std::pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z) / DecayFactor(tau, params.tau_0, params);
         }
 
         return -2222;
@@ -226,8 +227,8 @@ namespace exact{
         double alpha_0  = params.alpha_0;
         double Lambda_0 = params.Lambda_0;
 
-        double vp = sqrt((1 + xi_0) * w * w  + (pT * pT + m * m) * tau_0 * tau_0);
-        double f_in3 = (1.0 / alpha_0) * exp(-vp / (Lambda_0 * tau_0));
+        double vp = std::sqrt((1 + xi_0) * w * w  + (pT * pT + m * m) * tau_0 * tau_0);
+        double f_in3 = (1.0 / alpha_0) * std::exp(-vp / (Lambda_0 * tau_0));
         
         return f_in3 / (4.0 * PI * PI);
     }
@@ -239,8 +240,8 @@ namespace exact{
     {
         double T   = GetTemperature(tau, params);
         double m   = params.mass;
-        double vp  = sqrt(w * w  + (pT * pT + m * m) * tau * tau);
-        double feq = exp(-vp / (T * tau));
+        double vp  = std::sqrt(w * w  + (pT * pT + m * m) * tau * tau);
+        double feq = std::exp(-vp / (T * tau));
 
         return feq / (4.0 * PI * PI);
     }
@@ -361,21 +362,21 @@ namespace exact{
             case Moment::ED:
                 return GausQuad([](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
-                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
 
             case Moment::PL:
                 return GausQuad([](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
-                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return 2.0 * w * w * EaxctDistribution(w, pT, tau, params) / (tau * tau * vp) ; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
                 
             case Moment::PT:
                 return GausQuad([](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
-                    double vp = sqrt(w * w + (pT * pT + m * m) * tau * tau);
+                    double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return EaxctDistribution(w, pT, tau, params) / vp; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
 
@@ -396,7 +397,7 @@ namespace exact{
     double EquilibriumEnergyDensity(double temp, SP& params)
     {
         double z = params.mass / temp;
-        return 3.0 * pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
+        return 3.0 * std::pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
     }
     // -------------------------------------
 
@@ -418,10 +419,10 @@ namespace exact{
         {
             mid = (x1 + x2) / 2.0;
             double e_mid = EquilibriumEnergyDensity(mid, params);
-            double e1 = EquilibriumEnergyDensity(x1, params);
+            double e1    = EquilibriumEnergyDensity(x1, params);
 
 
-            if (abs(e_mid - e) < prec) 
+            if (std::abs(e_mid - e) < prec) 
                 break;
 
             if ((e_mid - e) * (e1 - e) <= 0.0) 
@@ -435,7 +436,7 @@ namespace exact{
 
             if (n > 4)
             {
-                if (abs(copy - mid) < prec)
+                if (std::abs(copy - mid) < prec)
                 flag_1 = 1;	
                 copy = mid;
             }
@@ -460,7 +461,7 @@ namespace exact{
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
-            params.D[i] = 1.0 / T0 / pow(tau_0 / tau, 1.0 / 3.0);
+            params.D[i] = 1.0 / T0 / std::pow(tau_0 / tau, 1.0 / 3.0);
         }
 
 
@@ -485,7 +486,7 @@ namespace exact{
                 double Temp = InvertEnergyDensity(e[i], params);
                 params.D[i] = 1.0 / Temp;
             }
-            err = abs(last_D - params.D[steps - 1]) / params.D[steps - 1];
+            err = std::abs(last_D - params.D[steps - 1]) / params.D[steps - 1];
             last_D = params.D[steps - 1];
             n++;
         } while (err > eps);   

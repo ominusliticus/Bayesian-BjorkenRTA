@@ -20,6 +20,8 @@ CFLAGS = $(OPT)
 
 EXE = ./build/exact_solution.x
 TEST_MOM = ./build/test_moments.x
+TEST_EXACT = ./build/test_output_exact.x
+TEST_EXACT_TUPLE = ./build/test_output_exact_tuple.x
 
 all: $(EXE)
 
