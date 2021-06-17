@@ -36,12 +36,6 @@ int main()
 
     Print(std::cout, "Running anisotropic hydrodnamics.");
     hydro::AnisoHydroEvolution aniso;
-    double mass = 0.2 / 0.197;
-    double X[3] {0.5 / 0.197, 1.0, 1.0};
-    // double pbar = 1.0;
-    Print(std::cout, aniso.IntegralI(2, 0, 0, 0, mass, X));
-    Print(std::cout, aniso.IntegralI(2, 0, 1, 0, mass, X));
-    Print(std::cout, aniso.IntegralI(2, 2, 0, 0, mass, X));
     aniso.RunHydroSimulation(params);
     return 0;
 }

@@ -86,38 +86,30 @@ namespace hydro
             return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
         };
         aVars.Lambda = T0; aVars.alpha_T = 1.0; aVars.alpha_L = 1.0;
-
-        Print(std::cout, "e: ", t0, e1 );
-        Print(std::cout, "pt:", t0, pl1);
-        Print(std::cout, "pl:", t0, pt1);
-        // exit(0);
         FindAnisoVariables(e1, pt1, pl1, m, aVars);
         
         // Begin simulation 
         TransportCoefficients tc;
         double t;
-        for (int n = 0; n < params.steps; n++)
+        for (int n = 0; n < 20; n++)
         {
             t = t0 + n * dt;
             Print(e_plot , t, e1 );
             Print(pl_plot, t, pl1);
             Print(pt_plot, t, pt1);
 
-            Print(std::cout, "e: ", t, e1 );
-            Print(std::cout, "pt:", t, pl1);
-            Print(std::cout, "pl:", t, pt1);
+            Print(std::cout, fmt::format("t = {}\te = {}\tpt = {}\tpl = {}",t , e1, pt1, pl1));
 
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables of the struct
             
             // First order
             FindAnisoVariables(e1, pt1, pl1, m, aVars);
-            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e1, pt1, pl1, params, aVars);
             p1 = EquilibriumPressure(e1, params);
             de1  = dt *  dedt(e1, pl1, t);
-            dpt2 = dt * dptdt(p1, pt1, pl1, t, tc);
-            dpl2 = dt * dpldt(p1, pt1, pl1, t, tc);
+            dpt1 = dt * dptdt(p1, pt1, pl1, t, tc);
+            dpl1 = dt * dpldt(p1, pt1, pl1, t, tc);
 
             e2  = e1  + de1  / 2.0;
             pt2 = pt1 + dpt1 / 2.0;
@@ -125,7 +117,6 @@ namespace hydro
 
             // Second order
             FindAnisoVariables(e2, pt2, pl2, m, aVars);
-            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e2, pt2, pl2, params, aVars);
             p2 = EquilibriumPressure(e2, params);
             de2  = dt *  dedt(e2, pl2, t + dt / 2.0);
@@ -138,7 +129,6 @@ namespace hydro
 
             // Third order
             FindAnisoVariables(e3, pt3, pl3, m, aVars);
-            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e3, pt3, pl3, params, aVars);
             p3 = EquilibriumPressure(e3, params);
             de3  = dt *  dedt(e3, pl3, t + dt / 2.0);
@@ -151,7 +141,6 @@ namespace hydro
 
             // Fourth order
             FindAnisoVariables(e4, pt4, pl4, m, aVars);
-            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e4, pt4, pl4, params, aVars);
             p4 = EquilibriumPressure(e4, params);
             de4  = dt *  dedt(e4, pl4, t + dt);
@@ -185,16 +174,14 @@ namespace hydro
         double LaT3 = Lambda * pow(alpha_T, 3.0);
         double LaL3 = Lambda * pow(alpha_L, 3.0);
 
-        Print(std::cout, Lambda, alpha_T, alpha_L);
-        Print(std::cout, IntegralJ(2, 0, 0, 1, mass, X), IntegralJ(4, 0, 1, -1, mass, X), IntegralJ(4, 2, 0, -1, mass, X));
-        Print(std::cout, IntegralJ(2, 0, 1, 1, mass, X), IntegralJ(4, 0, 2, -1, mass, X), IntegralJ(4, 2, 1, -1, mass, X));
-        Print(std::cout, IntegralJ(2, 2, 0, 1, mass, X), IntegralJ(4, 2, 1, -1, mass, X), IntegralJ(4, 4, 0, -1, mass, X));
-        Print(std::cout);
+        double ep  = F[0] + e;
+        double ptp = F[1] + pt;
+        double plp = F[2] + pl;
 
         // J is defined in Eq. (72) in arXiv:1803.01810 with the last two rows swapped
         J[0][0] = IntegralJ(2, 0, 0, 1, mass, X) / L2;
-        J[0][1] = 2.0 * IntegralJ(4, 0, 1, -1, mass, X) / LaT3;
-        J[0][2] = IntegralJ(4, 2, 0, -1, mass, X) / LaL3;
+        J[0][1] = 2.0 * (ep + ptp) / alpha_T;           // Need to use F to calculate these components to 
+        J[0][2] =(ep + plp) / alpha_L;                  // capture the induced anisotropy.
 
         J[1][0] = IntegralJ(2, 0, 1, 1, mass, X) / L2;
         J[1][1] = 4.0 * IntegralJ(4, 0, 2, -1, mass, X) / LaT3;
@@ -318,9 +305,28 @@ namespace hydro
         const double tol = 1.e-4;
         for (int n = 0; n < 100; n++)                                   // Is 100 enough?
         {
-            Print(std::cout, "Before:");
-            Print(std::cout, "X:", X[0], X[1], X[2]);
-            Print(std::cout, "F:", F[0], F[1], F[2]);
+            // Ultimately, we want F(X) = 0, so its magnitude should also = 0
+            double F_magnitude = sqrt(F[0] * F[0]  +  F[1] * F[1]  +  F[2] * F[2]);
+
+            // Check if any quantities have gone negative. If yes, then break.
+            if (X[0] < 0 || X[1] < 0 || X[2] < 0) 
+            {                
+                gsl_permutation_free(p);
+       		    gsl_vector_free(x);
+                break;
+            }
+
+            // Check for convergence of F(X)
+            if (F_magnitude < tol)
+            {
+                aVars.Lambda  = X[0];
+                aVars.alpha_T = X[1];
+                aVars.alpha_L = X[2];
+
+                gsl_permutation_free(p);
+                gsl_vector_free(x);
+                break;
+            }
 
             ComputeJ(e, pt, pl, mass, X, F, J);
             double f = (F[0] * F[0] + F[1] * F[1] + F[2] * F[2]) / 2.0;	// f = F(X).F(X) / 2
@@ -349,34 +355,8 @@ namespace hydro
             for (int i = 0; i < 3; i++) X[i] += delta_step * dX[i];
 
             // LineBackTrack also modifies F(X)
-            double F_magnitude = sqrt(F[0] * F[0]  +  F[1] * F[1]  +  F[2] * F[2]);
+            F_magnitude = sqrt(F[0] * F[0]  +  F[1] * F[1]  +  F[2] * F[2]);
             dX_magnitude *= delta_step;
-
-            Print(std::cout, "After:");
-            Print(std::cout, "X:", X[0], X[1], X[2]);
-            Print(std::cout, "F:", F[0], F[1], F[2]);
-            Print(std::cout, "F_abs:", F_magnitude);
-            Print(std::cout);
-
-            // Check if any quantities have gone negative. If yes, then break.
-            if (X[0] < 0 || X[1] < 0 || X[2] < 0) 
-            {                
-                gsl_permutation_free(p);
-       		    gsl_vector_free(x);
-                break;
-            }
-
-            // Check for convergence of F(X)
-            if (dX_magnitude < tol && F_magnitude < tol)
-            {
-                aVars.Lambda  = X[0];
-                aVars.alpha_T = X[1];
-                aVars.alpha_L = X[2];
-
-                gsl_permutation_free(p);
-                gsl_vector_free(x);
-                break;
-            }
         } // End Newton-Coats loop
     }
     // -------------------------------------
@@ -525,9 +505,9 @@ namespace hydro
         double K1  = std::cyl_bessel_k(1, z);
         double Ki1 = GausQuad([](double th, double z){ return std::exp(- z * std::cosh(th)) / std::cosh(th); }, 0, inf, tol, max_depth, z); 
         
-        double peq  = z * z * std::pow(T, 4.0) / (2.0 * PI * PI) * K2;                          // Equilibrium pressure
+        double peq  = z * z * pow(T, 4.0) / (2.0 * PI * PI) * K2;                               // Equilibrium pressure
         double cs2  = (e + peq) / (3.0 * e + (3.0 + z * z) * peq);                              // Sound speed squared
-        double s    = pow(T, 4.0) / (2.0 * PI * PI) * (4.0 * z * z * K2 + pow(z, 3.0) * K1);    // Equilibrium entropy density
+        double s    = pow(T, 3.0) / (2.0 * PI * PI) * (4.0 * z * z * K2 + pow(z, 3.0) * K1);    // Equilibrium entropy density
  
         double beta_pi = pow(T * z, 5.0) / (30.0 * T * PI * PI) * ((K5 - 7.0 * K3 + 22.0 * K1) / 16.0 - Ki1);
         double beta_Pi = 5.0 * beta_pi / 3.0 - cs2 * (e + peq);
@@ -563,7 +543,6 @@ namespace hydro
 
     double AnisoHydroEvolution::dedt(double e, double pl, double tau)
     {
-        fmt::print("e = {}, pl = {}\n", e, pl);
         return -(e + pl) / tau;
     }
     // -------------------------------------
@@ -576,7 +555,6 @@ namespace hydro
         double tau_Pi     = tc.tau_Pi;
         double zetaBar_zT = tc.zetaBar_zT;
         double pbar       = (pl + 2.0 * pt) / 3.0;
-        fmt::print("p = {}, pt = {}, pl = {}, tau_pi = {}, tau_Pi = {}, zetaBar_zT = {}\n", p, pt, pl, tau_pi, tau_Pi, zetaBar_zT);
         return -(pbar - p) / tau_Pi + (pl - pt) / (3.0 * tau_pi) + zetaBar_zT / tau;
     }
     // -------------------------------------
@@ -589,7 +567,6 @@ namespace hydro
         double tau_Pi     = tc.tau_Pi;
         double zetaBar_zL = tc.zetaBar_zL;
         double pbar       = (pl + 2.0 * pt) / 3.0;
-        fmt::print("p = {}, pt = {}, pl = {}, tau_pi = {}, tau_Pi = {}, zetaBar_zL = {}\n", p, pt, pl, tau_pi, tau_Pi, zetaBar_zL);
         return -(pbar - p) / tau_Pi - (pl - pt) / (1.5 * tau_pi) + zetaBar_zL / tau;
     }
 }
