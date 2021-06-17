@@ -7,6 +7,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <functional>
 
 namespace hydro
 {
@@ -15,7 +16,11 @@ namespace hydro
     // utility fuction for quick exponentiation
     double pow(double base, double exp)
     {
-        return std::exp(exp * std::log(base));
+        // assumes that epx is an integer!
+        if (base < 0)
+            return std::exp(exp * std::log(std::fabs(base))) * std::cos(exp * PI);
+        else 
+            return std::exp(exp * std::log(base));
     }
     // -------------------------------------
 
@@ -36,7 +41,6 @@ namespace hydro
     {
         double t0 = params.tau_0;
         double dt = params.step_size;
-        double m  = params.mass;
 
         // for setprecision of t output
         int decimal = - (int) std::log10(dt);
@@ -51,9 +55,17 @@ namespace hydro
             Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
             exit(-3333);
         }
+        else
+        {
+            // format output steams
+            e_plot  << std::fixed << std::setprecision(decimal + 2);
+            pl_plot << std::fixed << std::setprecision(decimal + 2);
+            pt_plot << std::fixed << std::setprecision(decimal + 2);
+        }
         
         // Initialize simulation
-        T0         = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
+        // T0         = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
+        T0 = 0.500 / 0.197;
         double m   = params.mass;       // Note theat the mass in already in units fm^{-1}
         double z0  = m / T0;
         double e0  = 3.0 * pow(T0, 4.0) / (PI * PI) * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);   // Equilibrium energy density
@@ -63,9 +75,22 @@ namespace hydro
         e1  = e0;
         pt1 = 3.0 * p0 / (2.0 + params.pl_pt_ratio);
         pl1 = 3.0 * p0 * params.pl_pt_ratio / (2.0 + params.pl_pt_ratio);
+        p1  = p0;
 
-        aVars.Lambda = T0; aVars.alpha_T = 1.0; aVars.alpha_L = 2.0;
+        // To lazy to add a whole new functions just for this purpose,
+        // so I am making it a lambda
+        std::function<double(double,SP& params)> EquilibriumPressure = [this](double e, SP& params) -> double
+        {
+            double T = InvertEnergyDensity(e, params);
+            double z = params.mass / T;
+            return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
+        };
+        aVars.Lambda = T0; aVars.alpha_T = 1.0; aVars.alpha_L = 1.0;
 
+        Print(std::cout, "e: ", t0, e1 );
+        Print(std::cout, "pt:", t0, pl1);
+        Print(std::cout, "pl:", t0, pt1);
+        // exit(0);
         FindAnisoVariables(e1, pt1, pl1, m, aVars);
         
         // Begin simulation 
@@ -74,19 +99,25 @@ namespace hydro
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
-            Print(e_plot , std::fixed, std::setprecision(decimal + 2), t, e1 );
-            Print(pl_plot, std::fixed, std::setprecision(decimal + 2), t, pl1);
-            Print(pt_plot, std::fixed, std::setprecision(decimal + 2), t, pt1);
+            Print(e_plot , t, e1 );
+            Print(pl_plot, t, pl1);
+            Print(pt_plot, t, pt1);
+
+            Print(std::cout, "e: ", t, e1 );
+            Print(std::cout, "pt:", t, pl1);
+            Print(std::cout, "pl:", t, pt1);
 
             // RK4 with updating anisotropic variables
-            // Note all dynamic variables are declared as member variables
+            // Note all dynamic variables are declared as member variables of the struct
             
             // First order
             FindAnisoVariables(e1, pt1, pl1, m, aVars);
+            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e1, pt1, pl1, params, aVars);
+            p1 = EquilibriumPressure(e1, params);
             de1  = dt *  dedt(e1, pl1, t);
-            dpt2 = dt * dptdt(e1, pt1, pl1, t, tc);
-            dpl2 = dt * dpldt(e1, pt1, pl1, t, tc);
+            dpt2 = dt * dptdt(p1, pt1, pl1, t, tc);
+            dpl2 = dt * dpldt(p1, pt1, pl1, t, tc);
 
             e2  = e1  + de1  / 2.0;
             pt2 = pt1 + dpt1 / 2.0;
@@ -94,32 +125,38 @@ namespace hydro
 
             // Second order
             FindAnisoVariables(e2, pt2, pl2, m, aVars);
+            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e2, pt2, pl2, params, aVars);
-            de2  = dt *  dedt(e2, pl2, t);
-            dpt2 = dt * dpldt(e2, pt2, pl2, t, tc);
-            dpl2 = dt * dptdt(e2, pt2, pl2, t, tc);
+            p2 = EquilibriumPressure(e2, params);
+            de2  = dt *  dedt(e2, pl2, t + dt / 2.0);
+            dpt2 = dt * dptdt(p2, pt2, pl2, t + dt / 2.0, tc);
+            dpl2 = dt * dpldt(p2, pt2, pl2, t + dt / 2.0, tc);
 
-            e3  = e2  + de2  / 2.0;
-            pl3 = pl2 + dpt2 / 2.0;
-            pt3 = pt2 + dpl2 / 2.0;
+            e3  = e1  + de2  / 2.0;
+            pl3 = pl1 + dpt2 / 2.0;
+            pt3 = pt1 + dpl2 / 2.0;
 
             // Third order
             FindAnisoVariables(e3, pt3, pl3, m, aVars);
+            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e3, pt3, pl3, params, aVars);
-            de3  = dt *  dedt(e3, pl3, t);
-            dpt3 = dt * dpldt(e3, pt3, pl3, t, tc);
-            dpl3 = dt * dptdt(e3, pt3, pl3, t, tc);
+            p3 = EquilibriumPressure(e3, params);
+            de3  = dt *  dedt(e3, pl3, t + dt / 2.0);
+            dpt3 = dt * dptdt(p3, pt3, pl3, t + dt / 2.0, tc);
+            dpl3 = dt * dpldt(p3, pt3, pl3, t + dt / 2.0, tc);
             
-            e4  = e3  + de3;
-            pl4 = pl3 + dpt3;
-            pt4 = pt3 + dpl3;
+            e4  = e1  + de3;
+            pl4 = pl1 + dpt3;
+            pt4 = pt1 + dpl3;
 
             // Fourth order
             FindAnisoVariables(e4, pt4, pl4, m, aVars);
+            Print(std::cout, aVars.Lambda, aVars.alpha_T, aVars.alpha_L);
             tc = CalculateTransportCoefficients(e4, pt4, pl4, params, aVars);
-            de4  = dt *  dedt(e4, pl4, t);
-            dpt4 = dt * dpldt(e4, pt4, pl4, t, tc);
-            dpl4 = dt * dptdt(e4, pt4, pl4, t, tc);
+            p4 = EquilibriumPressure(e4, params);
+            de4  = dt *  dedt(e4, pl4, t + dt);
+            dpt4 = dt * dptdt(p4, pt4, pl4, t + dt, tc);
+            dpl4 = dt * dpldt(p4, pt4, pl4, t + dt, tc);
 
             e1  += (de1  + 2.0 * de2  + 2.0 * de3  +  de4) / 6.0;
             pt1 += (dpt1 + 2.0 * dpt2 + 2.0 * dpt3 + dpt4) / 6.0;
@@ -133,7 +170,6 @@ namespace hydro
 
     void AnisoHydroEvolution::ComputeF(double e, double pt, double pl, double mass, double (&X)[3], double F[3])
     {
-        // F here is defined by Eq. (70) in arXiv:1803.01810 
         F[0] = IntegralI(2, 0, 0, 0, mass, X) - e;
         F[1] = IntegralI(2, 0, 1, 0, mass, X) - pt;
         F[2] = IntegralI(2, 2, 0, 0, mass, X) - pl;
@@ -149,18 +185,24 @@ namespace hydro
         double LaT3 = Lambda * pow(alpha_T, 3.0);
         double LaL3 = Lambda * pow(alpha_L, 3.0);
 
-        // J is defined in Eq. (72) in arXiv:1803.01810 
-        J[0][0] = IntegralJ(2, 0, 0, 0, mass, X) / L2;
+        Print(std::cout, Lambda, alpha_T, alpha_L);
+        Print(std::cout, IntegralJ(2, 0, 0, 1, mass, X), IntegralJ(4, 0, 1, -1, mass, X), IntegralJ(4, 2, 0, -1, mass, X));
+        Print(std::cout, IntegralJ(2, 0, 1, 1, mass, X), IntegralJ(4, 0, 2, -1, mass, X), IntegralJ(4, 2, 1, -1, mass, X));
+        Print(std::cout, IntegralJ(2, 2, 0, 1, mass, X), IntegralJ(4, 2, 1, -1, mass, X), IntegralJ(4, 4, 0, -1, mass, X));
+        Print(std::cout);
+
+        // J is defined in Eq. (72) in arXiv:1803.01810 with the last two rows swapped
+        J[0][0] = IntegralJ(2, 0, 0, 1, mass, X) / L2;
         J[0][1] = 2.0 * IntegralJ(4, 0, 1, -1, mass, X) / LaT3;
         J[0][2] = IntegralJ(4, 2, 0, -1, mass, X) / LaL3;
 
-        J[1][0] = IntegralJ(2, 2, 0, 1, mass, X) / L2;
-        J[1][1] = 2.0 * IntegralJ(4, 2, 1, -1, mass, X) / LaT3;
-        J[1][2] = IntegralJ(4, 4, 0, -1, mass, X) / LaL3;
+        J[1][0] = IntegralJ(2, 0, 1, 1, mass, X) / L2;
+        J[1][1] = 4.0 * IntegralJ(4, 0, 2, -1, mass, X) / LaT3;
+        J[1][2] = IntegralJ(4, 2, 1, -1, mass, X) / LaL3;
 
-        J[2][0] = IntegralJ(2, 0, 1, 1, mass, X) / L2;
-        J[2][1] = 2.0 * IntegralJ(4, 0, 2, -1, mass, X) / LaT3;
-        J[2][2] = IntegralJ(4, 2, 1, -1, mass, X) / LaL3;
+        J[2][0] = IntegralJ(2, 2, 0, 1, mass, X) / L2;
+        J[2][1] = 2.0 * IntegralJ(4, 2, 1, -1, mass, X) / LaT3;
+        J[2][2] = IntegralJ(4, 4, 0, -1, mass, X) / LaL3;
 
     }
     // -------------------------------------
@@ -258,7 +300,7 @@ namespace hydro
 
 
 
-    void AnisoHydroEvolution::FindAnisoVariables(double e, double pt, double pl, double mass, AnisoVariables aVars)
+    void AnisoHydroEvolution::FindAnisoVariables(double e, double pt, double pl, double mass, AnisoVariables& aVars)
     {
         double X[3] {aVars.Lambda, aVars.alpha_T, aVars.alpha_L};  // Current solution
         double dX[3]   {};  // Iteration step
@@ -273,12 +315,16 @@ namespace hydro
         gsl_vector * x = gsl_vector_alloc(3);							// holds dX
         gsl_permutation * p = gsl_permutation_alloc(3);
         
-        double tol = 1.e-6;
+        const double tol = 1.e-4;
         for (int n = 0; n < 100; n++)                                   // Is 100 enough?
         {
+            Print(std::cout, "Before:");
+            Print(std::cout, "X:", X[0], X[1], X[2]);
+            Print(std::cout, "F:", F[0], F[1], F[2]);
+
             ComputeJ(e, pt, pl, mass, X, F, J);
-            double f = (F[0] * F[0] + F[1] * F[1] + F[2] * F[2]) / 2.;	// f = F(X).F(X) / 2
-            double J_gsl[9] = {J[0][0], J[0][1], J[0][2],
+            double f = (F[0] * F[0] + F[1] * F[1] + F[2] * F[2]) / 2.0;	// f = F(X).F(X) / 2
+            double J_gsl[9] = {J[0][0], J[0][1], J[0][2],               // Mike code has these the last two rows reversd in his code: still needs clarification
                                J[1][0], J[1][1], J[1][2],
                                J[2][0], J[2][1], J[2][2]};				// Jacobian matrix in gsl format
 
@@ -306,8 +352,14 @@ namespace hydro
             double F_magnitude = sqrt(F[0] * F[0]  +  F[1] * F[1]  +  F[2] * F[2]);
             dX_magnitude *= delta_step;
 
+            Print(std::cout, "After:");
+            Print(std::cout, "X:", X[0], X[1], X[2]);
+            Print(std::cout, "F:", F[0], F[1], F[2]);
+            Print(std::cout, "F_abs:", F_magnitude);
+            Print(std::cout);
+
             // Check if any quantities have gone negative. If yes, then break.
-            if (X[0] < 0 || X[1] < 0 || X[3]) 
+            if (X[0] < 0 || X[1] < 0 || X[2] < 0) 
             {                
                 gsl_permutation_free(p);
        		    gsl_vector_free(x);
@@ -319,7 +371,7 @@ namespace hydro
             {
                 aVars.Lambda  = X[0];
                 aVars.alpha_T = X[1];
-                aVars.alpha_L = X[3];
+                aVars.alpha_L = X[2];
 
                 gsl_permutation_free(p);
                 gsl_vector_free(x);
@@ -331,72 +383,76 @@ namespace hydro
 
 
 
-    double AnisoHydroEvolution::IntegralI(int n, int q, int r, int s, double mass, double (&X)[3])
+    double AnisoHydroEvolution::IntegralI(int n, int r, int q, int s, double mass, double (&X)[3])
     {
-        return GausQuad([this](double pbar, int n, int q, int r, int s, double mass, double (&X)[3])
+        double val = GausQuad([this](double pbar, int n, int r, int q, int s, double mass, double (&X)[3])
         {
-            return IntegralIAux(n, q, r, s, mass, pbar, X);
-        }, 0, inf, tol, max_depth, n, q, r, s, mass, X);
+            return IntegralIAux(n, r, q, s, mass, pbar, X);
+        }, 0, inf, tol, max_depth, n, r, q, s, mass, X);
+        return val;
     }
     // -------------------------------------
 
 
 
-    double AnisoHydroEvolution::IntegralIAux(int n, int q, int r, int s, double mass, double pbar, double (&X)[3])
+    double AnisoHydroEvolution::IntegralIAux(int n, int r, int q, int s, double mass, double pbar, double (&X)[3])
     {
         // Get anisotropic variables using structured binding
         auto [Lambda, alpha_T, alpha_L] = X;
         double mbar      = mass / Lambda;
         double prefactor = pow(alpha_T, 2 * q + 2) * pow(alpha_L, r + 1) * pow(Lambda, n + s + 2) / (4 * PI * PI * doubleFactorial(2 * q));
-        double pbar_ns1  = pow(pbar, n + 2 + 1);
-        double Rnrq      = IntegrandR(n, r, q, mass, pbar, X);
+        double pbar_ns1  = pow(pbar, n + s + 1);
+        double Rnrq      = IntegralR(n, r, q, mass, pbar, X);
         double feq       = std::exp(-std::sqrt(pbar * pbar + mbar * mbar));
         return prefactor * pbar_ns1 * Rnrq * feq;
+    
     }
     // -------------------------------------
 
 
 
-    double AnisoHydroEvolution::IntegralJ(int n, int q, int r, int s, double mass, double (&X)[3])
+    double AnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, double (&X)[3])
     {
-        return GausQuad([this](double pbar, int n, int q, int r, int s, double mass, double (&X)[3])
+        return GausQuad([this](double pbar, int n, int r, int q, int s, double mass, double (&X)[3])
         {
-            return IntegralJAux(n, q, r, s, mass, pbar, X);
-        }, 0, inf, tol, max_depth, n, q, r, s, mass, X);
+            return IntegralJAux(n, r, q, s, mass, pbar, X);
+        }, 0, inf, tol, max_depth, n, r, q, s, mass, X);
     }
     // -------------------------------------
 
 
 
-    double AnisoHydroEvolution::IntegralJAux(int n, int q, int r, int s, double mass, double pbar, double (&X)[3])
+    double AnisoHydroEvolution::IntegralJAux(int n, int r, int q, int s, double mass, double pbar, double (&X)[3])
     {
         // Get anisotropic variables using structured binding
         auto [Lambda, alpha_T, alpha_L] = X;
         double mbar      = mass / Lambda;
         double prefactor = pow(alpha_T, 2 * q + 2) * pow(alpha_L, r + 1) * pow(Lambda, n + s + 2) / (4 * PI * PI * doubleFactorial(2 * q));
-        double pbar_ns1  = pow(pbar, n + 2 + 1);
-        double Rnrq      = IntegrandR(n, r, q, mass, pbar, X);
+        double pbar_ns1  = pow(pbar, n + s + 1);
+        double Rnrq      = IntegralR(n, r, q, mass, pbar, X);
         double feq       = std::exp(-std::sqrt(pbar * pbar + mbar * mbar));
-        return prefactor * pbar_ns1 * Rnrq * feq * (1 - feq);
+        return prefactor * pbar_ns1 * Rnrq * feq * (1 - 0.0 * feq);
     }
     // -------------------------------------
 
 
 
-    double AnisoHydroEvolution::IntegrandR(int n, int q, int r, double mass, double pbar, double (&X)[3])
+    double AnisoHydroEvolution::IntegralR(int n, int r, int q, double mass, double pbar, double (&X)[3])
     {
         auto [Lambda, alpha_T, alpha_L] = X;
         double mbar = mass / Lambda;
         double w    = std::sqrt(alpha_L * alpha_L + pow(mbar / pbar, 2.0));
         double z    = (alpha_T * alpha_T - alpha_L * alpha_L) / (w * w);
-        return GausQuad([this](double theta, int n, int q, int r, double z, double w)
+        double val = GausQuad([this](double x, int n, int r, int q, double z, double w)
         {
+            double y            = std::sqrt(1 - x * x);
             double w_nr2q1      = pow(w, n - r - 2 * q - 1);
-            double sintheta_2q1 = pow(std::sin(theta), 2 * q + 1);
-            double costheta_r   = pow(std::cos(theta), r);
-            double val          = pow(1 + z * pow(std::sin(theta), 2.0), (n - r - 2 * q - 1) / 2.0);
-            return w_nr2q1 * sintheta_2q1 * costheta_r * val;
-        }, 0, PI, tol, max_depth, n, q, r, z, w);
+            double sintheta_2q  = pow(y, 2 * q);
+            double costheta_r   = pow(x, r);
+            double val          = pow(1 + z * y * y, (n - r - 2 * q - 1) / 2.0);
+            return w_nr2q1 * sintheta_2q * costheta_r * val;
+        }, -1, 1, tol, max_depth, n, r, q, z, w);
+        return val;
     }
     // -------------------------------------
 
@@ -456,7 +512,7 @@ namespace hydro
 
 
 
-    AnisoHydroEvolution::TransportCoefficients& AnisoHydroEvolution::CalculateTransportCoefficients(double e, double pt, double pl, SP& params, AnisoVariables aVars)
+    AnisoHydroEvolution::TransportCoefficients AnisoHydroEvolution::CalculateTransportCoefficients(double e, double pt, double pl, SP& params, AnisoVariables aVars)
     {
         double T  = InvertEnergyDensity(e, params);
         double z  = params.mass / T;
@@ -473,7 +529,7 @@ namespace hydro
         double cs2  = (e + peq) / (3.0 * e + (3.0 + z * z) * peq);                              // Sound speed squared
         double s    = pow(T, 4.0) / (2.0 * PI * PI) * (4.0 * z * z * K2 + pow(z, 3.0) * K1);    // Equilibrium entropy density
  
-        double beta_pi = pow(T * z, 5.0) / (30.0 * PI * PI) * ((K5 - 7.0 * K3 + 22.0 * K1) / 16.0 - Ki1);
+        double beta_pi = pow(T * z, 5.0) / (30.0 * T * PI * PI) * ((K5 - 7.0 * K3 + 22.0 * K1) / 16.0 - Ki1);
         double beta_Pi = 5.0 * beta_pi / 3.0 - cs2 * (e + peq);
 
         // c.f. Eqs. (78) - (80)
@@ -490,13 +546,13 @@ namespace hydro
         double x = T / Tc;
         if (x < 0.995) zeta_s *= 0.03 + 0.9 * std::exp((x - 1.0) / 0.0025) + 0.22 * std::exp((x - 1.0) / 0.022);
         else if (x < 1.05) zeta_s *= -13.45 + 27.55 * x - 13.77 * x * x;
-        else zeta_s *= 0.001 + 0.9 * std::exp((x - 1.0) / 0.025) + 0.25 * std::exp((x - 1.0) / 0.13);
+        else zeta_s *= 0.001 + 0.9 * std::exp((1.0 - x) / 0.025) + 0.25 * std::exp((1.0 - x) / 0.13);
 
 
         // c.f. Eqs. (C1a) amd (C2a) of arXiv:1803.01810
         double X[3] {aVars.Lambda, aVars.alpha_T, aVars.alpha_L};
         double zetaBar_zL = IntegralI(2, 4, 0, 0, params.mass, X) - 3.0 * pl;
-        double zetaBar_zT = IntegralI(2, 2, 0, 0, params.mass, X) - pt;
+        double zetaBar_zT = IntegralI(2, 2, 1, 0, params.mass, X) - pt;
 
         TransportCoefficients tc {eta_s * s / beta_pi, zeta_s * s / beta_Pi, zetaBar_zT, zetaBar_zL};
         return tc;
@@ -507,6 +563,7 @@ namespace hydro
 
     double AnisoHydroEvolution::dedt(double e, double pl, double tau)
     {
+        fmt::print("e = {}, pl = {}\n", e, pl);
         return -(e + pl) / tau;
     }
     // -------------------------------------
@@ -519,7 +576,8 @@ namespace hydro
         double tau_Pi     = tc.tau_Pi;
         double zetaBar_zT = tc.zetaBar_zT;
         double pbar       = (pl + 2.0 * pt) / 3.0;
-        return -(pbar - p) / tau_Pi +  (pl - pt) / (3.0 * tau_pi) + zetaBar_zT;
+        fmt::print("p = {}, pt = {}, pl = {}, tau_pi = {}, tau_Pi = {}, zetaBar_zT = {}\n", p, pt, pl, tau_pi, tau_Pi, zetaBar_zT);
+        return -(pbar - p) / tau_Pi + (pl - pt) / (3.0 * tau_pi) + zetaBar_zT / tau;
     }
     // -------------------------------------
 
@@ -531,6 +589,7 @@ namespace hydro
         double tau_Pi     = tc.tau_Pi;
         double zetaBar_zL = tc.zetaBar_zL;
         double pbar       = (pl + 2.0 * pt) / 3.0;
-        return -(pbar - p) / tau_Pi -  (pl - pt) / (1.5 * tau_pi) + zetaBar_zL;
+        fmt::print("p = {}, pt = {}, pl = {}, tau_pi = {}, tau_Pi = {}, zetaBar_zL = {}\n", p, pt, pl, tau_pi, tau_Pi, zetaBar_zL);
+        return -(pbar - p) / tau_Pi - (pl - pt) / (1.5 * tau_pi) + zetaBar_zL / tau;
     }
 }

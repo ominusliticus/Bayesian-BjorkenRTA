@@ -2,7 +2,7 @@
 
 CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
 OPT = -O2 -funroll-loops -finline-functions -fopenmp
-LIBS = -lpthread -lfmt
+LIBS = -lpthread -lfmt -lgsl -lgslcblas -lstdc++
 INCLUDES = -I /usr/local/include
 
 SRC = ./src/

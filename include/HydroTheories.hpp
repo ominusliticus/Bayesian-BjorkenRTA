@@ -54,7 +54,7 @@ namespace hydro
                                                                                                     // This is a patch I had to introduce due to poor initial planning.
         void ComputeJ(double e, double pt, double pl, double mass, double (&X)[3], double F[3], double (*J)[3]);
         double LineBackTrack(double e, double pt, double pl, double mass, const double Xcurrent[3], const double dX[3], double dXmagnitude, double g0, double F[3]);
-        void FindAnisoVariables(double e, double pt, double pl, double mass, AnisoVariables aVars); // Algorithm akin to a gradient decent, used to do Netwon-Coats methods
+        void FindAnisoVariables(double e, double pt, double pl, double mass, AnisoVariables& aVars); // Algorithm akin to a gradient decent, used to do Netwon-Coats methods
                                                                                                     // in more than 1 dimension
 
         // Anisotropic Integrals needed for calculating transport coefficients,
@@ -63,7 +63,7 @@ namespace hydro
         double IntegralIAux(int n, int r, int q, int s, double mass, double pbar, double (&X)[3]);
         double IntegralJ(int n, int r, int q, int s, double mass, double (&X)[3]);
         double IntegralJAux(int n, int r, int q, int s, double mass, double pbar, double (&X)[3]);
-        double IntegrandR(int n, int r, int q, double mass, double pbar, double (&X)[3]);
+        double IntegralR(int n, int r, int q, double mass, double pbar, double (&X)[3]);
 
         // Need to invert enery density to get temperature, this is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
@@ -76,10 +76,10 @@ namespace hydro
         {
             double tau_pi;
             double tau_Pi;
-            double zetaBar_zL;
             double zetaBar_zT;
+            double zetaBar_zL;
         };
-        TransportCoefficients& CalculateTransportCoefficients(double e, double pt, double pl, SP& params, AnisoVariables aVars);
+        TransportCoefficients CalculateTransportCoefficients(double e, double pt, double pl, SP& params, AnisoVariables aVars);
         // Evolution equations
         double dedt(double e, double pl, double tau);
         double dpldt(double p, double pt, double pl, double tau, TransportCoefficients& tc);
@@ -87,11 +87,13 @@ namespace hydro
 
         // Dynamic variables for RK4: allocate here to make sure CPU has to constantly allocate new memory
         double   e1,   e2,   e3,   e4;
+        double   p1,   p2,   p3,   p4;
         double  pt1,  pt2,  pt3,  pt4;
         double  pl1,  pl2,  pl3,  pl4;
         double  de1,  de2,  de3,  de4;
         double dpt1, dpt2, dpt3, dpt4;
         double dpl1, dpl2, dpl3, dpl4;
+        double pbar;
         AnisoVariables aVars;
 
         // Simulation information

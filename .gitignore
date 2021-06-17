@@ -2,6 +2,7 @@ others/
 *.dat
 *.out
 *.x
+*.out
 
 *.ipch
 *.bin
