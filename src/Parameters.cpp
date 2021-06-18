@@ -38,11 +38,10 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("mass") == 0)         buffer >> mass;
             else if (var_name.compare("eta_s") == 0)        buffer >> eta_s;
             else if (var_name.compare("steps") == 0)        buffer >> steps;
-            else if (var_name.compare("pl_pt_ratio") == 0)  buffer >> pl_pt_ratio;
-            else if (var_name.compare("eta_s_min") == 0)    buffer >> eta_s_min;
-            else if (var_name.compare("eta_s_slope") == 0)  buffer >> eta_s_slope;
-            else if (var_name.compare("zeta_s_norm") == 0)  buffer >> zeta_s_norm;
-            else if (var_name.compare("T_c") == 0)          buffer >> T_c;
+            else if (var_name.compare("pl0") == 0)          buffer >> pl0;
+            else if (var_name.compare("pt0") == 0)          buffer >> pt0;
+            else if (var_name.compare("c_tau_pi") == 0)     buffer >> c_tau_pi;
+            else if (var_name.compare("c_tau_Pi") == 0)     buffer >> c_tau_Pi;
         } // end else
     } // end while(!fin.eof())
     step_size = (ul - ll) / (double) (steps - 1);
@@ -75,10 +74,9 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     Print(out, "##################################");
     Print(out, "# Parameters for hyrdo evolution #");
     Print(out, "##################################");
-    Print(out, "pl_pt_ratio ", params.pl_pt_ratio);
-    Print(out, "eta_s_min   ", params.eta_s_min);
-    Print(out, "eta_s_slope ", params.eta_s_slope);
-    Print(out, "zeta_s_norm ", params.zeta_s_norm);
-    Print(out, "T_C         ", params.T_c);
+    Print(out, "pl0     ", params.pl0);
+    Print(out, "pt0     ", params.pt0);
+    Print(out, "c_tau_pi", params.c_tau_pi);
+    Print(out, "c_tau_Pi", params.c_tau_Pi);
     return out;
 }

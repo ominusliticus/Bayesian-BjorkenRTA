@@ -34,18 +34,14 @@ steps 10001
 #   Parameters for anisotropic hydrodynamics
 #
 
-# PL-to-PT ratio 
-pl_pt_ratio 0.3
+# initial longitudinal pressure
+pl0  4.085
 
-# eta/S minimum, see Eq. (78) in arXiv:1803:01810
-eta_s_min 0.08
+# initial tranverse pressure
+pt0  6.085
 
-# eta/S slope, see Eq. (78) in arXiv:1803.01810
-# units fm^{-3}
-eta_s_slope 4.314720812182
+# coefficient for calculating tau_pi relaxation time
+c_tau_pi 0.40
 
-# zeta/S normalization, see Eq. (79) in arXiv:1803.01810
-zeta_s_norm 1.25
-
-# Critical temperature
-T_c 154
+# coefficient for calculating tau_Pi relaxation time
+c_tau_Pi 0.03
