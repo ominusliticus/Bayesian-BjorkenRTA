@@ -35,13 +35,13 @@ steps 10001
 #
 
 # initial longitudinal pressure
-pl0  4.085
+pl0  8.170
 
 # initial tranverse pressure
-pt0  6.085
+pt0  4.085
 
 # coefficient for calculating tau_pi relaxation time
-c_tau_pi 0.40
+c_tau_pi 0.795774715
 
 # coefficient for calculating tau_Pi relaxation time
 c_tau_Pi 0.03

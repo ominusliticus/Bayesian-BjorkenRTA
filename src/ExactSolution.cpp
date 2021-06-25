@@ -6,6 +6,7 @@
 
 #include <iomanip>
 #include <cmath>
+#include <fstream>
 
 
 
@@ -448,7 +449,7 @@ namespace exact{
 
 
 
-    void Run(std::ostream& out, SP& params)
+    void Run(const char* file_name, SP& params)
     {
         double tau_0     = params.tau_0;
         int steps        = params.steps;
@@ -470,9 +471,10 @@ namespace exact{
         double err = inf;
         double last_D = 1.0 / T0;
         std::vector<double> e(steps);
+        Print(std::cout, "Calculating temperature evoluton.");
         do
         {
-            std::cout << "n: " << n << std::endl;
+            Print(std::cout, fmt::format("n = {}",n));
             double tau = tau_0;
 
             for (int i = 0; i < steps; i++)
@@ -491,11 +493,32 @@ namespace exact{
             n++;
         } while (err > eps);   
         
+        std::fstream out(file_name, std::ios::out);
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
             Print(out, std::setprecision(16), tau, params.D[i], 1.0/params.D[i]*.197); 
         }
+        out.close();
         Print(std::cout, "Temperature evolution calculation terminated successfully.");
+    }
+    //--------------------------------------
+
+
+
+    void OutputMoments(const char* file_name, SP& params)
+    {
+        Print(std::cout, "Calculating moments of distribution function.");
+        std::fstream fout(file_name, std::fstream::out);
+        fout << std::fixed << std::setprecision(16);
+        for (double tau = params.ll; tau <= params.ul + params.step_size; tau += params.step_size)
+        {
+            double new_e_density = exact::GetMoments(tau, params, exact::Moment::ED);
+            double new_pL        = exact::GetMoments(tau, params, exact::Moment::PL);
+            double new_pT        = exact::GetMoments(tau, params, exact::Moment::PT);
+            double new_peq       = exact::GetMoments(tau, params, exact::Moment::PEQ);
+            Print(fout, tau, new_e_density, new_pL, new_pT, new_peq);
+        }
+        fout.close();
     }
 }
