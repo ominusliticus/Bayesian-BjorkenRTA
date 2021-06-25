@@ -101,6 +101,10 @@ namespace exact{
 
             case Moment::PT:
                 return sign * y / std::pow(x, 1.5) * (-std::sqrt(x * (y * y + z * z)) + ( z * z + 2.0 * y * y - 1.0) * atanh_val);
+            
+            case Moment::PEQ:
+                Print(std::cout, "Invalid option");
+                exit(-887);
         }
 
         return -888;
@@ -398,7 +402,8 @@ namespace exact{
     double EquilibriumEnergyDensity(double temp, SP& params)
     {
         double z = params.mass / temp;
-        return 3.0 * std::pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
+        if (z == 0) return 3.0 * std::pow(temp, 4.0) / (PI * PI);
+        else return 3.0 * std::pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
     }
     // -------------------------------------
 
@@ -510,6 +515,11 @@ namespace exact{
     {
         Print(std::cout, "Calculating moments of distribution function.");
         std::fstream fout(file_name, std::fstream::out);
+        if (!fout.is_open())
+        {
+            Print_Error(std::cerr, "Be sure the ./output/exact/ folder has been created!");
+            exit(-3333);
+        }
         fout << std::fixed << std::setprecision(16);
         for (double tau = params.ll; tau <= params.ul + params.step_size; tau += params.step_size)
         {

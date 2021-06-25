@@ -33,8 +33,6 @@ struct SimulationParameters
     // parameters for hydrodynamic evolution equations
     double pl0;
     double pt0;
-    double c_tau_pi;
-    double c_tau_Pi;
 
     std::vector<double> D;
 }; // end struct SimulationParameters

@@ -126,7 +126,9 @@ namespace hydro
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
-            Print(e_plot,  t, e1 );
+            
+            p1 = ThermalPressure(e1, params);
+            Print(e_plot,  t, e1, p1);
             Print(pi_plot, t, pi1);
             Print(Pi_plot, t, Pi1);
 
@@ -134,9 +136,9 @@ namespace hydro
 
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
+            // fmt::print("e1 = {}, pi1 = {}, Pi1 = {}\n", e1, pi1, Pi1);
             
             // First order
-            p1 = ThermalPressure(e1, params);
             tc = CalculateTransportCoefficients(e1, pi1, Pi1, params, theo);
             de1  = dt *  dedt(e1, p1, pi1, Pi1, t);
             dpi1 = dt * dpidt(pi1, Pi1, t, tc);
@@ -288,11 +290,11 @@ namespace hydro
                 // Eqs. (25) - (26) in arXiv:1407.7231
                 double beta_pi = beta * I1_42;
                 double beta_Pi = 5.0 * beta_pi / 3.0 + beta * I0_31 * cs2;
-                double s = beta * beta * I0_31;                             // thermal entropy density
+                // double s = - beta * beta * I0_31;                             // thermal entropy density
 
                 // TO DO: should relaxation time always be the same in Bjorken flow?
-                double tau_pi = params.c_tau_pi / beta_pi;
-                double tau_Pi = params.c_tau_pi / beta_Pi;
+                double tau_pi = 5.0 * params.eta_s / T;
+                double tau_Pi = tau_pi;
 
                 // Eqs. (35) - (40) arXiv:1407:7231
                 double chi         = beta * ((1.0 - 3.0 * cs2) * (I1_42 + I0_31) - m * m * (I3_42 + I2_31)) / beta_Pi;
@@ -307,7 +309,7 @@ namespace hydro
                 double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = tol;
+                double local_tol = 5 * tol;
                 if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
                 else 
                 {
@@ -360,10 +362,10 @@ namespace hydro
 
                 double beta_pi = beta * I32;
                 double beta_Pi = 5.0 * beta_pi / 3.0 - beta * I31 * cs2;
-                double s = beta * beta * I31;                             // thermal entropy density
+                // double s = beta * beta * I31;                             // thermal entropy density
 
-                double tau_pi = params.c_tau_pi / beta_pi;
-                double tau_Pi = params.c_tau_pi / beta_Pi;
+                double tau_pi = 5.0 * params.eta_s / T;
+                double tau_Pi = tau_pi;
 
                 double delta_PiPi  = 1.0 - cs2 - pow(m, 4.0) * (cBar_e * I00 + cBar_Pi * I01) / 9.0;
                 double lambda_Pipi = (1.0  + cBar_pi * m * m * I22) / 3.0 - cs2; 
@@ -376,7 +378,7 @@ namespace hydro
                 double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = tol;
+                double local_tol = 5 * tol;
                 if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
                 else 
                 {
@@ -487,7 +489,8 @@ namespace hydro
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
-            Print(e_plot,  t, e1 );
+            p1 = ThermalPressure(e1, pt1, pl1, params);
+            Print(e_plot,  t, e1, p1);
             Print(pt_plot, t, pl1);
             Print(pl_plot, t, pt1);
 
@@ -497,7 +500,6 @@ namespace hydro
             // Note all dynamic variables are declared as member variables
             
             // First order
-            p1 = ThermalPressure(e1, pt1, pl1, params);
             tc = CalculateTransportCoefficients(e1, p1, pt1, pl1, params);
             de1  = dt *  dedt(e1, pl1, t);
             dpt1 = dt * dptdt(p1, pt1, pl1, t, tc);
@@ -603,51 +605,22 @@ namespace hydro
     AnisoHydroEvolution::TransportCoefficients AnisoHydroEvolution::CalculateTransportCoefficients(double e, double p, double pt, double pl, SP& params)
     {
         double T = InvertEnergyDensity(e, params);
-        double m = params.mass;
-        double z = m / T;
-        double beta = 1.0 / T;
-
-        // Thermodynamic integrals over equilibrium distribution function
-        auto IntegralI = [](int n, int q, double z, double T)
-        {
-            if (z == 0) 
-            {
-                return pow(T, n + 2) * Gamma(n + 2) / (2.0 * PI * PI * DoubleFactorial(2 * q + 1));
-            }
-            else 
-            {
-                return GausQuad([](double x, double z, double T, int n, int q)
-                {
-                    return pow(T * z, n + 2) * pow(x, n - 2 * q) * pow(x * x - 1.0, (2 * q + 1) * 0.5) * std::exp(-z * x)  / (2.0 * PI * PI * DoubleFactorial(2 * q + 1));; 
-                }, 1, inf, tol, max_depth, z, T, n, q);
-            }
-        };
-
-        double I30 = IntegralI(3, 0, z, T);
-        double I31 = IntegralI(3, 1, z, T);
-        double I32 = IntegralI(3, 2, z, T);
-
-        double cs2 = I31 / I30;
-        double beta_pi = beta * I32;
-        double beta_Pi = 5.0 * beta_pi / 3.0 - beta * I31 * cs2;
-        double s = beta * beta * I31;                             // thermal entropy density
         
         // Coefficients for relaxation times
         // TO DO: should the relaxation times always be equal in Bjorken flow?
-        double c_tau_pi = params.c_tau_pi;
-        double c_tau_Pi = params.c_tau_pi;
-        // if (params.mass == 0) c_tau_Pi = c_tau_pi;
+        double tau_pi = 5.0 * params.eta_s / T;
+        double tau_Pi = tau_pi;
 
         // Calculate shear pressure
         double pi = 2.0 / 3.0 * (pt - pl);
         double xi = InvertShearToXi(e, p, pi);
 
         // Calculate transport coefficients
-        double zetaBar_zL = e * R240(xi) /* / R200(xi) */ - 3.0 * pl;
-        double zetaBar_zT = (e / 2.0) * R221(xi)/*  / R200(xi) */ - pt;
+        double zetaBar_zL = e * R240(xi) / R200(xi) - 3.0 * pl;
+        double zetaBar_zT = (e / 2.0) * R221(xi) / R200(xi) - pt;
         if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
 
-        TransportCoefficients tc {s * c_tau_pi / beta_pi, s * c_tau_Pi / beta_Pi, zetaBar_zT, zetaBar_zL};
+        TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
         return tc;
     }
     // -------------------------------------

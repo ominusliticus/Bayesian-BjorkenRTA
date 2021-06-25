@@ -40,8 +40,6 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("steps") == 0)        buffer >> steps;
             else if (var_name.compare("pl0") == 0)          buffer >> pl0;
             else if (var_name.compare("pt0") == 0)          buffer >> pt0;
-            else if (var_name.compare("c_tau_pi") == 0)     buffer >> c_tau_pi;
-            else if (var_name.compare("c_tau_Pi") == 0)     buffer >> c_tau_Pi;
         } // end else
     } // end while(!fin.eof())
     step_size = (ul - ll) / (double) (steps - 1);
@@ -76,7 +74,5 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     Print(out, "##################################");
     Print(out, "pl0     ", params.pl0);
     Print(out, "pt0     ", params.pt0);
-    Print(out, "c_tau_pi", params.c_tau_pi);
-    Print(out, "c_tau_Pi", params.c_tau_Pi);
     return out;
 }
