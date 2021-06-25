@@ -29,15 +29,19 @@ SimulationParameters::SimulationParameters(const char* filename)
             buffer = std::stringstream(line);
             // Note: assumes tab or space separation
             buffer >> var_name;
-            if (var_name.compare("tau_0") == 0)          buffer >> tau_0;
-            else if (var_name.compare("Lambda_0") == 0)  buffer >> Lambda_0;
-            else if (var_name.compare("xi_0") == 0)      buffer >> xi_0;
-            else if (var_name.compare("alpha_0") == 0)   buffer >> alpha_0;
-            else if (var_name.compare("ul") == 0)        buffer >> ul;
-            else if (var_name.compare("ll") == 0)        buffer >> ll;
-            else if (var_name.compare("mass") == 0)      buffer >> mass;
-            else if (var_name.compare("eta_s") == 0)     buffer >> eta_s;
-            else if (var_name.compare("steps") == 0)     buffer >> steps;
+            if (var_name.compare("tau_0") == 0)             buffer >> tau_0;
+            else if (var_name.compare("Lambda_0") == 0)     buffer >> Lambda_0;
+            else if (var_name.compare("xi_0") == 0)         buffer >> xi_0;
+            else if (var_name.compare("alpha_0") == 0)      buffer >> alpha_0;
+            else if (var_name.compare("ul") == 0)           buffer >> ul;
+            else if (var_name.compare("ll") == 0)           buffer >> ll;
+            else if (var_name.compare("mass") == 0)         buffer >> mass;
+            else if (var_name.compare("eta_s") == 0)        buffer >> eta_s;
+            else if (var_name.compare("steps") == 0)        buffer >> steps;
+            else if (var_name.compare("pl0") == 0)          buffer >> pl0;
+            else if (var_name.compare("pt0") == 0)          buffer >> pt0;
+            else if (var_name.compare("c_tau_pi") == 0)     buffer >> c_tau_pi;
+            else if (var_name.compare("c_tau_Pi") == 0)     buffer >> c_tau_Pi;
         } // end else
     } // end while(!fin.eof())
     step_size = (ul - ll) / (double) (steps - 1);
@@ -66,5 +70,13 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     Print(out, "steps    ", params.steps);
     Print(out, "step_size", params.step_size);
     Print(out, "D.size() ", params.D.size());
+    Print(out, "\n");
+    Print(out, "##################################");
+    Print(out, "# Parameters for hyrdo evolution #");
+    Print(out, "##################################");
+    Print(out, "pl0     ", params.pl0);
+    Print(out, "pt0     ", params.pt0);
+    Print(out, "c_tau_pi", params.c_tau_pi);
+    Print(out, "c_tau_Pi", params.c_tau_Pi);
     return out;
 }

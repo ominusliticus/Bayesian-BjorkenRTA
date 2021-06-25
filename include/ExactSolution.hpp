@@ -98,7 +98,10 @@ namespace exact{
     double InvertEnergyDensity(double e, SP& params);
 
     // Evolve simulation and output results;
-    void Run(std::ostream& out, SP& params);
+    void Run(const char* file_name, SP& params);
+
+    // output moments of solution
+    void OutputMoments(const char* file_name, SP& params);
 }
 
 #endif

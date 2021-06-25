@@ -78,7 +78,7 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
 ///////////////////////////////////////////////////////
 template<typename Functor, typename...Args>
 double GausQuadAux(Functor&& func, double _low, double _high, double result, double tol, int depth, bool improper_top, Args&&... args)
-{
+{	
     // Quick check to ensure that we should do calculation
     if (depth <= 0)
         return result;
@@ -122,7 +122,7 @@ double GausQuadAux(Functor&& func, double _low, double _high, double result, dou
 
 template<typename Functor, typename...Args>
 double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDepth, Args&&... args)
-{			   
+{			  
     double result = 0;
 	double yneg, ypos;
     double high = _high;
@@ -131,7 +131,7 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
     bool improper_top    = false;
     if (high == inf || low == -inf)
     {
-        if (high == inf && low != -inf) 
+        if (high == inf && low != -inf)  
         {
             if (low == 0) 
             {
@@ -144,7 +144,7 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
             low = 0;
             improper_top = true;
         }
-        else if (high != inf && low == -inf)
+        else if (high != inf && low == -inf) 
         {
            if (high == 0) 
            {
@@ -155,7 +155,6 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
             else low = 1 / high;
             
             high = 0;
-            
             improper_top = true;
         }
         else 
