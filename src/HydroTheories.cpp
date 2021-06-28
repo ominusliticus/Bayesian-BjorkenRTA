@@ -383,8 +383,9 @@ namespace hydro
         double prefactor = pow(alpha_T, 2 * q + 2) * pow(alpha_L, r + 1) * pow(Lambda, n + s + 2) / (4 * PI * PI * doubleFactorial(2 * q));
         double pbar_ns1  = pow(pbar, n + s + 1);
         double Rnrq      = IntegralR(n, r, q, mass, pbar, X);
+        double Ea        = pow(1.0 + pow(mbar / pbar), s / 2.0);
         double feq       = std::exp(-std::sqrt(pbar * pbar + mbar * mbar));
-        return prefactor * pbar_ns1 * Rnrq * feq;
+        return prefactor * pbar_ns1 * Rnrq * Ea * feq;
     
     }
     // -------------------------------------
@@ -411,7 +412,8 @@ namespace hydro
         double pbar_ns1  = pow(pbar, n + s + 1);
         double Rnrq      = IntegralR(n, r, q, mass, pbar, X);
         double feq       = std::exp(-std::sqrt(pbar * pbar + mbar * mbar));
-        return prefactor * pbar_ns1 * Rnrq * feq * (1 - 0.0 * feq);
+        double Ea        = pow(1.0 + pow(mbar / pbar), s / 2.0);
+        return prefactor * pbar_ns1 * Rnrq * Ea * feq * (1 - 0.0 * feq);
     }
     // -------------------------------------
 
