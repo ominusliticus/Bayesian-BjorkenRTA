@@ -21,7 +21,8 @@ ll 0.1
 
 # Mass of particles
 # units fm^{-1}
-mass 1.015228426395939
+mass 0 
+# 1.015228426395939
 
 # Initial viscous transport coefficient
 # 10 / (4.0 * PI)

@@ -563,7 +563,7 @@ namespace hydro
         x2 = T_max;
 
 
-        double copy(0.0) , prec = 1.e-6;
+        double copy(0.0) , prec = 1.e-10;
         int n = 0;
         int flag_1 = 0;
         do
