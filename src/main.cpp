@@ -8,15 +8,11 @@
 #include "../include/Integration.hpp"
 #include "../include/HydroTheories.hpp"
 
-#include <fstream>
-#include <fmt/format.h>
-#include <iomanip>
-
 int main()
 {
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params("utils/params.txt");
-    // Print(std::cout, params);
+    Print(std::cout, params);
 
     exact::Run("./output/exact/temperature_evolution.dat", params);
     exact::OutputMoments("./output/exact/moments_of_distribution.dat", params);

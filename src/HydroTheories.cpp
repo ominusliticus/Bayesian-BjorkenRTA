@@ -89,7 +89,7 @@ namespace hydro
         }
         
         // Initialize simulation
-        double T0  = 0.5 / 0.197; //1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
+        double T0  = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
         double z0  = m / T0;
         double e0;                      // Equilibrium energy density
@@ -109,10 +109,8 @@ namespace hydro
         e1  = e0;
         if (m == 0)
         {
-            double pt0 = e0 / 4.0;
-            double pl0 = e0 / 2.0;
-            pi1  = 2.0 * (pt0 - pl0) / 3.0;
-            Pi1 = 0.0;
+            pi1 = 2.0 * (params.pt0 - params.pl0) / 3.0;
+            Pi1 = (params.pl0 + 2.0 * params.pt0) / 3.0 - ThermalPressure(e0, params);
         }
         else
         {
@@ -298,6 +296,7 @@ namespace hydro
 
                 // Eqs. (35) - (40) arXiv:1407:7231
                 double chi         = beta * ((1.0 - 3.0 * cs2) * (I1_42 + I0_31) - m * m * (I3_42 + I2_31)) / beta_Pi;
+                if (z == 0) chi    = -9.0 / 5.0;
                 double delta_PiPi  = - 5.0 * chi / 9.0 - cs2;
                 double lambda_Pipi = beta * (7.0 * I3_63 + 2.0 * I1_42) / (3.0 * beta_pi) - cs2; 
                 double tau_pipi    = 2.0 + 4.0 * beta * I3_63 / beta_pi;
@@ -438,8 +437,8 @@ namespace hydro
 
         // Opening output files
         std::fstream e_plot("output/aniso_hydro/e.dat", std::ios::out);
-        std::fstream pt_plot("output/aniso_hydro/pl.dat", std::ios::out);
-        std::fstream pl_plot("output/aniso_hydro/pt.dat", std::ios::out);
+        std::fstream pt_plot("output/aniso_hydro/pt.dat", std::ios::out);
+        std::fstream pl_plot("output/aniso_hydro/pl.dat", std::ios::out);
         if (!e_plot.is_open() && !pt_plot.is_open() && !pl_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
@@ -454,7 +453,7 @@ namespace hydro
         }
         
         // Initialize simulation
-        T0         = 0.5 / 0.197; //1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
+        T0         = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
         double z0  = m / T0;
         double e0;                      // Equilibrium energy density
@@ -462,20 +461,20 @@ namespace hydro
         else e0 = 3.0 * pow(T0, 4.0) / (PI * PI) * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
 
         // Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
-        auto ThermalPressure = [this](double e, double pt, double pl, SP& params) -> double
+        auto ThermalPressure = [this](double e, SP& params) -> double
         {
             double T = InvertEnergyDensity(e, params);
             double z = params.mass / T;
-            if (z == 0) return (pl + 2.0 * pt) / 3.0;
-            else return z * z * pow(T, 4.0) / (2.0 *PI * PI) * std::cyl_bessel_k(2, z);
+            if (z == 0) return pow(T, 4.0) / (PI * PI);
+            else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
         };
 
         // Note: all dynamic variables are declared as struct memebrs variables
         e1  = e0;
         if (m == 0)
         {
-            pt1 = e0 / 4.0;
-            pl1 = e0 / 2.0;
+            pt1 = params.pt0;
+            pl1 = params.pl0;
         }
         else
         {
@@ -489,12 +488,10 @@ namespace hydro
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
-            p1 = ThermalPressure(e1, pt1, pl1, params);
+            p1 = ThermalPressure(e1, params);
             Print(e_plot,  t, e1, p1);
-            Print(pt_plot, t, pl1);
-            Print(pl_plot, t, pt1);
-
-            // Invert energy density to compute thermal pressure
+            Print(pt_plot, t, pt1);
+            Print(pl_plot, t, pl1);
 
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
@@ -510,7 +507,7 @@ namespace hydro
             pl2 = pl1 + dpl1 / 2.0;
 
             // Second order
-            p2 = ThermalPressure(e2, pt2, pl2, params);
+            p2 = ThermalPressure(e2, params);
             tc = CalculateTransportCoefficients(e2, p2, pt2, pl2, params);
             de2  = dt *  dedt(e2, pl2, t  + dt / 2.0);
             dpt2 = dt * dptdt(p2, pt2, pl2, t + dt / 2.0, tc);
@@ -521,7 +518,7 @@ namespace hydro
             pl3 = pl1 + dpl2 / 2.0;
 
             // Third order
-            p3 = ThermalPressure(e3, pt3, pl3, params);
+            p3 = ThermalPressure(e3, params);
             tc = CalculateTransportCoefficients(e3, p3, pt3, pl3, params);
             de3  = dt *  dedt(e3, pl3, t + dt / 2.0);
             dpt3 = dt * dptdt(p3, pt3, pl3, t + dt / 2.0, tc);
@@ -532,7 +529,7 @@ namespace hydro
             pl4 = pl1 + dpl3;
 
             // Fourth order
-            p4 = ThermalPressure(e4, pt4, pl4, params);
+            p4 = ThermalPressure(e4, params);
             tc = CalculateTransportCoefficients(e4, p4, pt4, pl4, params);
             de4  = dt *  dedt(e4, pl4, t + dt);
             dpt4 = dt * dptdt(p4, pt4, pl4, t + dt, tc);
@@ -618,7 +615,7 @@ namespace hydro
         // Calculate transport coefficients
         double zetaBar_zL = e * R240(xi) / R200(xi) - 3.0 * pl;
         double zetaBar_zT = (e / 2.0) * R221(xi) / R200(xi) - pt;
-        if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
+        // if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
 
         TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
         return tc;
@@ -632,7 +629,7 @@ namespace hydro
         if (pi == 0) return 0.0;
 
         double err = inf;
-        double local_tol = 1e-6;
+        double local_tol = 1e-10;
         double xi1 = -0.5;
         double xi2 = 0.5;
         double xin = 0.0;
@@ -647,7 +644,7 @@ namespace hydro
             // {
                 
             // }
-            return piBar - 0.6666667 * (0.5 * R201(xi) - R220(xi)) / R200(xi);
+            return piBar + 0.25 * (3.0 * R220(xi) / R200(xi) - 1.0);
         };
 
         while (err > local_tol)
@@ -715,6 +712,7 @@ namespace hydro
         else if (xi < 0) return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atanh(std::sqrt(-xi)) / std::sqrt(-xi)) / pow(xi, 2.0);
         else return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atan(std::sqrt(xi)) / std::sqrt(xi)) / pow(xi, 2.0);
     }
+    // -------------------------------------
 
 
 
