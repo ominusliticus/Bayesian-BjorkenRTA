@@ -9,7 +9,6 @@
 #include <fstream>
 
 
-
 // Note: that the integration functions are written like this to make sure the 
 // integration routine GausQuad is aware of th calss instance and can see that functions
 
@@ -23,13 +22,11 @@ namespace exact{
     const int max_depth2 = 1;
 
 
-
-
     ////////////////////////////////////////////////////////////
     ///        Code need by all subsequent functions         ///
     ////////////////////////////////////////////////////////////
     
-    double GetTemperature(double z, SP& params)
+    double ExactSolution::GetTemperature(double z, SP& params)
     {
         double tau_0 = params.tau_0;
         double step_size = params.step_size;
@@ -37,13 +34,13 @@ namespace exact{
         int n = (int) floor((z - tau_0) / step_size);	
         double z_frac = (z - tau_0) / step_size - (double) n;
 
-        return 1.0 / ((1.0 - z_frac) * params.D[n] + z_frac * params.D[n+1]);
+        return 1.0 / ((1.0 - z_frac) * D[n] + z_frac * D[n+1]);
     }
     // -------------------------------------
 
 
     
-    double TauRelaxation(double tau, SP& params)
+    double ExactSolution::TauRelaxation(double tau, SP& params)
     {
         double T = GetTemperature(tau, params);
         double eta_s = params.eta_s;
@@ -53,9 +50,9 @@ namespace exact{
 
 
 
-    double DecayFactor(double tau1, double tau2, SP& params)
+    double ExactSolution::DecayFactor(double tau1, double tau2, SP& params)
     {
-        double val = GausQuad([](double x, SP& params){ return 1.0 / TauRelaxation(x, params); }, tau2, tau1, tol, max_depth2, params);
+        double val = GausQuad([this](double x, SP& params){ return 1.0 / TauRelaxation(x, params); }, tau2, tau1, tol, max_depth2, params);
         return std::exp(-val);
     }
     // -------------------------------------
@@ -67,7 +64,7 @@ namespace exact{
     ///        Code for evaluating moments analytically      ///
     ////////////////////////////////////////////////////////////
 
-    double H(double y, double z, Moment flag)
+    double ExactSolution::H(double y, double z, Moment flag)
     {
         if (std::abs(y - 1.0) < eps) y = 1.0 - eps;
 
@@ -113,15 +110,18 @@ namespace exact{
 
 
 
-    double HTilde(double y, double z, Moment flag)
+    double ExactSolution::HTilde(double y, double z, Moment flag)
     {
-        return GausQuad(HTildeAux, 0, inf, tol, max_depth, y, z, flag);
+        return GausQuad([this](double u, double y, double z, Moment flag)
+        {
+            return HTildeAux(u, y, z, flag);
+        }, 0, inf, tol, max_depth, y, z, flag);
     }
     // -------------------------------------
     
 
 
-    double HTildeAux(double u, double y, double z, Moment flag)
+    double ExactSolution::HTildeAux(double u, double y, double z, Moment flag)
     {
         if (std::abs(u) < eps) u = eps;
         return u * u * u * std::exp(-std::sqrt(u * u + z * z)) * H(y, z / u, flag);
@@ -130,7 +130,7 @@ namespace exact{
 
     
 
-    double EquilibriumDistributionMoment(double tau, double zeta, SP& params, Moment flag)
+    double ExactSolution::EquilibtirumDistributionMoment(double tau, double zeta, SP& params, Moment flag)
     {
         double m = params.mass;
         double T = GetTemperature(zeta, params);
@@ -158,7 +158,7 @@ namespace exact{
 
 
 
-    double InitialDistributionMoment(double tau, SP& params, Moment flag)
+    double ExactSolution::InitialDistributionMoment(double tau, SP& params, Moment flag)
     {
         double tau_0    = params.tau_0;
         double xi_0     = params.xi_0;
@@ -186,7 +186,8 @@ namespace exact{
                 double T = GetTemperature(tau, params);
                 double z = params.mass / T;
                 // Notice that we divide by DecayFactor(...) to offset multiplying by it in GetMomets(...)
-                return z * z * std::pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z) / DecayFactor(tau, params.tau_0, params);
+                if (z == 0) return std::pow(T, 4.0) / (PI * PI) / DecayFactor(tau, params.tau_0, params);
+                else return z * z * std::pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z) / DecayFactor(tau, params.tau_0, params);
         }
 
         return -2222;
@@ -195,23 +196,26 @@ namespace exact{
     
     
     
-    double EquilibriumContribution(double tau, SP& params, Moment flag)
+    double ExactSolution::EquilibriumContribution(double tau, SP& params, Moment flag)
     {
-        return GausQuad(EquilibriumContributionAux, params.tau_0, tau, tol, max_depth2, tau, params, flag);
+        return GausQuad([this](double x, double tau, SP& params, Moment flag)
+        {
+            return EquilibriumContributionAux(x, tau, params, flag);
+        }, params.tau_0, tau, tol, max_depth2, tau, params, flag);
     }
     // -------------------------------------
 
 
 
-    double EquilibriumContributionAux(double x, double tau, SP& params, Moment flag)
+    double ExactSolution::EquilibriumContributionAux(double x, double tau, SP& params, Moment flag)
     {
-        return DecayFactor(tau, x, params) * EquilibriumDistributionMoment(tau, x, params, flag) / TauRelaxation(x, params);
+        return DecayFactor(tau, x, params) * EquilibtirumDistributionMoment(tau, x, params, flag) / TauRelaxation(x, params);
     }
     // -------------------------------------
 
 
 
-    double GetMoments(double tau, SP& params, Moment flag)
+    double ExactSolution::GetMoments(double tau, SP& params, Moment flag)
     {
         return DecayFactor(tau, params.tau_0, params) * InitialDistributionMoment(tau, params, flag) + EquilibriumContribution(tau, params, flag);
     }
@@ -224,7 +228,7 @@ namespace exact{
     ///        Code for evaluating moments numerically       ///
     ////////////////////////////////////////////////////////////
 
-    double InitialDistribution(double w, double pT, SP& params)
+    double ExactSolution::InitialDistribution(double w, double pT, SP& params)
     {
         double m        = params.mass;
         double tau_0    = params.tau_0;
@@ -241,7 +245,7 @@ namespace exact{
 
 
 
-    double EquilibriumDistribution(double w, double pT, double tau, SP& params)
+    double ExactSolution::EquilibriumDistribution(double w, double pT, double tau, SP& params)
     {
         double T   = GetTemperature(tau, params);
         double m   = params.mass;
@@ -254,10 +258,10 @@ namespace exact{
 
 
 
-    double EaxctDistribution(double w, double pT, double tau, SP& params)
+    double ExactSolution::EaxctDistribution(double w, double pT, double tau, SP& params)
     {
         double tau_0 = params.tau_0;
-        double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
+        double feq_contrib = GausQuad([this, tau](double t, double pT, double w, SP& params){ 
             return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
         }, tau_0, tau, tol, max_depth2, pT, w, params);
 
@@ -267,9 +271,9 @@ namespace exact{
 
 
 
-    double ThetaIntegratedExactDistribution(double p, double tau, SP& params)
+    double ExactSolution::ThetaIntegratedExactDistribution(double p, double tau, SP& params)
     {
-        return GausQuad([](double theta, double p, double tau, SP& params)
+        return GausQuad([this](double theta, double p, double tau, SP& params)
         {
             double costheta = cos(theta);
             double sintheta = sin(theta);
@@ -284,10 +288,10 @@ namespace exact{
 
 
 
-    std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params)
+    std::tuple<double, double> ExactSolution::EaxctDistributionTuple(double w, double pT, double tau, SP& params)
     {
         double tau_0 = params.tau_0;
-        double feq_contrib = GausQuad([tau](double t, double pT, double w, SP& params){ 
+        double feq_contrib = GausQuad([this, tau](double t, double pT, double w, SP& params){ 
             return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
         }, tau_0, tau, tol, max_depth2, pT, w, params);
         double initial_contrib = DecayFactor(tau, tau_0, params) * InitialDistribution(w, pT, params);
@@ -297,9 +301,9 @@ namespace exact{
 
 
 
-    std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params)
+    std::tuple<double, double> ExactSolution::ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params)
     {
-        double initial_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        double initial_contrib = GausQuad([this](double theta, double p, double tau, SP& params)
         {
             double costheta = cos(theta);
             double sintheta = sin(theta);
@@ -310,14 +314,14 @@ namespace exact{
 
         }, 0, PI, tol, max_depth, p, tau, params);
 
-        double equilibrium_contrib = GausQuad([](double theta, double p, double tau, SP& params)
+        double equilibrium_contrib = GausQuad([this](double theta, double p, double tau, SP& params)
         {
             double costheta = cos(theta);
             double sintheta = sin(theta);
 
             double pz = p * costheta;
             double pT = p * sintheta;
-            return sintheta * (GausQuad([tau](double t, double pT, double w, SP& params){ 
+            return sintheta * (GausQuad([this, tau](double t, double pT, double w, SP& params){ 
                                 return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
                                 }, params.tau_0, tau, tol, max_depth2, pT, pz / tau, params));
 
@@ -329,23 +333,23 @@ namespace exact{
 
 
 
-    double GetMoments2(double tau, SP& params, Moment flag)
+    double ExactSolution::GetMoments2(double tau, SP& params, Moment flag)
     {
         switch (flag)
         {
             case Moment::ED:
-                return GausQuad([](double pT, double tau, SP& params, Moment flag){
+                return GausQuad([this](double pT, double tau, SP& params, Moment flag){
                     return pT * GetMoments2Aux(pT, tau, params, flag); 
                 }, 0, inf, tol, max_depth2, tau, params, flag);
             
             case Moment::PL:
-                return GausQuad([](double pT, double tau, SP& params, Moment flag)
+                return GausQuad([this](double pT, double tau, SP& params, Moment flag)
                 {
                     return pT * GetMoments2Aux(pT, tau, params, flag);
                 }, 0, inf, tol, max_depth2, tau, params, flag);
             
             case Moment::PT:
-                return GausQuad([](double pT, double tau, SP& params, Moment flag)
+                return GausQuad([this](double pT, double tau, SP& params, Moment flag)
                 {
                     return pT * pT * pT * GetMoments2Aux(pT, tau, params, flag);
                 }, 0, inf, tol, max_depth2, tau, params, flag);
@@ -360,26 +364,26 @@ namespace exact{
 
 
 
-    double GetMoments2Aux(double pT, double tau, SP& params, Moment flag)
+    double ExactSolution::GetMoments2Aux(double pT, double tau, SP& params, Moment flag)
     {
         switch (flag)
         {
             case Moment::ED:
-                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                return GausQuad([this](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
                     double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return 2.0 * vp * EaxctDistribution(w, pT, tau, params) / (tau * tau) ; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
 
             case Moment::PL:
-                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                return GausQuad([this](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
                     double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return 2.0 * w * w * EaxctDistribution(w, pT, tau, params) / (tau * tau * vp) ; 
                 }, 0, inf, tol, max_depth2, pT, tau, params);
                 
             case Moment::PT:
-                return GausQuad([](double w, double pT, double tau, SP&params){ 
+                return GausQuad([this](double w, double pT, double tau, SP&params){ 
                     double m = params.mass;
                     double vp = std::sqrt(w * w + (pT * pT + m * m) * tau * tau);
                     return EaxctDistribution(w, pT, tau, params) / vp; 
@@ -399,7 +403,7 @@ namespace exact{
     ///        Code to solve temperature evolution           ///
     ////////////////////////////////////////////////////////////
 
-    double EquilibriumEnergyDensity(double temp, SP& params)
+    double ExactSolution::EquilibriumEnergyDensity(double temp, SP& params)
     {
         double z = params.mass / temp;
         if (z == 0) return 3.0 * std::pow(temp, 4.0) / (PI * PI);
@@ -409,7 +413,7 @@ namespace exact{
 
 
 
-    double InvertEnergyDensity(double e, SP& params)
+    double ExactSolution::InvertEnergyDensity(double e, SP& params)
     {
         double x1, x2, mid;
         double T_min = .001/.197;
@@ -454,11 +458,12 @@ namespace exact{
 
 
 
-    void Run(const char* file_name, SP& params)
+    void ExactSolution::Run(const char* file_name, SP& params)
     {
         double tau_0     = params.tau_0;
         int steps        = params.steps;
         double step_size = params.step_size;
+        D.resize(steps);
         
         // Setting upp initial guess for temperature
         double e0 = InitialDistributionMoment(tau_0, params, Moment::ED);
@@ -467,7 +472,7 @@ namespace exact{
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
-            params.D[i] = 1.0 / T0 / std::pow(tau_0 / tau, 1.0 / 3.0);
+            D[i] = 1.0 / T0 / std::pow(tau_0 / tau, 1.0 / 3.0);
         }
 
 
@@ -480,21 +485,22 @@ namespace exact{
         do
         {
             Print(std::cout, fmt::format("n = {}",n));
-            double tau = tau_0;
 
+            #pragma omp parallel for shared(e) 
             for (int i = 0; i < steps; i++)
             {
+                double tau = tau_0 + (double) i * step_size;
                 e[i] = GetMoments(tau, params, Moment::ED);
-                tau += step_size;
             }
 
+            #pragma omp parallel for shared(D)
             for (int i = 0; i < steps; i++)
             {
                 double Temp = InvertEnergyDensity(e[i], params);
-                params.D[i] = 1.0 / Temp;
+                D[i] = 1.0 / Temp;
             }
-            err = std::abs(last_D - params.D[steps - 1]) / params.D[steps - 1];
-            last_D = params.D[steps - 1];
+            err = std::abs(last_D - D[steps - 1]) / D[steps - 1];
+            last_D = D[steps - 1];
             n++;
         } while (err > eps);   
         
@@ -502,7 +508,7 @@ namespace exact{
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
-            Print(out, std::setprecision(16), tau, params.D[i], 1.0/params.D[i]*.197); 
+            Print(out, std::setprecision(16), tau, D[i], 1.0 / D[i] * 0.197); 
         }
         out.close();
         Print(std::cout, "Temperature evolution calculation terminated successfully.");
@@ -511,7 +517,7 @@ namespace exact{
 
 
 
-    void OutputMoments(const char* file_name, SP& params)
+    void ExactSolution::OutputMoments(const char* file_name, SP& params)
     {
         Print(std::cout, "Calculating moments of distribution function.");
         std::fstream fout(file_name, std::fstream::out);
@@ -521,12 +527,13 @@ namespace exact{
             exit(-3333);
         }
         fout << std::fixed << std::setprecision(16);
-        for (double tau = params.ll; tau <= params.ul + params.step_size; tau += params.step_size)
+        for (int i = 0; i < params.steps; i++)
         {
-            double new_e_density = exact::GetMoments(tau, params, exact::Moment::ED);
-            double new_pL        = exact::GetMoments(tau, params, exact::Moment::PL);
-            double new_pT        = exact::GetMoments(tau, params, exact::Moment::PT);
-            double new_peq       = exact::GetMoments(tau, params, exact::Moment::PEQ);
+            double tau = params.tau_0 + (double)i * params.step_size;
+            double new_e_density = GetMoments(tau, params, Moment::ED);
+            double new_pL        = GetMoments(tau, params, Moment::PL);
+            double new_pT        = GetMoments(tau, params, Moment::PT);
+            double new_peq       = GetMoments(tau, params, Moment::PEQ);
             Print(fout, tau, new_e_density, new_pL, new_pT, new_peq);
         }
         fout.close();

@@ -3,10 +3,10 @@
 
 #include "../include/HydroTheories.hpp"
 
-#include <gsl/gsl_linalg.h>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+
 
 namespace hydro
 {
@@ -51,20 +51,21 @@ namespace hydro
         int decimal = - (int) std::log10(dt);
 
         // Opening output files
+        double m   = params.mass;       // Note that the mass in already in units fm^{-1}
         std::fstream e_plot, pi_plot, Pi_plot;
         switch (theo)
         {
             case theory::CE:
                 Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
-                e_plot  = std::fstream("output/CE_hydro/e.dat", std::ios::out);
-                pi_plot = std::fstream("output/CE_hydro/shear.dat", std::ios::out);
-                Pi_plot = std::fstream("output/CE_hydro/bulk.dat", std::ios::out);
+                e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                pi_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                Pi_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
                 Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
-                e_plot  = std::fstream("output/DNMR_hydro/e.dat", std::ios::out);
-                pi_plot = std::fstream("output/DNMR_hydro/shear.dat", std::ios::out);
-                Pi_plot = std::fstream("output/DNMR_hydro/bulk.dat", std::ios::out);
+                e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                pi_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                Pi_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
         }
         if (!e_plot.is_open() && !pi_plot.is_open() && !Pi_plot.is_open())
@@ -89,8 +90,7 @@ namespace hydro
         }
         
         // Initialize simulation
-        double T0  = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
-        double m   = params.mass;       // Note that the mass in already in units fm^{-1}
+        double T0  = params.T0; // Note that the temperature is already in units fm^{-1}
         double z0  = m / T0;
         double e0;                      // Equilibrium energy density
         if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
@@ -436,9 +436,10 @@ namespace hydro
         int decimal = - (int) std::log10(dt);
 
         // Opening output files
-        std::fstream e_plot("output/aniso_hydro/e.dat", std::ios::out);
-        std::fstream pt_plot("output/aniso_hydro/pt.dat", std::ios::out);
-        std::fstream pl_plot("output/aniso_hydro/pl.dat", std::ios::out);
+        double m   = params.mass;       // Note that the mass in already in units fm^{-1}
+        std::fstream e_plot (fmt::format("output/aniso_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream pt_plot(fmt::format("output/aniso_hydro/pt_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream pl_plot(fmt::format("output/aniso_hydro/pl_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         if (!e_plot.is_open() && !pt_plot.is_open() && !pl_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
@@ -453,8 +454,7 @@ namespace hydro
         }
         
         // Initialize simulation
-        T0         = 1.0 / params.D[0]; // Note that the temperature is already in units fm^{-1}
-        double m   = params.mass;       // Note that the mass in already in units fm^{-1}
+        T0         = params.T0; // Note that the temperature is already in units fm^{-1}
         double z0  = m / T0;
         double e0;                      // Equilibrium energy density
         if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
@@ -483,15 +483,19 @@ namespace hydro
         }
         
         // Begin simulation 
-        TransportCoefficients tc;
+        TransportCoefficients tc = CalculateTransportCoefficients(e1, p1, pt1, pl1, params);
         double t;
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
             p1 = ThermalPressure(e1, params);
-            Print(e_plot,  t, e1, p1);
-            Print(pt_plot, t, pt1);
-            Print(pl_plot, t, pl1);
+            double pi = 2.0 / 3.0 * (pt1 - pl1);
+            double xi = InvertShearToXi(e1, p1, pi);
+
+            Print(e_plot,  t, e1, p1, xi);
+            Print(pt_plot, t, pt1, tc.zetaBar_zT);
+            Print(pl_plot, t, pl1, tc.zetaBar_zL);
+
 
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
@@ -509,7 +513,7 @@ namespace hydro
             // Second order
             p2 = ThermalPressure(e2, params);
             tc = CalculateTransportCoefficients(e2, p2, pt2, pl2, params);
-            de2  = dt *  dedt(e2, pl2, t  + dt / 2.0);
+            de2  = dt *  dedt(e2, pl2, t + dt / 2.0);
             dpt2 = dt * dptdt(p2, pt2, pl2, t + dt / 2.0, tc);
             dpl2 = dt * dpldt(p2, pt2, pl2, t + dt / 2.0, tc);
 
@@ -613,8 +617,8 @@ namespace hydro
         double xi = InvertShearToXi(e, p, pi);
 
         // Calculate transport coefficients
-        double zetaBar_zL = e * R240(xi) / R200(xi) - 3.0 * pl;
-        double zetaBar_zT = (e / 2.0) * R221(xi) / R200(xi) - pt;
+        double zetaBar_zL = 1.0 * e * R240(xi) / R200(xi) - 3.0 * pl;
+        double zetaBar_zT = 1.0 * (e / 2.0) * R221(xi) / R200(xi) - pt;
         // if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
 
         TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
@@ -744,4 +748,319 @@ namespace hydro
         double pbar       = (pl + 2.0 * pt) / 3.0;
         return -(pbar - p) / tau_Pi - (pl - pt) / (1.5 * tau_pi) + zetaBar_zL / tau;
     }
+    // -----------------------------------------
+
+
+
+    ///////////////////////////////////////////
+    // Alt Anisotropic struct implementation //
+    //////////////.////////////////////////////
+    void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
+    {
+        Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+        double t0 = params.tau_0;
+        double dt = params.step_size;
+
+        // for setprecision of t output
+        int decimal = - (int) std::log10(dt);
+
+        // Opening output files
+        double m   = params.mass;       // Note that the mass in already in units fm^{-1}
+        std::fstream e_plot (fmt::format("output/aniso_hydro/e2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream pt_plot(fmt::format("output/aniso_hydro/pt2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream pl_plot(fmt::format("output/aniso_hydro/pl2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        if (!e_plot.is_open() && !pt_plot.is_open() && !pl_plot.is_open())
+        {
+            Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
+            Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
+            exit(-3333);
+        }
+        else
+        {
+            e_plot  << std::fixed << std::setprecision(decimal + 10);
+            pt_plot << std::fixed << std::setprecision(decimal + 10);
+            pl_plot << std::fixed << std::setprecision(decimal + 10);
+        }
+        
+        // Initialize simulation
+        T0         = params.T0; // Note that the temperature is already in units fm^{-1}
+        double z0  = m / T0;
+        double e0;                      // Equilibrium energy density
+        if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
+        else e0 = 3.0 * pow(T0, 4.0) / (PI * PI) * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
+
+        // Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
+        auto ThermalPressure = [this](double T, double mass) -> double
+        {
+            double z = mass / T;
+            if (z == 0) return pow(T, 4.0) / (PI * PI);
+            else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
+        };
+
+        // Note: all dynamic variables are declared as struct memebrs variables
+        // Initializing simulation variables
+        e1  = e0;
+        p1 = ThermalPressure(T0, m);
+        pt1 = params.pt0;
+        pl1 = params.pl0;
+
+        alpha1  = params.alpha_0;
+        Lambda1 = params.Lambda_0;
+        xi1     = params.xi_0;
+        
+        X1 = {alpha1, Lambda1, xi1};
+
+        Print(std::cout, e1, IntegralJ(2, 0, 0, 0, m, X1) / alpha1);
+
+        // usefull function for calculating Jacobian matrix
+        auto ComputeJacobian = [this](double m, vec& X)
+        {
+            double a = X(0);
+            double L = X(1);
+            mat M = { { -IntegralJ(2, 0, 0, 0, m, X) / (a * a), IntegralJ(2, 0, 0, 1, m, X) / (a * L * L), -IntegralJ(4, 2, 0, -1, m, X) / (2.0 * a * L)},
+                      { -IntegralJ(2, 0, 1, 0, m, X) / (a * a), IntegralJ(2, 0, 1, 1, m, X) / (a * L * L), -IntegralJ(4, 2, 1, -1, m, X) / (2.0 * a * L)},
+                      { -IntegralJ(2, 2, 0, 0, m, X) / (a * a), IntegralJ(2, 2, 0, 1, m, X) / (a * L * L), -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L)} };
+            // Print(std::cout, M);
+            return M;
+        };
+        
+        // Begin simulation 
+        TransportCoefficients tc = CalculateTransportCoefficients(T0, pt1, pl1, X1, params);
+        double t;
+        double T = T0;
+        mat M;
+        for (int n = 0; n < params.steps; n++)
+        {
+            if (n % 100 == 0) fmt::print("{}\t", n); 
+            if (n % 1000 == 0) fmt::print("\n");
+            t = t0 + n * dt;
+            Print(e_plot,  t, e1, p1, xi1);
+            Print(pt_plot, t, pt1, tc.zetaBar_zT);
+            Print(pl_plot, t, pl1, tc.zetaBar_zL);
+
+            // RK4 with updating anisotropic variables
+            // Note all dynamic variables are declared as member variables
+            
+            // First order
+            // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
+            M = ComputeJacobian(m, X1);
+            
+            // compute transport coefficients to calculate evolution of (E,PT,PL) and store in vector
+            tc   = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
+            psi1 = { dedt(e1, pl1, t), dptdt(p1, pt1, pl1, t, tc), dpldt(p1, pt1, pl1, t, tc) };
+
+            // Convert evolution vector to (alpha, Lambda, xi) coordinates
+            qt1  = M.i() * psi1;
+
+            // Calculate update step
+            dalpha1  = dt * qt1(0);
+            dLambda1 = dt * qt1(1);
+            dxi1     = dt * qt1(2);
+
+            alpha2  = alpha1  + dalpha1  / 2.0;
+            Lambda2 = Lambda1 + dLambda1 / 2.0;
+            xi2     = xi1     + dxi1     / 2.0;
+
+
+            // Second order
+            X2  = {alpha2, Lambda2, xi2};
+            e2  = IntegralJ(2, 0, 0, 0, m, X2) / alpha2;
+            pt2 = IntegralJ(2, 0, 1, 0, m, X2) / alpha2;
+            pl2 = IntegralJ(2, 2, 0, 0, m, X2) / alpha2; 
+
+            T = InvertEnergyDensity(e2, m);
+            p2  = ThermalPressure(T, m);
+            M    = ComputeJacobian(m, X2);
+            tc   = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
+            psi2 = { dedt(e2, pl2, t + dt / 2.0), dptdt(p2, pt2, pl2, t + dt / 2.0, tc), dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
+            qt2  = M.i() * psi2;
+
+            dalpha2  = dt * qt2(0);
+            dLambda2 = dt * qt2(1);
+            dxi2     = dt * qt2(2);
+
+            alpha3  = alpha1  + dalpha2  / 2.0;
+            Lambda3 = Lambda1 + dLambda2 / 2.0;
+            xi3     = xi1     + dxi2     / 2.0;
+            
+
+            // Third order
+            X3  = {alpha3, Lambda3, xi3};
+            e3  = IntegralJ(2, 0, 0, 0, m, X3) / alpha3;
+            pt3 = IntegralJ(2, 0, 1, 0, m, X3) / alpha3;
+            pl3 = IntegralJ(2, 2, 0, 0, m, X3) / alpha3; 
+
+            T = InvertEnergyDensity(e3, m);
+            p3  = ThermalPressure(T, m);
+            M    = ComputeJacobian(m, X3);
+            tc   = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
+            psi3 = { dedt(e3, pl3, t + dt / 2.0), dptdt(p3, pt3, pl3, t + dt / 2.0, tc), dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
+            qt3  = M.i() * psi3;
+
+            dalpha3  = dt * qt3(0);
+            dLambda3 = dt * qt3(1);
+            dxi3     = dt * qt3(2);
+
+            alpha4  = alpha1  + dalpha3;
+            Lambda4 = Lambda1 + dLambda3;
+            xi4     = xi1     + dxi3;
+
+
+            // Fourth order
+            X4  = {alpha4, Lambda4, xi4};
+            e4  = IntegralJ(2, 0, 0, 0, m, X4) / alpha4;
+            pl4 = IntegralJ(2, 2, 0, 0, m, X4) / alpha4; 
+            pt4 = IntegralJ(2, 0, 1, 0, m, X4) / alpha4;
+
+            T = InvertEnergyDensity(e4, m);
+            p4  = ThermalPressure(T, m);
+            M    = ComputeJacobian(m, X4);
+            tc   = CalculateTransportCoefficients(T, pt4, pl4, X4, params);
+            psi4 = { dedt(e4, pl4, t + dt), dptdt(p4, pt4, pl4, t + dt, tc), dpldt(p4, pt4, pl4, t + dt, tc) };
+            qt4  = M.i() * psi4;
+
+            dalpha4  = dt * qt4(0);
+            dLambda4 = dt * qt4(1);
+            dxi4     = dt * qt4(2);
+
+            alpha1  += (dalpha1  + 2.0 * dalpha2  + 2.0 * dalpha3  + dalpha4)  / 6.0;
+            Lambda1 += (dLambda1 + 2.0 * dLambda2 + 2.0 * dLambda3 + dLambda4) / 6.0;
+            xi1     += (dxi1     + 2.0 * dxi2     + 2.0 * dxi3     + dxi4)     / 6.0;
+
+            // update first step values
+            X1  = {alpha1, Lambda1, xi1};
+            e1  = IntegralJ(2, 0, 0, 0, m, X1) / alpha1;
+            pt1 = IntegralJ(2, 0, 1, 0, m, X1) / alpha1;
+            pl1 = IntegralJ(2, 2, 0, 0, m, X1) / alpha1;
+            T = InvertEnergyDensity(e1, m);
+            p1  = ThermalPressure(T, m);
+            
+
+        } // End simulation loop
+    }
+    // -------------------------------------
+
+
+    double AltAnisoHydroEvolution::EquilibriumEnergyDensity(double temp, double mass)
+    {
+        double z = mass / temp;
+        if (z == 0) return 3.0 * pow(temp, 4.0) / (PI * PI);
+        else return 3.0 * pow(temp, 4.0) / (PI * PI) * (z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
+    }
+    // -------------------------------------
+
+
+
+    double AltAnisoHydroEvolution::InvertEnergyDensity(double e, double mass)
+    {
+        double x1, x2, mid;
+        double T_min = .001/.197;
+        double T_max = 2.0/.197; 
+        x1 = T_min;
+        x2 = T_max;
+
+
+        double copy(0.0) , prec = 1.e-10;
+        int n = 0;
+        int flag_1 = 0;
+        do
+        {
+            mid = (x1 + x2) / 2.0;
+            double e_mid = EquilibriumEnergyDensity(mid, mass);
+            double e1    = EquilibriumEnergyDensity(x1, mass);
+
+
+            if (abs(e_mid - e) < prec) 
+                break;
+
+            if ((e_mid - e) * (e1 - e) <= 0.0) 
+                x2=mid;
+            else
+                x1=mid;
+
+            n++;        
+            if (n == 1) 
+                copy = mid;
+
+            if (n > 4)
+            {
+                if (abs(copy - mid) < prec)
+                flag_1 = 1;	
+                copy = mid;
+            }
+        }while (flag_1 != 1 && n <= 2000);
+
+        return mid;	
+    }
+    // -------------------------------------
+
+    double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, vec& X)
+    {
+        auto integrand = [this](double pz, double mass, vec& X, int n, int r, int q, int s)
+        {
+            return GausQuad([this](double pT, double pz, double mass, vec& X, int n, int r, int q, int s)
+            {
+                double Lambda {X(1)}, xi {X(2)};
+                double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
+                double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
+                double fa = std::exp(- Ea / Lambda);
+                return pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
+            }, 0, inf, tol, 0, pz, mass, X, n, r, q, s);
+        };
+
+        return 2.0 * GausQuad(integrand, 0, inf, tol, 0, mass, X, n, r, q, s);
+    }
+
+
+
+    AltAnisoHydroEvolution::TransportCoefficients AltAnisoHydroEvolution::CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params)
+    {        
+        // Coefficients for relaxation times
+        // TO DO: should the relaxation times always be equal in Bjorken flow?
+        double tau_pi = 5.0 * params.eta_s / T;
+        double tau_Pi = tau_pi;
+
+        // Calculate transport coefficients
+        double zetaBar_zL = IntegralJ(2, 4, 0, 0, params.mass, X) / X(0) - 3.0 * pl;
+        double zetaBar_zT = IntegralJ(2, 2, 1, 0, params.mass, X) / X(0) - pt;
+        // if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
+
+        TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
+        return tc;
+    }
+    // -------------------------------------
+
+
+
+    double AltAnisoHydroEvolution::dedt(double e, double pl, double tau)
+    {
+        return -(e + pl) / tau;
+    }
+    // -------------------------------------
+
+
+
+    double AltAnisoHydroEvolution::dptdt(double p, double pt, double pl, double tau, TransportCoefficients& tc)
+    {
+        double tau_pi     = tc.tau_pi;
+        double tau_Pi     = tc.tau_Pi;
+        double zetaBar_zT = tc.zetaBar_zT;
+        double pbar       = (pl + 2.0 * pt) / 3.0;
+        return -(pbar - p) / tau_Pi + (pl - pt) / (3.0 * tau_pi) + zetaBar_zT / tau;
+    }
+    // -------------------------------------
+
+
+
+    double AltAnisoHydroEvolution::dpldt(double p, double pt, double pl, double tau, TransportCoefficients& tc)
+    {
+        double tau_pi     = tc.tau_pi;
+        double tau_Pi     = tc.tau_Pi;
+        double zetaBar_zL = tc.zetaBar_zL;
+        double pbar       = (pl + 2.0 * pt) / 3.0;
+        return -(pbar - p) / tau_Pi - (pl - pt) / (1.5 * tau_pi) + zetaBar_zL / tau;
+    }
+    // -----------------------------------------
 }
+
+

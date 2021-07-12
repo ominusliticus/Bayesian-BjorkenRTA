@@ -1,4 +1,5 @@
 others/
+output/plots/*
 *.dat
 *.out
 *.x

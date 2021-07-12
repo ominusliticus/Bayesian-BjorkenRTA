@@ -21,22 +21,26 @@ ll 0.1
 
 # Mass of particles
 # units fm^{-1}
-mass 0 
-# 1.015228426395939
+mass 1.015228426395939   # 200 MeV
+# 0.0050761421392        # 1 MeV
+# 0.25380710659       # 50 MeV
+# 1.015228426395939   # 200 MeV
+# 5.076142131979695431  # 1 GeV
 
 # Initial viscous transport coefficient
 # 10 / (4.0 * PI)
 eta_s 0.795774715
 
+# deprecated option
 # Steps to take in simulation
-steps 10001
+# steps 10001
 
 #
 #   Parameters for anisotropic hydrodynamics
 #
 
 # initial longitudinal pressure
-pl0  .20170
+pl0  8.71828
 
 # initial tranverse pressure
-pt0  .18085
+pt0  2.13818

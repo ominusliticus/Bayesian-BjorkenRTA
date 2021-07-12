@@ -1,3 +1,6 @@
 [submodule "3rd_party/fmt"]
 	path = 3rd_party/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "3rd_party/armadillo"]
+	path = 3rd_party/armadillo
+	url = https://gitlab.com/conradsnicta/armadillo-code.git

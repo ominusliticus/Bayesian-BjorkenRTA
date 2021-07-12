@@ -1,30 +1,28 @@
 #!/bin/bash
 
-echo "Installing 3rd party libraries"
+echo "Checking for 3rd party libraries, and installing if needed"
 echo pwd
 cd ../3rd_party
 
 if [[-d fmt]]
 then
-    cd fmt
-    echo pwd
-    echo "Building fmt library"
-    cmake .
-    make
-    cd ..
-    echo "Done."
+    echo 'fmt library exists'
 else
     echo "fmt repository doesn't exist"
     echo "cloning repository https://github.com/fmtlib/fmt.git"
     git clone --recursive https://github.com/fmtlib/fmt.git
-    cd fmt
-    echo pwd
-    echo "Building fmt library"
-    cmake .
-    make
-    cd ..
-    echo "Done."
+    echo "Done"
 fi
 
-cd ../scripts
+if [[-d aramadillo]]
+then 
+    echo "armadillo library exists"
+else
+    echo "armadillo library doesn't exist"
+    echo "cloning repository https://gitlab.com/conradsnicta/armadillo-code.git"
+    git clone --recursive https://gitlab.com/conradsnicta/armadillo-code.git
+    echo "Done"
+fi
+
+cd ../
 echo "Done installing all dependencies."

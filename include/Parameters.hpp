@@ -14,6 +14,10 @@ struct SimulationParameters
     SimulationParameters(const char* filename);
     ~SimulationParameters();
 
+    void SetParameter(const char* name, double value);
+    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ll, double _mass, double _eta_s);
+    void SetInitialTemperature(void);
+
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
     double tau_0;
@@ -34,7 +38,8 @@ struct SimulationParameters
     double pl0;
     double pt0;
 
-    std::vector<double> D;
+    // TO DO: convert exact evolution into sturct an remove this vecotr, but keep initial value parameter
+    double T0;
 }; // end struct SimulationParameters
 
 #endif

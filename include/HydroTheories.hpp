@@ -11,6 +11,17 @@
 
 #include <vector>
 
+// I don't want to require an aramdillo installation so instead these macros 
+// take care of setting the correct flags to make sure everything I need works
+#define ARMA_DONT_USE_WRAPPER
+#ifndef ARMA_USE_LAPACK
+    #define ARMA_USE_LAPACK
+#endif
+#include <armadillo>
+
+using vec = arma::vec;
+using mat = arma::mat;
+
 using SP = SimulationParameters;
 
 namespace hydro
@@ -27,6 +38,7 @@ namespace hydro
         // Need to invert enery density to get temperature. This is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
         // the same as the equilibrium energy density
+        // TO DO: switch second argument to just `doublew mass`
         double EquilibriumEnergyDensity(double temp, SP& params);
         double InvertEnergyDensity(double e, SP& params);
 
@@ -72,6 +84,7 @@ namespace hydro
         // Need to invert enery density to get temperature. This is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
         // the same as the equilibrium energy density
+        // TO DO: switch second argument to just `doublew mass`
         double EquilibriumEnergyDensity(double temp, SP& params);
         double InvertEnergyDensity(double e, SP& params);
 
@@ -104,6 +117,58 @@ namespace hydro
         double  de1,  de2,  de3,  de4;
         double dpt1, dpt2, dpt3, dpt4;
         double dpl1, dpl2, dpl3, dpl4;
+
+        // Simulation information
+        double T0;      // Starting temperature in fm^{-1}
+    };
+
+
+    struct AltAnisoHydroEvolution
+    {
+        // Constructors
+        AltAnisoHydroEvolution() = default;
+
+        // Setup and run numerical evolution
+        void RunHydroSimulation(SP& params);
+
+        // Need to invert enery density to get temperature. This is done by taking advantage of
+        // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
+        // the same as the equilibrium energy density
+        double EquilibriumEnergyDensity(double temp, double mass);
+        double InvertEnergyDensity(double e, double mass);
+
+        struct TransportCoefficients
+        {
+            double tau_pi;
+            double tau_Pi;
+            double zetaBar_zT;
+            double zetaBar_zL;
+        };
+        TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params);
+        // Functions used to calcualte the transport coefficients
+        double IntegralJ(int n, int q, int r, int s, double mass, vec& X);
+
+        // Evolution equations
+        double  dedt(double e, double pl, double tau);
+        double dpldt(double p, double pt, double pl, double tau, TransportCoefficients& tc);
+        double dptdt(double p, double pt, double pl, double tau, TransportCoefficients& tc);
+
+        // Dynamic variables for RK4: allocate here to make sure CPU has to constantly allocate new memory
+        // TO DO: Correct operations of class
+        double e1,       e2,       e3,       e4;
+        double p1,       p2,       p3,       p4;
+        double pt1,      pt2,      pt3,      pt4;
+        double pl1,      pl2,      pl3,      pl4;
+        double xi1,      xi2,      xi3,      xi4;
+        double dxi1,     dxi2,     dxi3,     dxi4;
+        double alpha1,   alpha2,   alpha3,   alpha4;
+        double dalpha1,  dalpha2,  dalpha3,  dalpha4;
+        double Lambda1,  Lambda2,  Lambda3,  Lambda4;
+        double dLambda1, dLambda2, dLambda3, dLambda4;
+        
+        vec X1,   X2,   X3,   X4;
+        vec psi1, psi2, psi3, psi4;
+        vec qt1,  qt2,  qt3,  qt4;
 
         // Simulation information
         double T0;      // Starting temperature in fm^{-1}

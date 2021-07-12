@@ -1,20 +1,25 @@
 # TO DO: Switch to CMake
 
-CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
-OPT = -O2 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
-LIBS = -lpthread -lfmt
-INCLUDE = -I /usr/local/include 
-
 SRC = ./src/
 TST = ./test/
 INC = ./include/
 OBJ = ./build/
+THIRD_PARTY = ./3rd_party/
 
-FILES := $(shell find $(SRC) -name '*.cpp')
+# Armadillo instructions
+ARMA_INC = $(THIRD_PARTY)armadillo/inlcude/
+ARMA_LIB = -lopenblas -llapack
+
+FILES := $(shell find $(SRC) -name '*.cpp') $(SRC)fmt/format.cc
 OBJ_FILES := $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(FILES))
 
 TST_FILES := $(TST)test_moments_of_dist_func.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp))
 TST_OBJ_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_FILES))
+
+CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
+OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
+LIBS = -lpthread $(ARMA_LIB)
+INCLUDE = -I /usr/local/include -I $(ARMA_INC)
 
 CFLAGS = $(OPT)
 
@@ -36,6 +41,8 @@ $(OBJ)%.o: $(SRC)%.cpp Makefile
 
 run:
 	$(EXE)
+
+	
 
 test: $(TEST_MOM)
 
