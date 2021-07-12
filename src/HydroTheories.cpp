@@ -105,18 +105,11 @@ namespace hydro
             else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
         };
 
-        // Note: all dynamic variables are declared as struct memebrs variables
+        // Note: ll dynamic variables are declared as struct memebrs variables
         e1  = e0;
-        if (m == 0)
-        {
-            pi1 = 2.0 * (params.pt0 - params.pl0) / 3.0;
-            Pi1 = (params.pl0 + 2.0 * params.pt0) / 3.0 - ThermalPressure(e0, params);
-        }
-        else
-        {
-            pi1 = 2.0 * (params.pt0 - params.pl0) / 3.0;
-            Pi1 = (params.pl0 + 2.0 * params.pt0) / 3.0 - ThermalPressure(e0, params);
-        }
+        pi1 = 2.0 * (params.pt0 - params.pl0) / 3.0;
+        Pi1 = (params.pl0 + 2.0 * params.pt0) / 3.0 - ThermalPressure(e0, params);
+
         
         // Begin simulation 
         TransportCoefficients tc;
@@ -323,6 +316,7 @@ namespace hydro
 
             case theory::DNMR: // Reference Appendix E in arXiv:1803.01810
             {
+                // See arXiv:1403.0962 Eq. (48) for this definition, where z = cosh(th)
                 auto IntegralI = [](int n, int q, double z, double T)
                 {
                     if (z == 0) 
@@ -471,16 +465,9 @@ namespace hydro
 
         // Note: all dynamic variables are declared as struct memebrs variables
         e1  = e0;
-        if (m == 0)
-        {
-            pt1 = params.pt0;
-            pl1 = params.pl0;
-        }
-        else
-        {
-            pt1 = params.pt0;
-            pl1 = params.pl0;
-        }
+
+        pt1 = params.pt0;
+        pl1 = params.pl0;
         
         // Begin simulation 
         TransportCoefficients tc = CalculateTransportCoefficients(e1, p1, pt1, pl1, params);
@@ -813,6 +800,7 @@ namespace hydro
         Print(std::cout, e1, IntegralJ(2, 0, 0, 0, m, X1) / alpha1);
 
         // usefull function for calculating Jacobian matrix
+        // TO DO: change call move/copy construtor functions to overwrite existing data to speed up runtime
         auto ComputeJacobian = [this](double m, vec& X)
         {
             double a = X(0);
