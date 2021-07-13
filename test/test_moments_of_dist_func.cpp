@@ -43,16 +43,15 @@ void test_blue(void)
 {
     Print(std::cout, "Starting test case: blue.");
     SimulationParameters params;
-    params.tau_0     = 0.1;
-    params.Lambda_0  = 1.64720404472724;
-    params.alpha_0   = 0.654868759801639;
-    params.xi_0      = -0.832036509976845;
-    params.ul        = 100.1;
-    params.ll        = 0.1;
-    params.mass      = 0.2 / 0.197;
-    params.eta_s     = 10 / (4.0 * PI);
-    params.steps     = 10001;
-    params.step_size = (100.1 - 0.1) / 10001;
+    params.SetParameters(
+        0.1, 
+        1.64720404472724,
+        -0.832036509976845,
+        0.654868759801639,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
 
     const char* file_name = "./output/temperature_evolution_blue.dat";
     exact::ExactSolution exact_soln;
@@ -78,14 +77,15 @@ void test_green(void)
 {
     Print(std::cout, "Starting test case: green.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         0.2111659749634709,
-                         -0.908162823901714,
-                         0.000040999483353781,
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        0.2111659749634709,
+        -0.908162823901714,
+        0.000040999483353781,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_green.dat";
     exact::ExactSolution exact_soln;
@@ -111,14 +111,15 @@ void test_magenta(void)
 {
     Print(std::cout, "Starting test case: magenta.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         0.0932423774137986,
-                        -0.948832296401184,
-                         2.530008982501650  *pow(10, -8),
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        0.0932423774137986,
+        -0.948832296401184,
+        2.530008982501650  *pow(10, -8),
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_magenta.dat";
     exact::ExactSolution exact_soln;
@@ -144,14 +145,15 @@ void test_maroon(void)
 {
     Print(std::cout, "Starting test case: maroon.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         3.44957657894908,
-                         1208.051523607203,
-                         0.0780484106646022,
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        3.44957657894908,
+        1208.051523607203,
+        0.0780484106646022,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_maroon.dat";
     exact::ExactSolution exact_soln;
@@ -177,14 +179,15 @@ void test_orange(void)
 {
     Print(std::cout, "Starting test case: orange.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         0.558337869886865,
-                         -0.987449043604828,
-                         0.0631735455385675,
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        0.558337869886865,
+        -0.987449043604828,
+        0.0631735455385675,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_orange.dat";
     exact::ExactSolution exact_soln;
@@ -210,14 +213,15 @@ void test_black(void)
 {
     Print(std::cout, "Starting test case: black.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         0.501641547725032,
-                         0.0,
-                         0.001064845141251691,
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        0.501641547725032,
+        0.0,
+        0.001064845141251691,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_black.dat";
     exact::ExactSolution exact_soln;
@@ -243,14 +247,15 @@ void test_cyan(void)
 {
     Print(std::cout, "Starting test case: cyan.");
     SimulationParameters params;
-    params.SetParameters(0.1, 
-                         0.01 / 0.197,
-                         0.0,
-                         2.91164 * pow(10, -14) / 0.197,
-                         100.1,
-                         0.2 / 0.197,
-                         10.0 / (4.0 * PI)
-                        );
+    params.SetParameters(
+        0.1, 
+        0.01 / 0.197,
+        0.0,
+        2.91164 * pow(10, -14) / 0.197,
+        100.1,
+        0.2 / 0.197,
+        10.0 / (4.0 * PI)
+    );
     
     const char* file_name = "./output/temperature_evolution_cyan.dat";
     exact::ExactSolution exact_soln;
