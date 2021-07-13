@@ -107,14 +107,14 @@ void SimulationParameters::SetParameter(const char* name, double value)
 }
 // ----------------------------------------
 
-void SimulationParameters::SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ll, double _mass, double _eta_s)
+void SimulationParameters::SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ul, double _mass, double _eta_s)
 {
     tau_0    = _tau_0;
     Lambda_0 = _Lambda_0;
     xi_0     = _xi_0;
     alpha_0  = alpha_0;
-    ul       = _tau_0;
-    ll       = _ll;
+    ll       = _tau_0;
+    ul       = _ul;
     mass     = _mass;
     eta_s    = _eta_s;
     

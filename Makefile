@@ -13,8 +13,11 @@ ARMA_LIB = -lopenblas -llapack
 FILES := $(shell find $(SRC) -name '*.cpp') $(SRC)fmt/format.cc
 OBJ_FILES := $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(FILES))
 
-TST_FILES := $(TST)test_moments_of_dist_func.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp))
-TST_OBJ_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_FILES))
+TST_MOMENTS := $(TST)test_moments_of_dist_func.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp)) $(SRC)fmt/format.cc
+TST_MOMENTS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_MOMENTS))
+
+TST_HYDROS := $(TST)test_run_all_hydros.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp)) $(SRC)fmt/format.cc
+TST_HYDROS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_HYDROS))
 
 CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
 OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
@@ -25,8 +28,7 @@ CFLAGS = $(OPT)
 
 EXE = ./build/exact_solution.x
 TEST_MOM = ./build/test_moments.x
-TEST_EXACT = ./build/test_output_exact.x
-TEST_EXACT_TUPLE = ./build/test_output_exact_tuple.x
+TEST_HYDRO = ./build/test_run_all_hydros.x
 
 # Tells make file to run commands even when files already exit
 .PHONY: all
@@ -44,16 +46,28 @@ run:
 
 	
 
-test: $(TEST_MOM)
+test_moments: $(TEST_MOM)
 
-$(TEST_MOM): $(TST_OBJ_FILES)
+$(TEST_MOM): $(TST_MOMENTS_FILES)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDE)
 
 $(OBJ)%.o: $(TST)%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -MMD -c $< -o $@  
 
-run_test:
+run_test_moments:
 	$(TEST_MOM)
+
+
+test_hydros: $(TEST_HYDRO)
+
+$(TEST_HYDRO): $(TST_HYDROS_FILES)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDE)
+
+$(OBJ)%.o: $(TST)%.cpp
+	$(CC) $(CFLAGS) $(INCLUDE) -MMD -c $< -o $@
+
+run_test_hydros:
+	$(TEST_HYDRO)
 
 clean:
 	rm -f build/*

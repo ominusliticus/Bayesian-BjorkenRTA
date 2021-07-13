@@ -17,7 +17,8 @@ int main()
     Print(std::cout, params);
 
     std::fstream fout("./output/etas0.2_new_nonconformal.dat", std::fstream::out);
-    exact::Run(fout, params);
+    exact::ExactSolution exact_soln;
+    exact_soln.Run(fout, params);
     fout.close();
 
     for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
@@ -26,7 +27,7 @@ int main()
         std::fstream fwrite(fmt::format("./output/extact_solution_{:.{}f}.dat", tau, 1), std::fstream::out);        
         for (double w = -3.0; w <= 3.0; w += 0.02)
             for (double pT = -3.0; pT <= 3.0; pT += 0.02)
-                Print(fwrite, w, pT, exact::EaxctDistribution(w, pT, tau, params));
+                Print(fwrite, w, pT, exact_soln.EaxctDistribution(w, pT, tau, params));
         fwrite.close();
     }
     return 0;

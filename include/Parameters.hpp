@@ -15,7 +15,7 @@ struct SimulationParameters
     ~SimulationParameters();
 
     void SetParameter(const char* name, double value);
-    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ll, double _mass, double _eta_s);
+    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ul, double _mass, double _eta_s);
     void SetInitialTemperature(void);
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);

@@ -631,10 +631,6 @@ namespace hydro
         // function we want to find the root of
         auto func = [this](double piBar, double xi) -> double
         {
-            // if (piBar < -0.5)
-            // {
-                
-            // }
             return piBar + 0.25 * (3.0 * R220(xi) / R200(xi) - 1.0);
         };
 
@@ -1049,6 +1045,8 @@ namespace hydro
         return -(pbar - p) / tau_Pi - (pl - pt) / (1.5 * tau_pi) + zetaBar_zL / tau;
     }
     // -----------------------------------------
+
+
 }
 
 

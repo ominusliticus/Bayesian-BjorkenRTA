@@ -17,7 +17,8 @@ int main()
     Print(std::cout, params);
 
     std::fstream fout("./output/etas0.2_new_nonconformal.dat", std::fstream::out);
-    exact::Run(fout, params);
+    exact::ExactSolution exact_soln;
+    exact_soln.Run(fout, params);
     fout.close();
     
     for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
@@ -27,10 +28,10 @@ int main()
         std::fstream fwrite2(fmt::format("./output/exact_solution_tuple_theta_intergrate_{:.{}f}.dat", tau, 1), std::fstream::out);
         for (double p = 0.0; p <= 3.0; p += 0.01)
         {
-            auto [first1, second1] = exact::EaxctDistributionTuple(0, p, tau, params);
+            auto [first1, second1] = exact_soln.EaxctDistributionTuple(0, p, tau, params);
             Print(fwrite1, p, first1, second1);
             
-            auto [first2, second2] = exact::ThetaIntegratedExactDistributionTuple(p, tau, params);
+            auto [first2, second2] = exact_soln.ThetaIntegratedExactDistributionTuple(p, tau, params);
             Print(fwrite2, p, first2, second2);
         }
         fwrite1.close();
