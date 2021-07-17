@@ -56,13 +56,13 @@ namespace hydro
         switch (theo)
         {
             case theory::CE:
-                Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
                 e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 pi_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 Pi_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
-                Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+                // Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
                 e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 pi_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 Pi_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
@@ -301,7 +301,7 @@ namespace hydro
                 double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = 5 * tol;
+                double local_tol = 100 * tol;
                 if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
                 else 
                 {
@@ -371,7 +371,7 @@ namespace hydro
                 double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = 5 * tol;
+                double local_tol = 100 * tol;
                 if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
                 else 
                 {
@@ -422,7 +422,7 @@ namespace hydro
     ///////////////////////////////////////
     void AnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        Print(std::cout, "Calculating anistropic hydrodynamic evolution");
+        // Print(std::cout, "Calculating anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -468,6 +468,7 @@ namespace hydro
 
         pt1 = params.pt0;
         pl1 = params.pl0;
+        p1  = ThermalPressure(e1, params);
         
         // Begin simulation 
         TransportCoefficients tc = CalculateTransportCoefficients(e1, p1, pt1, pl1, params);
@@ -740,7 +741,7 @@ namespace hydro
     //////////////.////////////////////////////
     void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+        // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -793,8 +794,6 @@ namespace hydro
         
         X1 = {alpha1, Lambda1, xi1};
 
-        Print(std::cout, e1, IntegralJ(2, 0, 0, 0, m, X1) / alpha1);
-
         // usefull function for calculating Jacobian matrix
         // TO DO: change call move/copy construtor functions to overwrite existing data to speed up runtime
         auto ComputeJacobian = [this](double m, vec& X)
@@ -815,8 +814,8 @@ namespace hydro
         mat M;
         for (int n = 0; n < params.steps; n++)
         {
-            if (n % 100 == 0) fmt::print("{}\t", n); 
-            if (n % 1000 == 0) fmt::print("\n");
+            // if (n % 100 == 0) fmt::print("{}\t", n); 
+            // if (n % 1000 == 0) fmt::print("\n");
             t = t0 + n * dt;
             Print(e_plot,  t, e1, p1, xi1);
             Print(pt_plot, t, pt1, tc.zetaBar_zT);
@@ -1047,6 +1046,6 @@ namespace hydro
     // -----------------------------------------
 
 
-}
+ }
 
 

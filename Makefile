@@ -30,13 +30,17 @@ EXE = ./build/exact_solution.x
 TEST_MOM = ./build/test_moments.x
 TEST_HYDRO = ./build/test_run_all_hydros.x
 
+#DEPS := $(OBJ_FILES:.o=.d)
+
+-include $(DEPS)
+
 # Tells make file to run commands even when files already exit
 .PHONY: all
 
 all: $(EXE)
 
 $(EXE): $(OBJ_FILES)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDE)
+	$(CC) $(CFLAGS) -MMD -o $@ $^ $(LIBS) $(INCLUDE)
 
 $(OBJ)%.o: $(SRC)%.cpp Makefile
 	$(CC) $(CFLAGS) $(INCLUDE) -MMD -c -o $@ $< 

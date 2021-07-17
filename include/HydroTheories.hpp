@@ -4,6 +4,7 @@
 #ifndef HYDRO_THEORIES_HPP
 #define HYDRO_THEORIES_HPP
 
+#include "config.hpp"
 #include "Errors.hpp"
 #include "Parameters.hpp"
 #include "GlobalConstants.hpp"
@@ -11,13 +12,10 @@
 
 #include <vector>
 
-// I don't want to require an aramdillo installation so instead these macros 
-// take care of setting the correct flags to make sure everything I need works
-#define ARMA_DONT_USE_WRAPPER
-#ifndef ARMA_USE_LAPACK
-    #define ARMA_USE_LAPACK
-#endif
 #include <armadillo>
+
+// TO DO: Make explicit copy and copy assignment constructors for the structs belows...
+// TO DO: Destructors for all the structs below
 
 using vec = arma::vec;
 using mat = arma::mat;

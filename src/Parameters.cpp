@@ -100,7 +100,7 @@ void SimulationParameters::SetParameter(const char* name, double value)
     if (var_name.compare("tau_0") == 0 || var_name.compare("ul") == 0 || var_name.compare("ll") == 0 || var_name.compare("steps") == 0)
         {
             step_size = tau_0 / 20;
-            steps     = std::ceil((ll - ul) / step_size);
+            steps     = std::ceil((ul - ll) / step_size);
         }
     if (var_name.compare("Lambda_0") == 0 || var_name.compare("xi_0") == 0 || var_name.compare("alpha_0") == 0 || var_name.compare("mass") == 0)
         SetInitialTemperature();

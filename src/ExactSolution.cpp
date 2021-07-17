@@ -485,15 +485,19 @@ namespace exact{
         do
         {
             Print(std::cout, fmt::format("n = {}",n));
-
-            #pragma omp parallel for shared(e) 
+#ifdef USE_PARALLEL
+            omp_set_dynamic(0);
+            #pragma omp parallel for shared(e) num_threads(4)
+#endif
             for (int i = 0; i < steps; i++)
             {
                 double tau = tau_0 + (double) i * step_size;
                 e[i] = GetMoments(tau, params, Moment::ED);
             }
-
-            #pragma omp parallel for shared(D)
+#ifdef USE_PARALLEL
+            omp_set_dynamic(0);
+            #pragma omp parallel for shared(D) num_threads(4)
+#endif
             for (int i = 0; i < steps; i++)
             {
                 double Temp = InvertEnergyDensity(e[i], params);

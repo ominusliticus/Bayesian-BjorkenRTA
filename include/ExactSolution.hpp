@@ -8,13 +8,13 @@
 #include <vector>
 #include <tuple>
 
+#include "config.hpp"
 #include "Errors.hpp"
 #include "GlobalConstants.hpp"
 #include "Parameters.hpp"
 
 // For parallelizing the temperature evolution loops in eaxt::ExactSolution::Run()
-#ifdef USE_PARALLEL
-    #define OMP_NUM_THREADS 2
+#if USE_PARALLEL
     #include <omp.h>
 #endif
 
