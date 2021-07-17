@@ -2,7 +2,12 @@
 
 echo "Checking for 3rd party libraries, and installing if needed"
 echo pwd
-cd ../3rd_party
+if [[-d 3rd_party]]
+then
+    cd 3rd_party
+else
+    cd ../3rd_party
+fi
 
 if [[-d fmt]]
 then
