@@ -12,7 +12,7 @@
 
 #include <vector>
 
-#include "armadillo"
+#include "../3rd_party/armadillo-code/include/armadillo"
 
 // TO DO: Make explicit copy and copy assignment constructors for the structs belows...
 // TO DO: Destructors for all the structs below
