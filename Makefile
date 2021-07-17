@@ -7,7 +7,7 @@ OBJ = ./build/
 THIRD_PARTY = ./3rd_party/
 
 # Armadillo instructions
-ARMA_INC = $(THIRD_PARTY)armadillo/inlcude/
+ARMA_INC = $(THIRD_PARTY)armadillo-code/inlcude/
 ARMA_LIB = -lopenblas -llapack
 
 FILES := $(shell find $(SRC) -name '*.cpp') $(SRC)fmt/format.cc
