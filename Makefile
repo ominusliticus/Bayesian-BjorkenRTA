@@ -19,7 +19,7 @@ TST_MOMENTS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_MOMENTS))
 TST_HYDROS := $(TST)test_run_all_hydros.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp)) $(SRC)fmt/format.cc
 TST_HYDROS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_HYDROS))
 
-CC = g++ -std=c++17 -Wall#-g3 -fsanitize=address
+CC = g++ -std=c++1z -Wall#-g3 -fsanitize=address
 OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 LIBS = -lpthread $(ARMA_LIB)
 INCLUDE = -I /usr/local/include -I $(ARMA_INC)
