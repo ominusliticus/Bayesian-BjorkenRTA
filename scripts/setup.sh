@@ -1,13 +1,9 @@
 #!/bin/bash
 
 echo "Checking for 3rd party libraries, and installing if needed"
-echo pwd
-if [[-d 3rd_party]]
-then
-    cd 3rd_party
-else
-    cd ../3rd_party
-fi
+pwd
+
+cd ../3rd_party
 
 if [[-d fmt]]
 then
