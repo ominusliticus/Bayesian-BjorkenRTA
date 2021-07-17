@@ -21,8 +21,18 @@ else
     echo "armadillo library doesn't exist"
     echo "cloning repository https://gitlab.com/conradsnicta/armadillo-code.git"
     git clone --recursive https://gitlab.com/conradsnicta/armadillo-code.git
+    mv armadillo-code armadillo
     echo "Done"
 fi
 
 cd ../
 echo "Done installing all dependencies."
+
+echo "Creating necessary folders"
+mkdir build
+mkdir output
+mkdir output/aniso_hydro
+mkdir output/bayes
+mkdir output/CE_hydro
+mdkir output/DNMR_hydro
+mkdir exact
