@@ -21,8 +21,8 @@ ll 0.1
 
 # Mass of particles
 # units fm^{-1}
-mass 0.0050761421392        # 1 MeV
-# 0.0050761421392        # 1 MeV
+mass 1.015228426395939   # 200 MeV
+# 0.0050761421392     # 1 MeV
 # 0.25380710659       # 50 MeV
 # 1.015228426395939   # 200 MeV
 # 5.076142131979695431  # 1 GeV
@@ -40,7 +40,7 @@ eta_s 0.795774715
 #
 
 # initial longitudinal pressure
-pl0  8.71828
+pl0  8.17055
 
 # initial tranverse pressure
-pt0  2.13818
+pt0  1.98753

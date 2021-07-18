@@ -296,21 +296,22 @@ namespace hydro
                 double delta_pipi  = 5.0 / 3.0 + 7.0 * beta * I3_63 / (3.0 * beta_pi);
                 double lambda_piPi = - 2.0 * chi / 3.0;
 
-                double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
-                double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
-                double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
+                // double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
+                // double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
+                // double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = 100 * tol;
-                if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
-                else 
-                {
-                    Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy relations."); 
-                    Print_Error(std::cerr, fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
-                    Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              = {}", check2));
-                    Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3));
-                    exit(-5555);
-                }
+                return tc;
+                // double local_tol = 100 * tol;
+                // if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
+                // else 
+                // {
+                //     Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy relations."); 
+                //     Print_Error(std::cerr, fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
+                //     Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              = {}", check2));
+                //     Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3));
+                //     exit(-5555);
+                // }
                 break;
             }
 
@@ -366,21 +367,22 @@ namespace hydro
                 double delta_pipi  = (4.0 + cBar_pi * m * m * I22) / 3.0;;
                 double lambda_piPi = 6.0 / 5.0 - 2.0 * pow(m, 4.0) * (cBar_e * I00 + cBar_Pi * I01) / 15;
 
-                double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
-                double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
-                double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
+                // double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
+                // double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
+                // double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
                 
                 TransportCoefficients tc {tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi};
-                double local_tol = 100 * tol;
-                if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
-                else 
-                {
-                    Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy relations.");
-                    Print_Error(std::cerr, fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
-                    Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              = {}", check2));
-                    Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3)); 
-                    exit(-5555);
-                }
+                return tc;
+                // double local_tol = 100 * tol;
+                // if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
+                // else 
+                // {
+                //     Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy relations.");
+                //     Print_Error(std::cerr, fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
+                //     Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              = {}", check2));
+                //     Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3)); 
+                //     exit(-5555);
+                // }
                 break;
             }
         } // End switch(theo)

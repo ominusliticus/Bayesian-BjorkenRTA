@@ -10,7 +10,6 @@
 // Author: Kevin Ingles
 
 // Uncomment to enable parallel evaluations in ExactSolution.cpp
-#define USE_PARALLEL
 
 #include "../include/Errors.hpp"
 #include "../include/GlobalConstants.hpp"
@@ -28,10 +27,10 @@ void Run1GeV(void);
 
 int main()
 {
-    Run1MeV();
-    Run50MeV();
+    // Run1MeV();
+    // Run50MeV();
     Run200MeV();
-    Run1GeV();    
+    // Run1GeV();    
     return 0;
 }
 
