@@ -5,7 +5,7 @@ The goal is to assess whether or not the observables are able to adequately cons
 
 # How To Run
 
-1. Clone this project, be sure to use the `--recursive` option to clone the submodules as well.
+1. Clone this project.
 1. Run the setup_submodules.sh script in scripts folder to ensure all the 3rd party libraries are properly cloned.  
    The fmt library is not actually needed, but for those that like its functionality, they can easily build and install it for their system.
 1. There are example codes in the test directory to show how this code base can be used for several types of caluclations, not just Bayesian inference.  

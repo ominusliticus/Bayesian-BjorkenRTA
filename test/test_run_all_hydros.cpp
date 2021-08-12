@@ -11,6 +11,8 @@
 
 // Uncomment to enable parallel evaluations in ExactSolution.cpp
 
+
+#include "../include/config.hpp"
 #include "../include/Errors.hpp"
 #include "../include/GlobalConstants.hpp"
 #include "../include/ExactSolution.hpp"
@@ -19,6 +21,10 @@
 #include "../include/HydroTheories.hpp"
 
 #include <chrono>
+
+long int integration_timer;
+long int matrix_op_timer;
+long int loop_timer;
 
 void Run1MeV(void);
 void Run50MeV(void);
@@ -29,6 +35,9 @@ int main()
 {
     // Run1MeV();
     // Run50MeV();
+   integration_timer = 0;
+   matrix_op_timer = 0;
+   loop_timer = 0;
     Run200MeV();
     // Run1GeV();    
     return 0;
@@ -36,6 +45,7 @@ int main()
 
 void Run1MeV(void)
 {
+    Print(std::cout, "1 MeV calculation");
     auto start = std::chrono::steady_clock::now();  
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
@@ -95,6 +105,7 @@ void Run1MeV(void)
 
 void Run50MeV(void)
 {
+    Print(std::cout, "50 MeV calculation");
     auto start = std::chrono::steady_clock::now();  
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
@@ -154,6 +165,7 @@ void Run50MeV(void)
 
 void Run200MeV(void)
 {
+    Print(std::cout, "200 MeV calculation");
     auto start = std::chrono::steady_clock::now();  
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
@@ -166,53 +178,62 @@ void Run200MeV(void)
         0.200 / 0.197,
         10 / (4.0 * PI)
     );
+    params.SetParameter("pt0", 8.17055);
+    params.SetParameter("pl0", 1.98753);
     Print(std::cout, params);
 
-    auto eaxct_start = std::chrono::steady_clock::now();
-    exact::ExactSolution exact_soln;
-    exact_soln.Run("./output/exact/temperature_evolution.dat", params);
-    auto exact_end = std::chrono::steady_clock::now();
+    // auto eaxct_start = std::chrono::steady_clock::now();
+    // exact::ExactSolution exact_soln;
+    // exact_soln.Run("./output/exact/temperature_evolution.dat", params);
+    // auto exact_end = std::chrono::steady_clock::now();
     
-    exact_soln.OutputMoments(fmt::format("./output/exact/moments_of_distribution_m={:.3f}GeV.dat", 0.197 * params.mass).data(), params);
+    // exact_soln.OutputMoments(fmt::format("./output/exact/moments_of_distribution_m={:.3f}GeV.dat", 0.197 * params.mass).data(), params);
 
-    Print(std::cout, "Setting iniital conditions for pl and pt.");
-    double t0  = params.tau_0;
-    double pt0 = exact_soln.GetMoments(t0, params, exact::Moment::PT);
-    double pl0 = exact_soln.GetMoments(t0, params, exact::Moment::PL);
-    params.SetParameter("pt0",pt0);
-    params.SetParameter("pl0", pl0);
-    Print(std::cout, params);
+    // Print(std::cout, "Setting iniital conditions for pl and pt.");
+    // double t0  = params.tau_0;
+    // double pt0 = exact_soln.GetMoments(t0, params, exact::Moment::PT);
+    // double pl0 = exact_soln.GetMoments(t0, params, exact::Moment::PL);
+    // params.SetParameter("pt0",pt0);
+    // params.SetParameter("pl0", pl0);
+    // Print(std::cout, params);
 
-    auto aniso_start = std::chrono::steady_clock::now();
-    hydro::AnisoHydroEvolution aniso;
-    aniso.RunHydroSimulation(params);
-    auto aniso_end = std::chrono::steady_clock::now();
+    // auto aniso_start = std::chrono::steady_clock::now();
+    // hydro::AnisoHydroEvolution aniso;
+    // aniso.RunHydroSimulation(params);
+    // auto aniso_end = std::chrono::steady_clock::now();
 
     auto altaniso_start = std::chrono::steady_clock::now();
     hydro::AltAnisoHydroEvolution altaniso;
     altaniso.RunHydroSimulation(params);
     auto altaniso_end = std::chrono::steady_clock::now();
     
-    hydro::ViscousHydroEvolution viscous;
-    auto ce_start = std::chrono::steady_clock::now();
-    viscous.RunHydroSimulation(params, hydro::theory::CE);
-    auto ce_end = std::chrono::steady_clock::now();
+    // hydro::ViscousHydroEvolution viscous;
+    // auto ce_start = std::chrono::steady_clock::now();
+    // viscous.RunHydroSimulation(params, hydro::theory::CE);
+    // auto ce_end = std::chrono::steady_clock::now();
 
-    auto dnmr_start = std::chrono::steady_clock::now();
-    viscous.RunHydroSimulation(params, hydro::theory::DNMR);
-    auto dnmr_end = std::chrono::steady_clock::now();
+    // auto dnmr_start = std::chrono::steady_clock::now();
+    // viscous.RunHydroSimulation(params, hydro::theory::DNMR);
+    // auto dnmr_end = std::chrono::steady_clock::now();
 
     auto end = std::chrono::steady_clock::now();
-    Print(std::cout, fmt::format("Time for exact solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(exact_end - eaxct_start).count()));
-    Print(std::cout, fmt::format("Time for ansio solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(aniso_end - aniso_start).count()));
+
+    Print(std::cout);
+    // Print(std::cout, fmt::format("Time for exact solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(exact_end - eaxct_start).count()));
+    // Print(std::cout, fmt::format("Time for ansio solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(aniso_end - aniso_start).count()));
     Print(std::cout, fmt::format("Time for altaniso solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(altaniso_end - altaniso_start).count()));
-    Print(std::cout, fmt::format("Time for ce solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(ce_end - ce_start).count()));
-    Print(std::cout, fmt::format("Time for dnmr solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(dnmr_end - dnmr_start).count()));
+    // Print(std::cout, fmt::format("Time for ce solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(ce_end - ce_start).count()));
+    // Print(std::cout, fmt::format("Time for dnmr solution: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(dnmr_end - dnmr_start).count()));
     Print(std::cout, fmt::format("Total simulation duraion: {} sec", (long long int)std::chrono::duration_cast<std::chrono::seconds>(end - start).count()));
+    Print(std::cout, fmt::format("Average time to execute integrations in one loop: {} us", (double)integration_timer / params.steps));
+    Print(std::cout, fmt::format("Average time preforming matrix opeations: {} us", (double)matrix_op_timer / params.steps));
+    Print(std::cout, fmt::format("Average time to run through loop: {} ms", (double)loop_timer / params.steps));
 }
 
 void Run1GeV(void)
 {
+    
+    Print(std::cout, "1 G`eV calculation");
     auto start = std::chrono::steady_clock::now();  
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;

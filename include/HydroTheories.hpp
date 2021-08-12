@@ -11,16 +11,20 @@
 #include "Integration.hpp"
 
 #include <vector>
+#include <chrono>
 
-#include <armadillo>
+#if USE_ARMADILLO
+    #include "../3rd_party/armadillo/include/armadillo"
+    using vec = arma::vec;
+    using mat = arma::mat;
+#endif
 
 // TO DO: Make explicit copy and copy assignment constructors for the structs belows...
 // TO DO: Destructors for all the structs below
 
-using vec = arma::vec;
-using mat = arma::mat;
-
 using SP = SimulationParameters;
+extern int long matrix_op_timer;
+extern int long loop_timer;
 
 namespace hydro
 {
@@ -116,6 +120,10 @@ namespace hydro
         double dpt1, dpt2, dpt3, dpt4;
         double dpl1, dpl2, dpl3, dpl4;
 
+        // For Bayesian Inference purposes
+        double pi1;
+        double Pi1;
+
         // Simulation information
         double T0;      // Starting temperature in fm^{-1}
     };
@@ -142,9 +150,16 @@ namespace hydro
             double zetaBar_zT;
             double zetaBar_zL;
         };
+
+#if USE_ARMADILLO
         TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params);
         // Functions used to calcualte the transport coefficients
         double IntegralJ(int n, int q, int r, int s, double mass, vec& X);
+#else
+        TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, double* X, SP& params);
+        // Functions used to calcualte the transport coefficients
+        double IntegralJ(int n, int q, int r, int s, double mass, double* X);
+#endif
 
         // Evolution equations
         double  dedt(double e, double pl, double tau);
@@ -163,10 +178,10 @@ namespace hydro
         double dalpha1,  dalpha2,  dalpha3,  dalpha4;
         double Lambda1,  Lambda2,  Lambda3,  Lambda4;
         double dLambda1, dLambda2, dLambda3, dLambda4;
-        
-        vec X1,   X2,   X3,   X4;
-        vec psi1, psi2, psi3, psi4;
-        vec qt1,  qt2,  qt3,  qt4;
+
+        // For use in Bayesian inference
+        double pi1;
+        double Pi1;
 
         // Simulation information
         double T0;      // Starting temperature in fm^{-1}

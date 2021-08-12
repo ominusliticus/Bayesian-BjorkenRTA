@@ -19,7 +19,7 @@ mass 0 10.0
 
 # Initial viscous transport coefficient
 # 10 / (4.0 * PI)
-eta_s 0.0795774715 7.95774715
+eta_s 0.08 1.08
 
 # initial transverse pressure
 pi0 0.0 100.9

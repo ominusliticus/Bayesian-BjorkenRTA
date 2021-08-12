@@ -32,7 +32,7 @@ TEST_HYDRO = ./build/test_run_all_hydros.x
 
 #DEPS := $(OBJ_FILES:.o=.d)
 
--include $(DEPS)
+#-include $(DEPS)
 
 # Tells make file to run commands even when files already exit
 .PHONY: all
@@ -40,9 +40,9 @@ TEST_HYDRO = ./build/test_run_all_hydros.x
 all: $(EXE)
 
 $(EXE): $(OBJ_FILES)
-	$(CC) $(CFLAGS) -MMD -o $@ $^ $(LIBS) $(INCLUDE)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) $(INCLUDE)
 
-$(OBJ)%.o: $(SRC)%.cpp Makefile
+$(OBJ)%.o: $(SRC)%.cpp
 	$(CC) $(CFLAGS) $(INCLUDE) -MMD -c -o $@ $< 
 
 run:

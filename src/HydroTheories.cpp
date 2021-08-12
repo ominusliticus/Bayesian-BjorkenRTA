@@ -1,6 +1,7 @@
 //
 // Author: Kevin Ingles
 
+#include "../include/config.hpp"
 #include "../include/HydroTheories.hpp"
 
 #include <cmath>
@@ -56,13 +57,17 @@ namespace hydro
         switch (theo)
         {
             case theory::CE:
-                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+#if HYDRO_THEORIES_PRINT_OUTPUT
+                Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+#endif
                 e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 pi_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 Pi_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
-                // Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+#if HYDRO_THEORIES_PRINT_OUTPUT
+                Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+#endif
                 e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 pi_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 Pi_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
@@ -424,7 +429,9 @@ namespace hydro
     ///////////////////////////////////////
     void AnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        // Print(std::cout, "Calculating anistropic hydrodynamic evolution");
+#if HYDRO_THEORIES_PRINT_OUTPUT
+        Print(std::cout, "Calculating anistropic hydrodynamic evolution");
+#endif
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -471,6 +478,9 @@ namespace hydro
         pt1 = params.pt0;
         pl1 = params.pl0;
         p1  = ThermalPressure(e1, params);
+
+        pi1 = (2.0 / 3.0) * (pt1 - pl1);
+        Pi1 = (2.0 * pt1 + pl1) / 3.0 - p1;
         
         // Begin simulation 
         TransportCoefficients tc = CalculateTransportCoefficients(e1, p1, pt1, pl1, params);
@@ -478,7 +488,6 @@ namespace hydro
         for (int n = 0; n < params.steps; n++)
         {
             t = t0 + n * dt;
-            p1 = ThermalPressure(e1, params);
             double pi = 2.0 / 3.0 * (pt1 - pl1);
             double xi = InvertShearToXi(e1, p1, pi);
 
@@ -532,6 +541,11 @@ namespace hydro
             e1  += (de1  + 2.0 * de2  + 2.0 * de3  +  de4) / 6.0;
             pt1 += (dpt1 + 2.0 * dpt2 + 2.0 * dpt3 + dpt4) / 6.0;
             pl1 += (dpl1 + 2.0 * dpl2 + 2.0 * dpl3 + dpl4) / 6.0;
+            
+            p1 = ThermalPressure(e1, params);
+
+            pi1 = (2.0 / 3.0) * (pt1 - pl1);
+            Pi1 = (2.0 * pt1 + pl1) / 3.0 - p1;
 
         } // End simulation loop
     }
@@ -740,10 +754,12 @@ namespace hydro
 
     ///////////////////////////////////////////
     // Alt Anisotropic struct implementation //
-    //////////////.////////////////////////////
+    ///////////////////////////////////////////
     void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+#if HYDRO_THEORIES_PRINT_OUTPUT
+        Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+#endif
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -790,14 +806,27 @@ namespace hydro
         pt1 = params.pt0;
         pl1 = params.pl0;
 
+        pi1 = (2.0 / 3.0) * (pt1 - pl1);
+        Pi1 = (2.0 * pt1 + pl1) / 3.0 - p1;
+
         alpha1  = params.alpha_0;
         Lambda1 = params.Lambda_0;
         xi1     = params.xi_0;
-        
-        X1 = {alpha1, Lambda1, xi1};
+
+#if USE_ARMADILLO
+        vec X1,   X2,   X3,   X4;
+        vec psi1, psi2, psi3, psi4;
+        vec qt1,  qt2,  qt3,  qt4;
+#else
+        double X1[3],   X2[3],   X3[3],   X4[3];
+        double qt1[3],  qt2[3],  qt3[3],  qt4[3];
+#endif
 
         // usefull function for calculating Jacobian matrix
         // TO DO: change call move/copy construtor functions to overwrite existing data to speed up runtime
+#if USE_ARMADILLO
+        X1 = { alpha1, Lambda1, xi1 };
+        mat M;
         auto ComputeJacobian = [this](double m, vec& X)
         {
             double a = X(0);
@@ -808,24 +837,78 @@ namespace hydro
             // Print(std::cout, M);
             return M;
         };
-        
+#else
+        X1[0] = alpha1;
+        X1[1] = Lambda1;
+        X1[2] = xi1;
+        double M[9];
+        auto ComputeInverseJacobian = [this](double m, double e, double pt, double pl, double* X, double* M)
+        {   
+            double a = X[0];
+            double L = X[1];
+
+            double a00 = -e / a;
+            double a01 =  IntegralJ(2, 0, 0, 1,  m, X) / (a * L * L);
+            double a02 = -IntegralJ(4, 2, 0, -1, m, X) / (2.0 * a * L);
+
+            double a10 = -pt / a;
+            double a11 =  IntegralJ(2, 0, 1, 1,  m, X) / (a * L * L);
+            double a12 = -IntegralJ(4, 2, 1, -1, m, X) / (2.0 * a * L);
+
+            double a20 = -pl / a;
+            double a21 =  IntegralJ(2, 2, 0, 1,  m, X) / (a * L * L);
+            double a22 = -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L);
+
+            auto start = std::chrono::steady_clock::now();
+            double det = a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+
+            M[0] = (a11 * a22 - a12 * a21) / det;
+            M[1] = (a02 * a21 - a01 * a22) / det;
+            M[2] = (a01 * a12 - a02 * a11) / det;
+            M[3] = (a12 * a20 - a10 * a22) / det;
+            M[4] = (a00 * a22 - a02 * a20) / det;
+            M[5] = (a02 * a10 - a00 * a12) / det;
+            M[6] = (a10 * a21 - a11 * a20) / det;
+            M[7] = (a01 * a20 - a00 * a21) / det;
+            M[8] = (a00 * a11 - a01 * a10) / det;
+            auto end = std::chrono::steady_clock::now();
+            matrix_op_timer += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        };
+
+        auto MatMul = [this](double* M, double* qt, double tau, double e, double p, double pt, double pl, TransportCoefficients& tc)
+        {
+            double psi0 = dedt(e, pl, tau);
+            double psi1 = dptdt(p, pt, pl, tau, tc);
+            double psi2 = dpldt(p, pt, pl, tau, tc);
+            
+            auto start = std::chrono::steady_clock::now();
+            qt[0] = M[0] * psi0 + M[1] * psi1 + M[2] * psi2;
+            qt[1] = M[3] * psi0 + M[4] * psi1 + M[5] * psi2;
+            qt[2] = M[6] * psi0 + M[7] * psi1 + M[8] * psi2;
+            auto end = std::chrono::steady_clock::now();
+            matrix_op_timer += std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        };
+#endif
+
         // Begin simulation 
         TransportCoefficients tc = CalculateTransportCoefficients(T0, pt1, pl1, X1, params);
         double t;
         double T = T0;
-        mat M;
         for (int n = 0; n < params.steps; n++)
         {
-            // if (n % 100 == 0) fmt::print("{}\t", n); 
-            // if (n % 1000 == 0) fmt::print("\n");
+            auto start = std::chrono::steady_clock::now();
+#if HYDRO_THEORIES_PRINT_OUTPUT
+            if (n % 100 == 0) fmt::print("{}\t", n); 
+            if (n % 1000 == 0) fmt::print("\n");
+#endif
             t = t0 + n * dt;
             Print(e_plot,  t, e1, p1, xi1);
             Print(pt_plot, t, pt1, tc.zetaBar_zT);
             Print(pl_plot, t, pl1, tc.zetaBar_zL);
-
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
-            
+
+#if USE_ARMADILLO
             // First order
             // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
             M = ComputeJacobian(m, X1);
@@ -874,7 +957,6 @@ namespace hydro
             e3  = IntegralJ(2, 0, 0, 0, m, X3) / alpha3;
             pt3 = IntegralJ(2, 0, 1, 0, m, X3) / alpha3;
             pl3 = IntegralJ(2, 2, 0, 0, m, X3) / alpha3; 
-
             T = InvertEnergyDensity(e3, m);
             p3  = ThermalPressure(T, m);
             M    = ComputeJacobian(m, X3);
@@ -919,8 +1001,113 @@ namespace hydro
             pl1 = IntegralJ(2, 2, 0, 0, m, X1) / alpha1;
             T = InvertEnergyDensity(e1, m);
             p1  = ThermalPressure(T, m);
+
+            pi1 = (2.0 / 3.0) * (pt1 - pl1);
+            Pi1 = (2.0 * pt1 + pl1) / 3.0 - p1;
+#else
+            // First order
+            // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
+            ComputeInverseJacobian(m, e1, pt1, pl1, X1, M);
+            
+            // compute transport coefficients to calculate evolution of (E,PT,PL) and store in vector
+            tc   = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
+
+            // Convert evolution vector to (alpha, Lambda, xi) coordinates
+            MatMul(M, qt1, t, e1, p1, pt1, pl1, tc);
+
+            // Calculate update step
+            dalpha1  = dt * qt1[0];
+            dLambda1 = dt * qt1[1];
+            dxi1     = dt * qt1[2];
+
+            alpha2  = alpha1  + dalpha1  / 2.0;
+            Lambda2 = Lambda1 + dLambda1 / 2.0;
+            xi2     = xi1     + dxi1     / 2.0;
+
+
+            // Second order
+            X2[0] = alpha2;
+            X2[1] = Lambda2;
+            X2[2] = xi2;
+            e2  = IntegralJ(2, 0, 0, 0, m, X2) / alpha2;
+            pt2 = IntegralJ(2, 0, 1, 0, m, X2) / alpha2;
+            pl2 = IntegralJ(2, 2, 0, 0, m, X2) / alpha2; 
+
+            T = InvertEnergyDensity(e2, m);
+            p2  = ThermalPressure(T, m);
+            ComputeInverseJacobian(m, e2, pt2, pl2, X2, M);
+            tc   = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
+            MatMul(M, qt2, t + dt / 2.0, e2, p2, pt2, pl2, tc);
+
+            dalpha2  = dt * qt2[0];
+            dLambda2 = dt * qt2[1];
+            dxi2     = dt * qt2[2];
+
+            alpha3  = alpha1  + dalpha2  / 2.0;
+            Lambda3 = Lambda1 + dLambda2 / 2.0;
+            xi3     = xi1     + dxi2     / 2.0;
             
 
+            // Third order
+            X3[0] = alpha3;
+            X3[1] = Lambda3;
+            X3[2] = xi3;
+            e3  = IntegralJ(2, 0, 0, 0, m, X3) / alpha3;
+            pt3 = IntegralJ(2, 0, 1, 0, m, X3) / alpha3;
+            pl3 = IntegralJ(2, 2, 0, 0, m, X3) / alpha3; 
+            T = InvertEnergyDensity(e3, m);
+            p3  = ThermalPressure(T, m);
+            ComputeInverseJacobian(m, e3, pt3, pl3, X3, M);
+            tc   = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
+            MatMul(M, qt3, t + dt / 2.0, e3, p3, pt3, pl3, tc);
+
+            dalpha3  = dt * qt3[0];
+            dLambda3 = dt * qt3[1];
+            dxi3     = dt * qt3[2];
+
+            alpha4  = alpha1  + dalpha3;
+            Lambda4 = Lambda1 + dLambda3;
+            xi4     = xi1     + dxi3;
+
+
+            // Fourth order
+            X4[0] = alpha4;
+            X4[1] = Lambda4;
+            X4[2] = xi4;
+            e4  = IntegralJ(2, 0, 0, 0, m, X4) / alpha4;
+            pl4 = IntegralJ(2, 2, 0, 0, m, X4) / alpha4; 
+            pt4 = IntegralJ(2, 0, 1, 0, m, X4) / alpha4;
+
+            T = InvertEnergyDensity(e4, m);
+            p4  = ThermalPressure(T, m);
+            ComputeInverseJacobian(m, e4, pt4, pl4, X4, M);
+            tc   = CalculateTransportCoefficients(T, pt4, pl4, X4, params);
+            MatMul(M, qt4, t + dt, e4, p4, pt4, pl4, tc);
+
+            dalpha4  = dt * qt4[0];
+            dLambda4 = dt * qt4[1];
+            dxi4     = dt * qt4[2];
+
+            alpha1  += (dalpha1  + 2.0 * dalpha2  + 2.0 * dalpha3  + dalpha4)  / 6.0;
+            Lambda1 += (dLambda1 + 2.0 * dLambda2 + 2.0 * dLambda3 + dLambda4) / 6.0;
+            xi1     += (dxi1     + 2.0 * dxi2     + 2.0 * dxi3     + dxi4)     / 6.0;
+
+            // update first step values
+            X1[0] = alpha1;
+            X1[1] = Lambda1;
+            X1[2] = xi1;
+            e1  = IntegralJ(2, 0, 0, 0, m, X1) / alpha1;
+            pt1 = IntegralJ(2, 0, 1, 0, m, X1) / alpha1;
+            pl1 = IntegralJ(2, 2, 0, 0, m, X1) / alpha1;
+            T = InvertEnergyDensity(e1, m);
+            p1  = ThermalPressure(T, m);
+
+            pi1 = (2.0 / 3.0) * (pt1 - pl1);
+            Pi1 = (2.0 * pt1 + pl1) / 3.0 - p1;
+#endif
+
+            auto end = std::chrono::steady_clock::now();
+            loop_timer += std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
         } // End simulation loop
     }
     // -------------------------------------
@@ -979,9 +1166,63 @@ namespace hydro
     }
     // -------------------------------------
 
+
+#if USE_ARMADILLO
     double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, vec& X)
     {
-        auto integrand = [this](double pz, double mass, vec& X, int n, int r, int q, int s)
+        // double Lambda = X(1);
+        // double xi = X(2);
+
+        // // Variables needed to compute integrand
+
+        // // Variables to store integral resutl
+        // double int_0to1 = 0;
+        // double int_1toInf = 0;
+
+        // // Variables with current value of integration variable
+        // double pz_pos, pz_neg;
+        // double pT_pos, pT_neg;
+
+        // // function to to be evaluated
+        // auto integrand1 = [=](double pz, double pT)
+        // {
+        //     double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
+        //     double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
+        //     double fa = std::exp(- Ea / Lambda);
+        //     return pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
+        // };
+
+        // auto start = std::chrono::steady_clock::now();
+        // for (int i = 0; i < NSUM48; i++)
+        // {
+        //     pz_pos = 0.5 * x48[i] + 0.5;
+        //     pz_neg = -0.5 * x48[i] + 0.5;
+        //     for (int j = 0; j < NSUM48; j++)
+        //     {
+        //         pT_pos = 0.5 * x48[j] + 0.5;
+        //         pT_neg = -0.5 * x48[j] + 0.5;
+
+        //         // Integral from 0 to 1
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_pos, pT_pos);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_pos, pT_neg);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_neg, pT_pos);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_neg, pT_neg);
+
+        //         // Integral from 1 to infiinty
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_pos, 1.0 / pT_pos) / (pow(pz_pos * pT_pos, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_pos, 1.0 / pT_neg) / (pow(pz_pos * pT_neg, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_neg, 1.0 / pT_pos) / (pow(pz_neg * pT_pos, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_neg, 1.0 / pT_neg) / (pow(pz_neg * pT_neg, 2.0));
+        //     }
+        // }
+        
+        // double result1 = (int_0to1 + int_1toInf) / 2.0;
+        // auto stop = std::chrono::steady_clock::now();
+        // integration_timer += std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+        // return result1;
+
+        auto integrand2 = [this](double pz, double mass, vec& X, int n, int r, int q, int s)
         {
             return GausQuad([this](double pT, double pz, double mass, vec& X, int n, int r, int q, int s)
             {
@@ -993,11 +1234,84 @@ namespace hydro
             }, 0, inf, tol, 0, pz, mass, X, n, r, q, s);
         };
 
+        return 2.0 * GausQuad(integrand2, 0, inf, tol, 0, mass, X, n, r, q, s);
+    }
+#else
+    double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, double* X)
+    {
+        // TO DO: rewrite to not call GausQuad function.
+        // double Lambda = X[1];
+        // double xi = X[2];
+
+        // // Variables needed to compute integrand
+
+        // // Variables to store integral resutl
+        // double int_0to1 = 0;
+        // double int_1toInf = 0;
+
+        // // Variables with current value of integration variable
+        // double pz_pos, pz_neg;
+        // double pT_pos, pT_neg;
+
+        // // function to to be evaluated
+        // auto integrand1 = [=](double pz, double pT)
+        // {
+        //     double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
+        //     double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
+        //     double fa = std::exp(- Ea / Lambda);
+        //     return pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
+        // };
+
+        // auto start = std::chrono::steady_clock::now();
+        // for (int i = 0; i < NSUM48; i++)
+        // {
+        //     pz_pos = 0.5 * x48[i] + 0.5;
+        //     pz_neg = -0.5 * x48[i] + 0.5;
+        //     for (int j = 0; j < NSUM48; j++)
+        //     {
+        //         pT_pos = 0.5 * x48[j] + 0.5;
+        //         pT_neg = -0.5 * x48[j] + 0.5;
+
+        //         // Integral from 0 to 1
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_pos, pT_pos);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_pos, pT_neg);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_neg, pT_pos);
+        //         int_0to1 += w48[i] * w48[j] * integrand1(pz_neg, pT_neg);
+
+        //         // Integral from 1 to infiinty
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_pos, 1.0 / pT_pos) / (pow(pz_pos * pT_pos, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_pos, 1.0 / pT_neg) / (pow(pz_pos * pT_neg, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_neg, 1.0 / pT_pos) / (pow(pz_neg * pT_pos, 2.0));
+        //         int_1toInf += w48[j] * w48[j] * integrand1(1.0 / pz_neg, 1.0 / pT_neg) / (pow(pz_neg * pT_neg, 2.0));
+        //     }
+        // }
+        
+        // double result1 = (int_0to1 + int_1toInf) / 2.0;
+        // auto stop = std::chrono::steady_clock::now();
+        // integration_timer += std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count();
+
+        // return result1;
+        
+        auto integrand = [this](double pz, double mass, double* X, int n, int r, int q, int s)
+        {
+            return GausQuad([this](double pT, double pz, double mass, double* X, int n, int r, int q, int s)
+            {
+                double Lambda {X[1]}, xi {X[2]};
+                double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
+                double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
+                double fa = std::exp(- Ea / Lambda);
+                return pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
+            }, 0, inf, tol, 0, pz, mass, X, n, r, q, s);
+        };
+
         return 2.0 * GausQuad(integrand, 0, inf, tol, 0, mass, X, n, r, q, s);
     }
+#endif
+    // -------------------------------------
 
 
 
+#if USE_ARMADILLO
     AltAnisoHydroEvolution::TransportCoefficients AltAnisoHydroEvolution::CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params)
     {        
         // Coefficients for relaxation times
@@ -1013,6 +1327,23 @@ namespace hydro
         TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
         return tc;
     }
+#else
+    AltAnisoHydroEvolution::TransportCoefficients AltAnisoHydroEvolution::CalculateTransportCoefficients(double T, double pt, double pl, double* X, SP& params)
+    {        
+        // Coefficients for relaxation times
+        // TO DO: should the relaxation times always be equal in Bjorken flow?
+        double tau_pi = 5.0 * params.eta_s / T;
+        double tau_Pi = tau_pi;
+
+        // Calculate transport coefficients
+        double zetaBar_zL = IntegralJ(2, 4, 0, 0, params.mass, X) / X[0] - 3.0 * pl;
+        double zetaBar_zT = IntegralJ(2, 2, 1, 0, params.mass, X) / X[0] - pt;
+        // if (params.mass == 0) zetaBar_zL = -(e + pl + 2.0 * zetaBar_zT);
+
+        TransportCoefficients tc {tau_pi, tau_Pi, zetaBar_zT, zetaBar_zL};
+        return tc;
+    }
+#endif
     // -------------------------------------
 
 

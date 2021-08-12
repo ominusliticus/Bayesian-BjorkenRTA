@@ -19,31 +19,40 @@
     #include <omp.h>
 #endif
 
+
+
 namespace bayes
 {
+    using data = std::vector<double>;
+
     template<class HydroTheory, class...Args>
     class TestBayesianParameterEstimation
     {
     public:
         TestBayesianParameterEstimation() = default;
-        // Need to include the variadic template to allow for passing of hydro::theory enumeration for viscous hydros
-        TestBayesianParameterEstimation(SP& params, std::string& file_name, HydroTheory& hydro);
+        // Takes in vectors of data for calculating likelihood
+        TestBayesianParameterEstimation(SP& params, data tau, data e, data e_err, data pi, data pi_err, data Pi, data Pi_err, HydroTheory& hydro);
         //TO DO: Add destrucors to clear up memory
+        ~TestBayesianParameterEstimation();
 
-        double LogLikelihood(std::vector<double> tau_f, std::vector<double> observable, std::vector<double> observable_err, Args&&... args);
+        double LogLikelihood(Args&&... args);
         double LogPrior(void);
         double LogPosterior(double tau_f, double observable, double observable_err);
         void RunMCMC(int burnin, int steps, const char* out_filename, Args&&... args);
 
     protected:
         SP& _params;
-        std::vector<double> _tau_fs;
-        std::vector<double> _energy_densities;
-        std::vector<double> _energy_density_errors;
-        std::unordered_map<std::string, std::vector<double>> _param_limits;
+        data _tau_fs;
+        data _energy_densities;
+        data _shear_pressures;
+        data _bulk_pressures;
+        data _energy_density_errors;
+        data _shear_pressure_errors;
+        data _bulk_pressure_errors;
+        std::unordered_map<std::string, data> _param_limits;
 
         HydroTheory _model;
-        std::vector<double> _log_posterior;
+        data _log_posterior;
     };
 
     // enum class Prior { UNI = 0, GAUS, SYM, CONJ };
@@ -76,72 +85,72 @@ namespace bayes
     // .....oooO0Oooo..........oooO0Oooo..........oooO0Oooo..........oooO0Oooo..........oooO0Oooo.....
   
     template<class HydroTheory, class...Args>
-    TestBayesianParameterEstimation<HydroTheory, Args...>::TestBayesianParameterEstimation(SP& params, std::string& file_name, HydroTheory& hydro)
-        : _params {params}
-    {        
-        auto file = std::fstream(file_name.data());
-        std::string line;
-        while (!file.eof())
-        {
-            std::getline(file, line);
-            std::stringstream line_buffer(line);
-            double tau;
-            double energy_density;
-            // double energy_density_error;
-
-            line_buffer >> tau;
-            line_buffer >> energy_density;
-            // energy_density_error = 1.0;
-            // line_buffer >> energy_density_error;
-
-            _tau_fs.push_back(tau);
-            _energy_densities.push_back(energy_density);
-            _energy_density_errors.push_back(energy_density);
-        }
-        file.close();
-
+    TestBayesianParameterEstimation<HydroTheory, Args...>::TestBayesianParameterEstimation(SP& params, data tau, data e, data e_err, data pi, data pi_err, data Pi, data Pi_err, HydroTheory& hydro)
+        : _params {params}, _tau_fs{tau}, _energy_densities {e},  _shear_pressures {pi}, _bulk_pressures {Pi}, _energy_density_errors {e_err}, _shear_pressure_errors {pi_err}, _bulk_pressure_errors {Pi_err}
+    {
         _model = hydro;
 
-        file = std::fstream("utils/param_limits.txt");
+
+        std::fstream file = std::fstream("utils/param_limits.txt");
+        std::string line;
         const char hash = '#';
-    const char endline = '\0';
-    std::string var_name;
-    while (!file.eof())
-    {
-        double vals[2];
-        std::getline(file, line);
-        if (line[0] == hash || line[0] == endline) continue;
-        else
+        const char endline = '\0';
+        std::string var_name;
+        while (!file.eof())
         {
-            std::stringstream buffer(line);
-            // Note: assumes tab or space separation
-            buffer >> var_name;
-            if (var_name.compare("tau_0") == 0)             buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("Lambda_0") == 0)     buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("xi_0") == 0)         buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("alpha_0") == 0)      buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("mass") == 0)         buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("eta_s") == 0)        buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("pi0") == 0)          buffer >> vals[0] >> vals[1];
-            else if (var_name.compare("Pi0") == 0)          buffer >> vals[0] >> vals[1];
-        } // end else
-        _param_limits.insert(std::make_pair<std::string, std::vector<double>>(std::move(var_name), { vals[0], vals[1] }));
-    } // end while(!fin.eof())
+            double vals[2];
+            std::getline(file, line);
+            if (line[0] == hash || line[0] == endline) continue;
+            else
+            {
+                std::stringstream buffer(line);
+                // Note: assumes tab or space separation
+                buffer >> var_name;
+                if (var_name.compare("tau_0") == 0)             buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("Lambda_0") == 0)     buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("xi_0") == 0)         buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("alpha_0") == 0)      buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("mass") == 0)         buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("eta_s") == 0)        buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("pi0") == 0)          buffer >> vals[0] >> vals[1];
+                else if (var_name.compare("Pi0") == 0)          buffer >> vals[0] >> vals[1];
+            } // end else
+            _param_limits.insert(std::make_pair<std::string, std::vector<double>>(std::move(var_name), { vals[0], vals[1] }));
+        } // end while(!fin.eof())
     }
 
     template<class HydroTheory, class...Args>
-    double TestBayesianParameterEstimation<HydroTheory, Args...>::LogLikelihood(std::vector<double> tau_f, std::vector<double> observable, std::vector<double> observable_err, Args&&... args)
+    TestBayesianParameterEstimation<HydroTheory, Args...>::~TestBayesianParameterEstimation()
     {
-        // TO DO: Rewrite...
+        // _model.~HydroModel();
+        _tau_fs.clear();
+        _energy_densities.clear();
+        _shear_pressures.clear();
+        _bulk_pressures.clear();
+        _energy_density_errors.clear();
+        _shear_pressure_errors.clear();
+        _bulk_pressure_errors.clear();
+        _param_limits.clear();
+        _log_posterior.clear();
+    }
+
+    template<class HydroTheory, class...Args>
+    double TestBayesianParameterEstimation<HydroTheory, Args...>::LogLikelihood(Args&&... args)
+    {
+        // TO DO: Switch to store output value: run to latest time and then interpolate results for previous times  
         // Run simulation for soecific hydro model
         double log_likelihood = 1;
         HydroTheory copy = _model;
-        for (size_t i = 0; i < tau_f.size(); i++)
+        for (size_t i = 0; i < _tau_fs.size(); i++)
         {
-            _params.SetParameter("ul", tau_f[i]);
+            _params.SetParameter("ul", _tau_fs[i]);
             copy.RunHydroSimulation(_params, std::forward<Args>(args)...);
-            double model_observable = copy.e1;
-            log_likelihood *= std::exp(-0.5 * std::pow(observable[i] - model_observable, 2.0) / std::pow(observable_err[i], 2.0)) / (std::sqrt(2.0 * PI) * observable_err[i]);
+            double model_energy_density = copy.e1;
+            double model_shear_pressure = copy.pi1;
+            double model_bulk_pressure = copy.Pi1;
+            log_likelihood *= std::exp(-0.5 * std::pow(_energy_densities[i] - model_energy_density, 2.0) / std::pow(_energy_density_errors[i], 2.0)) / (std::sqrt(2.0 * PI) * _energy_density_errors[i]);
+            log_likelihood *= std::exp(-0.5 * std::pow(_shear_pressures[i] - model_shear_pressure, 2.0) / std::pow(_shear_pressure_errors[i], 2.0)) / (std::sqrt(2.0 * PI) * _shear_pressure_errors[i]);
+            log_likelihood *= std::exp(-0.5 * std::pow(_bulk_pressures[i] - model_bulk_pressure, 2.0) / std::pow(_bulk_pressure_errors[i], 2.0)) / (std::sqrt(2.0 * PI) * _bulk_pressure_errors[i]);
         }
         return std::log(log_likelihood);
     }
@@ -184,16 +193,11 @@ namespace bayes
 #endif
         for (int i = 0; i < steps; i++)
         {
-            if (i % 100 == 0) Print(std::cout, fmt::format("n: {}", i));
+            if (i % 10 == 0) Print(std::cout, fmt::format("n: {}", i));
             double etas = etas_lo + (double) i * etas_step;
             _params.SetParameter("eta_s", etas);
-            
-            int n = 2000;
-            std::vector<double> sub_tauf(&_tau_fs[n], &_tau_fs[n + 10]);
-            std::vector<double> sub_e(&_energy_densities[n], &_energy_densities[n+10]);
-            std::vector<double> sub_e_err(&_energy_density_errors[n], &_energy_density_errors[n+10]);
 
-            _log_posterior[i] = LogLikelihood(sub_tauf, sub_e, sub_e_err, std::forward<Args>(args)...) + LogPrior();
+            _log_posterior[i] = LogLikelihood(std::forward<Args>(args)...) + LogPrior();
         }
 
         for (int i = 0; i < steps; i++)

@@ -5,6 +5,10 @@
 #ifndef INTEGRATION_HPP
 #define INTEGRATION_HPP
 #include "Errors.hpp"
+#include "config.hpp"
+
+#include <chrono>
+extern long int integration_timer;
 
 constexpr double inf = std::numeric_limits<double>::infinity();
 
@@ -122,7 +126,7 @@ double GausQuadAux(Functor&& func, double _low, double _high, double result, dou
 
 template<typename Functor, typename...Args>
 double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDepth, Args&&... args)
-{			  
+{		
     double result = 0;
 	double yneg, ypos;
     double high = _high;
@@ -180,7 +184,7 @@ double GausQuad(Functor&& func, double _low, double _high, double tol, int maxDe
             result += w48[i] * func(1 / yneg, std::forward<Args>(args)...) / pow(yneg, 2.0) + w48[i] * func(1 / ypos, std::forward<Args>(args)...) / pow(ypos, 2.0);
         }
     }
-    result *= (high - low)/2.0;
+    result *= (high - low) / 2.0;
 
     return GausQuadAux(func, low, high, result, tol, maxDepth, improper_top, std::forward<Args>(args)...);
 }
