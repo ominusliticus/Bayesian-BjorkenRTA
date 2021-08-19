@@ -16,10 +16,9 @@ int main()
     SimulationParameters params("utils/params.txt");
     Print(std::cout, params);
 
-    std::fstream fout("./output/etas0.2_new_nonconformal.dat", std::fstream::out);
+    const char* file_name = "./output/etas0.2_new_nonconformal.dat";
     exact::ExactSolution exact_soln;
-    exact_soln.Run(fout, params);
-    fout.close();
+    exact_soln.Run(file_name, params);
 
     for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
     {

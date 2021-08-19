@@ -52,23 +52,23 @@ namespace hydro
 
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
-        std::fstream e_plot, pi_plot, Pi_plot;
+        std::fstream e_plot, shear_plot, bulk_plot;
         switch (theo)
         {
             case theory::CE:
-                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+                Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
                 e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                pi_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                Pi_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                shear_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                bulk_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
-                // Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+                Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
                 e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                pi_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                Pi_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                shear_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                bulk_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
         }
-        if (!e_plot.is_open() && !pi_plot.is_open() && !Pi_plot.is_open())
+        if (!e_plot.is_open() && !shear_plot.is_open() && !bulk_plot.is_open())
         {
             Print_Error(std::cerr, "ViscousHydroEvolution::RunHydroSimulation: Failed to open output files.");
             switch (theo)
@@ -85,8 +85,8 @@ namespace hydro
         else
         {
             e_plot  << std::fixed << std::setprecision(decimal + 10);
-            pi_plot << std::fixed << std::setprecision(decimal + 10);
-            Pi_plot << std::fixed << std::setprecision(decimal + 10);
+            shear_plot << std::fixed << std::setprecision(decimal + 10);
+            bulk_plot << std::fixed << std::setprecision(decimal + 10);
         }
         
         // Initialize simulation
@@ -120,8 +120,8 @@ namespace hydro
             
             p1 = ThermalPressure(e1, params);
             Print(e_plot,  t, e1, p1);
-            Print(pi_plot, t, pi1);
-            Print(Pi_plot, t, Pi1);
+            Print(shear_plot, t, pi1);
+            Print(bulk_plot, t, Pi1);
 
             // Invert energy density to compute thermal pressure
 
@@ -172,6 +172,10 @@ namespace hydro
             pi1 += (dpi1 + 2.0 * dpi2 + 2.0 * dpi3 + dpi4) / 6.0;
             Pi1 += (dPi1 + 2.0 * dPi2 + 2.0 * dPi3 + dPi4) / 6.0;
         } // End simulation loop
+
+        e_plot.close();
+        shear_plot.close();
+        bulk_plot.close();
     }
     // -------------------------------------
 
@@ -424,7 +428,7 @@ namespace hydro
     ///////////////////////////////////////
     void AnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        // Print(std::cout, "Calculating anistropic hydrodynamic evolution");
+        Print(std::cout, "Calculating anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -434,9 +438,9 @@ namespace hydro
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
         std::fstream e_plot (fmt::format("output/aniso_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream pt_plot(fmt::format("output/aniso_hydro/pt_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream pl_plot(fmt::format("output/aniso_hydro/pl_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        if (!e_plot.is_open() && !pt_plot.is_open() && !pl_plot.is_open())
+        std::fstream bulk_plot(fmt::format("output/aniso_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream shear_plot(fmt::format("output/aniso_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
             Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
@@ -445,8 +449,8 @@ namespace hydro
         else
         {
             e_plot  << std::fixed << std::setprecision(decimal + 10);
-            pt_plot << std::fixed << std::setprecision(decimal + 10);
-            pl_plot << std::fixed << std::setprecision(decimal + 10);
+            bulk_plot << std::fixed << std::setprecision(decimal + 10);
+            shear_plot << std::fixed << std::setprecision(decimal + 10);
         }
         
         // Initialize simulation
@@ -482,9 +486,11 @@ namespace hydro
             double pi = 2.0 / 3.0 * (pt1 - pl1);
             double xi = InvertShearToXi(e1, p1, pi);
 
+            double Pi = (2.0 * pt1 + pl1) / 3.0 - p1;
+
             Print(e_plot,  t, e1, p1, xi);
-            Print(pt_plot, t, pt1, tc.zetaBar_zT);
-            Print(pl_plot, t, pl1, tc.zetaBar_zL);
+            Print(bulk_plot, t, Pi, tc.zetaBar_zT);
+            Print(shear_plot, t, pi, tc.zetaBar_zL);
 
 
             // RK4 with updating anisotropic variables
@@ -534,6 +540,10 @@ namespace hydro
             pl1 += (dpl1 + 2.0 * dpl2 + 2.0 * dpl3 + dpl4) / 6.0;
 
         } // End simulation loop
+
+        e_plot.close();
+        bulk_plot.close();
+        shear_plot.close();
     }
     // -------------------------------------
 
@@ -743,7 +753,7 @@ namespace hydro
     //////////////.////////////////////////////
     void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+        Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -753,9 +763,9 @@ namespace hydro
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
         std::fstream e_plot (fmt::format("output/aniso_hydro/e2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream pt_plot(fmt::format("output/aniso_hydro/pt2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream pl_plot(fmt::format("output/aniso_hydro/pl2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        if (!e_plot.is_open() && !pt_plot.is_open() && !pl_plot.is_open())
+        std::fstream bulk_plot(fmt::format("output/aniso_hydro/bulk2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream shear_plot(fmt::format("output/aniso_hydro/shear2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
             Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
@@ -764,8 +774,8 @@ namespace hydro
         else
         {
             e_plot  << std::fixed << std::setprecision(decimal + 10);
-            pt_plot << std::fixed << std::setprecision(decimal + 10);
-            pl_plot << std::fixed << std::setprecision(decimal + 10);
+            bulk_plot << std::fixed << std::setprecision(decimal + 10);
+            shear_plot << std::fixed << std::setprecision(decimal + 10);
         }
         
         // Initialize simulation
@@ -819,9 +829,13 @@ namespace hydro
             // if (n % 100 == 0) fmt::print("{}\t", n); 
             // if (n % 1000 == 0) fmt::print("\n");
             t = t0 + n * dt;
-            Print(e_plot,  t, e1, p1, xi1);
-            Print(pt_plot, t, pt1, tc.zetaBar_zT);
-            Print(pl_plot, t, pl1, tc.zetaBar_zL);
+
+            double pi = 2.0 * (pt1 - pl1) / 3.0;
+            double Pi = (2.0 * pt1 + pl1) / 3.0 - p1;
+            Print(e_plot,  t, e1, pl1, pt1, p1, xi1);
+            Print(bulk_plot, t, Pi, tc.zetaBar_zT);
+            Print(shear_plot, t, pi, tc.zetaBar_zL);
+            // Print(std::cout, e1, pl1, pt1);
 
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
@@ -922,6 +936,10 @@ namespace hydro
             
 
         } // End simulation loop
+
+        e_plot.close();
+        bulk_plot.close();
+        shear_plot.close();
     }
     // -------------------------------------
 
@@ -981,19 +999,56 @@ namespace hydro
 
     double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, vec& X)
     {
-        auto integrand = [this](double pz, double mass, vec& X, int n, int r, int q, int s)
+        double Lambda = X(1);
+        double xi = X(2);
+        double alpha_L = 1.0 / std::sqrt(1.0 + xi);
+        double alpha_T = 1.0;
+        double m_bar = mass / Lambda;
+        double norm = std::pow(alpha_T, 2* q + 2) * std::pow(alpha_L, r + 1) * std::pow(Lambda, n + s + 2) / (4.0 * PI * PI * DoubleFactorial(2.0 * q));
+        
+        
+        auto Rnrq = [=](double p_bar)
         {
-            return GausQuad([this](double pT, double pz, double mass, vec& X, int n, int r, int q, int s)
-            {
-                double Lambda {X(1)}, xi {X(2)};
-                double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
-                double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
-                double fa = std::exp(- Ea / Lambda);
-                return pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
-            }, 0, inf, tol, 0, pz, mass, X, n, r, q, s);
+            double w = std::sqrt(alpha_L * alpha_L + std::pow(m_bar / p_bar, 2.0));
+            double z = (alpha_T * alpha_T - alpha_L * alpha_L) / (w * w);
+            double t = 0;
+            if (z == 0) t = 0;
+            else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
+            else t = std::atan(std::sqrt(z)) / std::sqrt(z);
+
+            if (n == 2 && r == 0 && q == 0) return w * (1.0 + (1.0 + z) * t);
+            else if (n == 2 && r == 0 && q == 1) return (1.0 + (z - 1.0) * t) / (z * w);
+            else if (n == 2 && r == 2 && q == 0) return (-1.0 + (1.0 + z) * t) / (z * w);
+            else if (n == 2 && r == 2 && q == 1) return (-3.0 + (3.0 + z) * t) / (z * z * w * w * w);
+            else if (n == 2 && r == 4 && q == 0) return (3.0 + 2.0 * z - 3.0 * (1.0 + z) * t) / (z * z * w * w * w);
+            else if (n == 4 && r == 2 && q == 0) return (w * (-1.0 + z + (1.0 + z) * (1.0 + z) * t)) / (4.0 * z);
+            else if (n == 4 && r == 2 && q == 1) return (3.0 + z + (1.0 + z) * (z - 3.0) * t) / (4.0 * z * z * w);
+            else if (n == 4 && r == 4 && q == 0) return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);
+            else exit(-112233);
         };
 
-        return 2.0 * GausQuad(integrand, 0, inf, tol, 0, mass, X, n, r, q, s);
+        auto integrand = [=](double p_bar)
+        {
+            return std::pow(p_bar, n + s + 1 ) * std::pow(1.0 + std::pow(m_bar / p_bar, 2.0), (double)s / 2.0) * Rnrq(p_bar) * std::exp(-std::sqrt(p_bar * p_bar + m_bar * m_bar));
+            // return GausQuad([this](double pT, double pz, double mass, vec& X, int n, int r, int q, int s)
+            // {
+            //     double Lambda {X(1)}, xi {X(2)};
+            //     double Ep = std::sqrt(mass * mass + pT * pT + pz * pz);
+            //     double Ea = std::sqrt(mass * mass + pT * pT + (1 + xi) * pz * pz);
+            //     double fa = std::exp(- Ea / Lambda);
+            //     return 2.0 * pow(Ep, n - r - 2 * q - 1) * pow(pz, r) * pow(pT, 2 * q + 1) * pow(Ea, s) * fa / (pow(2 * PI, 2.0) * DoubleFactorial(2 * q));
+            // }, 0, inf, tol, 0, pz, mass, X, n, r, q, s);
+        };
+
+        // return GausQuad(integrand, 0, inf, tol, 0, mass, X, n, r, q, s);
+        double result = norm * GausQuad(integrand, 0, inf, tol, max_depth);
+        // Print(std::cout, "Begin IntegralJ debug output");
+        // Print(std::cout, "(alpha, Lambda, xi):", fmt::format("({},{},{})", X(0), Lambda, xi));
+        // Print(std::cout, "norm:", norm);
+        // Print(std::cout, fmt::format("R({},{},{}; 1)", n, r, q), Rnrq(1));
+        // Print(std::cout, "IntegralJ result:", result);
+        // Print(std::cout);
+        return result;
     }
 
 

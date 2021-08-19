@@ -10,7 +10,7 @@
 // Author: Kevin Ingles
 
 // Uncomment to enable parallel evaluations in ExactSolution.cpp
-
+#include "../include/config.hpp"
 #include "../include/Errors.hpp"
 #include "../include/GlobalConstants.hpp"
 #include "../include/ExactSolution.hpp"
@@ -120,7 +120,7 @@ void Run50MeV(void)
     double t0  = params.tau_0;
     double pt0 = exact_soln.GetMoments(t0, params, exact::Moment::PT);
     double pl0 = exact_soln.GetMoments(t0, params, exact::Moment::PL);
-    params.SetParameter("pt0",pt0);
+    params.SetParameter("pt0", pt0);
     params.SetParameter("pl0", pl0);
     Print(std::cout, params);
 
@@ -158,13 +158,13 @@ void Run200MeV(void)
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
     params.SetParameters(
-        0.1,
+        0.1, 
         1.64720404472724,
         -0.832036509976845,
         0.654868759801639,
-        100.1,
-        0.200 / 0.197,
-        10 / (4.0 * PI)
+        20.1,
+        0.2 / 0.197,
+        3.0 / (4.0 * PI)
     );
     Print(std::cout, params);
 
@@ -179,7 +179,7 @@ void Run200MeV(void)
     double t0  = params.tau_0;
     double pt0 = exact_soln.GetMoments(t0, params, exact::Moment::PT);
     double pl0 = exact_soln.GetMoments(t0, params, exact::Moment::PL);
-    params.SetParameter("pt0",pt0);
+    params.SetParameter("pt0", pt0);
     params.SetParameter("pl0", pl0);
     Print(std::cout, params);
 

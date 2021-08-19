@@ -29,6 +29,7 @@ namespace hydro
     {
         // Constructors
         ViscousHydroEvolution() = default;
+        ~ViscousHydroEvolution() = default;
 
         // Setup and run numerical evolution
         void RunHydroSimulation(SP& params, theory theo);
@@ -75,6 +76,7 @@ namespace hydro
     {
         // Constructors
         AnisoHydroEvolution() = default;
+        ~AnisoHydroEvolution() = default;
 
         // Setup and run numerical evolution
         void RunHydroSimulation(SP& params);
@@ -125,6 +127,7 @@ namespace hydro
     {
         // Constructors
         AltAnisoHydroEvolution() = default;
+        ~AltAnisoHydroEvolution() = default;
 
         // Setup and run numerical evolution
         void RunHydroSimulation(SP& params);

@@ -1,6 +1,7 @@
 //
 // Author: Kevin Ingles
 
+#include "../include/config.hpp"
 #include "../include/Errors.hpp"
 #include "../include/GlobalConstants.hpp"
 #include "../include/ExactSolution.hpp"
@@ -26,15 +27,18 @@ void test_orange (void);
 void test_black  (void);
 void test_cyan   (void);
 
+void generate_data(void);
+
 int main()
 {
-    test_blue();
-    test_green();
-    test_magenta();
-    test_maroon();
-    test_orange();
-    test_black();
-    test_cyan();
+    // test_blue();
+    // test_green();
+    // test_magenta();
+    // test_maroon();
+    // test_orange();
+    // test_black();
+    // test_cyan();
+    generate_data();
     return 0;
 }
 
@@ -274,4 +278,37 @@ void test_cyan(void)
     }
     fout.close();
     Print(std::cout, "Finished test case: cyan.\n");
+}
+
+void generate_data(void)
+{
+    Print(std::cout, "Generating psuedodata."); 
+    SimulationParameters params;
+    params.SetParameters(
+        0.1, 
+        1.64720404472724,
+        -0.832036509976845,
+        0.654868759801639,
+        20.1,
+        0.2 / 0.197,
+        3.0 / (4.0 * PI)
+    );
+
+    const char* file_name = "./output/temperature_evolution_blue.dat";
+    exact::ExactSolution exact_soln;
+    exact_soln.Run(file_name, params);
+
+    Print(std::cout, "Calculating moments of distribution function.");
+    std::fstream fout = std::fstream("./output/psuedodata-3_4pi.dat", std::fstream::out);
+    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    {
+        // Print(std::cout, fmt::format("Evaluating for time {}", tau));
+        double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
+        double new_pL        = exact_soln.GetMoments(tau, params, exact::Moment::PL);
+        double new_pT        = exact_soln.GetMoments(tau, params, exact::Moment::PT);
+        double new_peq       = exact_soln.GetMoments(tau, params, exact::Moment::PEQ);
+        Print(fout, tau /*/ exact_soln.TauRelaxation(tau, params) */, new_e_density, new_pL, new_pT, new_peq);
+    }
+    fout.close();
+    Print(std::cout, "Finished generating psuedo_data.\n");
 }

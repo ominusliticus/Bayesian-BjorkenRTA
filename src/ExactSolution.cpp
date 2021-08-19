@@ -485,7 +485,7 @@ namespace exact{
         do
         {
             Print(std::cout, fmt::format("n = {}",n));
-#ifdef USE_PARALLEL
+#if USE_PARALLEL
             omp_set_dynamic(0);
             #pragma omp parallel for shared(e) num_threads(4)
 #endif
@@ -494,7 +494,7 @@ namespace exact{
                 double tau = tau_0 + (double) i * step_size;
                 e[i] = GetMoments(tau, params, Moment::ED);
             }
-#ifdef USE_PARALLEL
+#if USE_PARALLEL
             omp_set_dynamic(0);
             #pragma omp parallel for shared(D) num_threads(4)
 #endif
@@ -504,6 +504,7 @@ namespace exact{
                 D[i] = 1.0 / Temp;
             }
             err = std::abs(last_D - D[steps - 1]) / D[steps - 1];
+            fmt::print("err = {}\t", err);
             last_D = D[steps - 1];
             n++;
         } while (err > eps);   

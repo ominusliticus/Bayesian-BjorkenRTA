@@ -20,6 +20,8 @@ struct SimulationParameters
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
+    unsigned int type; // Which hydro simulation to compute
+
     double tau_0;
     double Lambda_0;
     double xi_0;

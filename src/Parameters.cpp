@@ -43,6 +43,7 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("steps") == 0)        buffer >> steps;
             else if (var_name.compare("pl0") == 0)          buffer >> pl0;
             else if (var_name.compare("pt0") == 0)          buffer >> pt0;
+            else if (var_name.compare("TYPE") == 0)         buffer >> type;
         } // end else
     } // end while(!fin.eof())
     step_size = tau_0 / 20;
