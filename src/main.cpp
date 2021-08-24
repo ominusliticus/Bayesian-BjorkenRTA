@@ -12,6 +12,7 @@
 
 #include <chrono>
 
+
 int main()
 {
     SimulationParameters params("utils/params.txt");
