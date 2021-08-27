@@ -797,14 +797,15 @@ namespace hydro
         // Initializing simulation variables
         e1  = e0;
         p1 = ThermalPressure(T0, m);
-        pt1 = params.pt0;
-        pl1 = params.pl0;
 
         alpha1  = params.alpha_0;
         Lambda1 = params.Lambda_0;
         xi1     = params.xi_0;
         
         X1 = {alpha1, Lambda1, xi1};
+
+        pt1 = params.pt0;
+        pl1 = params.pl0;
 
         // usefull function for calculating Jacobian matrix
         // TO DO: change call move/copy construtor functions to overwrite existing data to speed up runtime

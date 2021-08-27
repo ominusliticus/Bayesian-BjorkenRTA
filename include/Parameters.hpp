@@ -7,6 +7,9 @@
 #include "Errors.hpp"
 
 #include <vector>
+#include <armadillo>
+
+using vec = arma::vec;
 
 struct SimulationParameters
 {
@@ -17,6 +20,7 @@ struct SimulationParameters
     void SetParameter(const char* name, double value);
     void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ul, double _mass, double _eta_s);
     void SetInitialTemperature(void);
+    double IntegralJ(int n, int r, int q, int s, double mass, vec& X);
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 

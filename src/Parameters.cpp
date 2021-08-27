@@ -127,7 +127,6 @@ void SimulationParameters::SetParameters(double _tau_0, double _Lambda_0, double
 
 void SimulationParameters::SetInitialTemperature(void)
 {
-    // TO DO: add function that calculates the initial termperature
     // Functions used to calculate initial temperature
     auto H2 = [this](double y, double z)
     {
@@ -162,7 +161,7 @@ void SimulationParameters::SetInitialTemperature(void)
         if (z == 0) Eeq = 3.0 * T * T * T * T / (PI * PI);
         else Eeq =  (3.0 * T * T * T * T) / (PI * PI) * ( z * z * std::cyl_bessel_k(2, z) / 2.0 + z * z * z * std::cyl_bessel_k(1, z) / 6.0);
 
-        double Ean = std::pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * H2Tilde(1.0 / std::sqrt(1 + xi_0), mass / Lambda_0);
+        double Ean = std::pow(Lambda_0, 4.0) / (4.0 * PI * PI * alpha_0) * H2Tilde(1.0 / std::sqrt(1.0 + xi_0), mass / Lambda_0);
 
         return Eeq - Ean;
     };
@@ -191,4 +190,52 @@ void SimulationParameters::SetInitialTemperature(void)
     };
 
     T0 = AnistoTropicToEquilibriumTermperature();
+    vec X { alpha_0, Lambda_0, xi_0 };
+    pt0 = IntegralJ(2, 0, 1, 0, mass, X) / alpha_0;
+    pl0 = IntegralJ(2, 2, 0, 0, mass, X) / alpha_0;
+}
+
+double DoubleFactorial(double x)
+{
+    if (x <= 1.0) return 1.0;
+    double y = x * DoubleFactorial(x - 2.0);
+    return y;
+}
+
+double SimulationParameters::IntegralJ(int n, int r, int q, int s, double mass, vec& X)
+{
+    double Lambda = X(1);
+    double xi = X(2);
+    double alpha_L = 1.0 / std::sqrt(1.0 + xi);
+    double alpha_T = 1.0;
+    double m_bar = mass / Lambda;
+    double norm = std::pow(alpha_T, 2* q + 2) * std::pow(alpha_L, r + 1) * std::pow(Lambda, n + s + 2) / (4.0 * PI * PI * DoubleFactorial(2.0 * q));
+    
+    
+    auto Rnrq = [=](double p_bar)
+    {
+        double w = std::sqrt(alpha_L * alpha_L + std::pow(m_bar / p_bar, 2.0));
+        double z = (alpha_T * alpha_T - alpha_L * alpha_L) / (w * w);
+        double t = 0;
+        if (z == 0) t = 0;
+        else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
+        else t = std::atan(std::sqrt(z)) / std::sqrt(z);
+
+        if (n == 2 && r == 0 && q == 0) return w * (1.0 + (1.0 + z) * t);
+        else if (n == 2 && r == 0 && q == 1) return (1.0 + (z - 1.0) * t) / (z * w);
+        else if (n == 2 && r == 2 && q == 0) return (-1.0 + (1.0 + z) * t) / (z * w);
+        else if (n == 2 && r == 2 && q == 1) return (-3.0 + (3.0 + z) * t) / (z * z * w * w * w);
+        else if (n == 2 && r == 4 && q == 0) return (3.0 + 2.0 * z - 3.0 * (1.0 + z) * t) / (z * z * w * w * w);
+        else if (n == 4 && r == 2 && q == 0) return (w * (-1.0 + z + (1.0 + z) * (1.0 + z) * t)) / (4.0 * z);
+        else if (n == 4 && r == 2 && q == 1) return (3.0 + z + (1.0 + z) * (z - 3.0) * t) / (4.0 * z * z * w);
+        else if (n == 4 && r == 4 && q == 0) return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);
+        else exit(-112233);
+    };
+
+    auto integrand = [=](double p_bar)
+    {
+        return std::pow(p_bar, n + s + 1 ) * std::pow(1.0 + std::pow(m_bar / p_bar, 2.0), (double)s / 2.0) * Rnrq(p_bar) * std::exp(-std::sqrt(p_bar * p_bar + m_bar * m_bar));
+    };
+    double result = norm * GausQuad(integrand, 0, inf, 1e-8, 4);
+    return result;
 }

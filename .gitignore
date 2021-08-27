@@ -3,6 +3,7 @@ output/plots/*
 *.dat
 *.out
 *.x
+*.png
 
 *.ipch
 *.bin
