@@ -44,12 +44,14 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("pl0") == 0)          buffer >> pl0;
             else if (var_name.compare("pt0") == 0)          buffer >> pt0;
             else if (var_name.compare("TYPE") == 0)         buffer >> type;
+            else if (var_name.compare("FILE") == 0)         buffer >> file_identifier;
         } // end else
     } // end while(!fin.eof())
     step_size = tau_0 / 20;
     steps     = std::ceil((ul - ll) / step_size);
 
     SetInitialTemperature();
+    fin.close();
 } // end SimulationParameters::SimulationParameters(...)
 // -----------------------------------------
 
@@ -82,6 +84,24 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     return out;
 }
 // ----------------------------------------
+
+bool SimulationParameters::operator==(const SimulationParameters& other)
+{
+    if      (tau_0      != other.tau_0)     return false;
+    else if (Lambda_0   != other.Lambda_0)  return false;
+    else if (xi_0       != other.xi_0)      return false;
+    else if (alpha_0    != other.alpha_0)   return false;
+    else if (ul         != other.ul)        return false;
+    else if (ll         != other.ll)        return false;
+    else if (mass       != other.mass)      return false;
+    else if (eta_s      != other.eta_s)     return false;
+    else return true;
+}
+
+bool SimulationParameters::operator!=(const SimulationParameters& other)
+{
+    return !(operator==(other));
+}
 
 void SimulationParameters::SetParameter(const char* name, double value)
 {

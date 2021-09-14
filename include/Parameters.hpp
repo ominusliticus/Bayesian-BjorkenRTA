@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <armadillo>
+#include <string>
 
 using vec = arma::vec;
 
@@ -23,6 +24,8 @@ struct SimulationParameters
     double IntegralJ(int n, int r, int q, int s, double mass, vec& X);
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
+    bool operator==(const SimulationParameters& other);
+    bool operator!=(const SimulationParameters& other);
 
     unsigned int type; // Which hydro simulation to compute
 
@@ -46,6 +49,8 @@ struct SimulationParameters
 
     // TO DO: convert exact evolution into sturct an remove this vecotr, but keep initial value parameter
     double T0;
+
+    std::string file_identifier;
 }; // end struct SimulationParameters
 
 #endif
