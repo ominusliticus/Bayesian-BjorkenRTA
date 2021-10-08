@@ -1,9 +1,12 @@
 others/
 output/plots/*
+scripts/plots
+scripts/full_outputs
 *.dat
 *.out
 *.x
 *.png
+*.pkl
 
 *.ipch
 *.bin
@@ -18,3 +21,4 @@ Storring_Old_Plots.ipynb
 comparison_e.pdf
 plotting.ipynb
 cmdln_out.txt
+emulator_scores.txt
