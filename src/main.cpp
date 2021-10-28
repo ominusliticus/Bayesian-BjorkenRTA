@@ -65,6 +65,7 @@ int main()
             exact::ExactSolution hydro_exact;
             hydro_exact.Run("output/exact/MCMC_calculation_for_exact.dat", params);
             hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
+            break;
         }
         default:
         {

@@ -1,7 +1,7 @@
 others/
 output/plots/*
-scripts/plots
-scripts/full_outputs
+Archive/
+
 *.dat
 *.out
 *.x
@@ -15,9 +15,14 @@ build/
 
 .ipynb_checkpoints/
 psuedocode.txt
+
 Debug_Plots.ipynb
 useful_for_calculations.ipynb
+plots_and_debug.ipynb
 Storring_Old_Plots.ipynb
+Logbook.ipynb
+
+
 comparison_e.pdf
 plotting.ipynb
 cmdln_out.txt
