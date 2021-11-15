@@ -28,7 +28,7 @@ fi
 cd ../
 echo "Done installing all dependencies."
 
-echo "Creating necessary folders"
+echo "Creating necessary directories"
 mkdir build
 mkdir output
 mkdir output/aniso_hydro
@@ -36,3 +36,11 @@ mkdir output/bayes
 mkdir output/CE_hydro
 mdkir output/DNMR_hydro
 mkdir exact
+cd script/
+mkdir design_points
+mkdir full_outputs
+mkdir hydro_simulation_points
+mkdir pickle_files
+
+cd ../
+echo "Directories created"

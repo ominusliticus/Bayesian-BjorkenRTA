@@ -1,6 +1,8 @@
 others/
 output/plots/*
+output/bayes
 Archive/
+scripts/plots/*
 
 *.dat
 *.out
@@ -21,6 +23,7 @@ useful_for_calculations.ipynb
 plots_and_debug.ipynb
 Storring_Old_Plots.ipynb
 Logbook.ipynb
+TestingModule.ipynb
 
 
 comparison_e.pdf
