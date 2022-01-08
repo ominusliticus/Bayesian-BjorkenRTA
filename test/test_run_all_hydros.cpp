@@ -6,8 +6,6 @@
     The output files will correspond to plots I will include in my paper
 */
 
-//
-// Author: Kevin Ingles
 
 // Uncomment to enable parallel evaluations in ExactSolution.cpp
 #include "../include/config.hpp"

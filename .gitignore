@@ -9,6 +9,8 @@ scripts/plots/*
 *.x
 *.png
 *.pkl
+*.pdf
+*.pyc
 
 *.ipch
 *.bin
@@ -18,6 +20,7 @@ __pycache__/
 
 .ipynb_checkpoints/
 psuedocode.txt
+.nvimlog
 
 Debug_Plots.ipynb
 useful_for_calculations.ipynb
@@ -25,9 +28,15 @@ plots_and_debug.ipynb
 Storring_Old_Plots.ipynb
 Logbook.ipynb
 TestingModule.ipynb
+plotting.ipynb
 
+TestingModule.py
 
 comparison_e.pdf
-plotting.ipynb
 cmdln_out.txt
 emulator_scores.txt
+HydroBayesianAnalysis_DebugOutput.txt
+scripts/full_outputs/nan_files.txt
+scripts/plots/1param-posterior-compare-errors1.pdf
+scripts/plots/MCMC-posteriors_n=1.pdf
+scripts/__pycache__/HydroBayesianAnaylsis.cpython-39.pyc

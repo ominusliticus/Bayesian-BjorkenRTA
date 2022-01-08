@@ -241,6 +241,7 @@ double SimulationParameters::IntegralJ(int n, int r, int q, int s, double mass, 
         else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
         else t = std::atan(std::sqrt(z)) / std::sqrt(z);
 
+        // TODO: Need to properly take the z=0 case into account
         if (n == 2 && r == 0 && q == 0) return w * (1.0 + (1.0 + z) * t);
         else if (n == 2 && r == 0 && q == 1) return (1.0 + (z - 1.0) * t) / (z * w);
         else if (n == 2 && r == 2 && q == 0) return (-1.0 + (1.0 + z) * t) / (z * w);

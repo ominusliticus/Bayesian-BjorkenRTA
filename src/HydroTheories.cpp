@@ -491,7 +491,6 @@ namespace hydro
             Print(e_plot,  t, e1, p1, pl1, pt1, xi);
             Print(bulk_plot, t, Pi, tc.zetaBar_zT);
             Print(shear_plot, t, pi, tc.zetaBar_zL); 
-            Print(std::cout, t, e1, pi, Pi); 
             
             // RK4 with updating anisotropic variables
             // Note all dynamic variables are declared as member variables
@@ -510,7 +509,6 @@ namespace hydro
             p2 = ThermalPressure(e2, params);
             pi = 2.0 / 3.0 * (pt2 - pl2);
             Pi = (pl2 + 2.0 * pt2) / 3.0 - p2;
-            Print(std::cout, t, e2, pi, Pi);
             tc = CalculateTransportCoefficients(e2, p2, pt2, pl2, params);
             de2  = dt *  dedt(e2, pl2, t + dt / 2.0);
             dpt2 = dt * dptdt(p2, pt2, pl2, t + dt / 2.0, tc);
@@ -524,7 +522,6 @@ namespace hydro
             p3 = ThermalPressure(e3, params);
             pi = 2.0 / 3.0 * (pt3 - pl3);
             Pi = (pl3 + 2.0 * pt3) / 3.0 - p3;
-            Print(std::cout, t, e3, pi, Pi);
             tc = CalculateTransportCoefficients(e3, p3, pt3, pl3, params);
             de3  = dt *  dedt(e3, pl3, t + dt / 2.0);
             dpt3 = dt * dptdt(p3, pt3, pl3, t + dt / 2.0, tc);
@@ -538,7 +535,6 @@ namespace hydro
             p4 = ThermalPressure(e4, params);
             pi = 2.0 / 3.0 * (pt4 - pl4);
             Pi = (pl4 + 2.0 * pt4) / 3.0 - p4;
-            Print(std::cout, t, e4, pi, Pi);
             tc = CalculateTransportCoefficients(e4, p4, pt4, pl4, params);
             de4  = dt *  dedt(e4, pl4, t + dt);
             dpt4 = dt * dptdt(p4, pt4, pl4, t + dt, tc);
@@ -548,7 +544,6 @@ namespace hydro
             pt1 += (dpt1 + 2.0 * dpt2 + 2.0 * dpt3 + dpt4) / 6.0;
             pl1 += (dpl1 + 2.0 * dpl2 + 2.0 * dpl3 + dpl4) / 6.0;
 
-            Print(std::cout);
         } // End simulation loop
 
         e_plot.close();

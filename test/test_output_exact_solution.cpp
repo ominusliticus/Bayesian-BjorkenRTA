@@ -23,7 +23,7 @@ int main()
     for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
     {
         Print(std::cout, fmt::format("Evaluating for time {}", tau)); 
-        std::fstream fwrite(fmt::format("./output/extact_solution_{:.{}f}.dat", tau, 1), std::fstream::out);        
+        std::fstream fwrite(fmt::format("./output/test_output/extact_solution_{:.{}f}.dat", tau, 1), std::fstream::out);        
         for (double w = -3.0; w <= 3.0; w += 0.02)
             for (double pT = -3.0; pT <= 3.0; pT += 0.02)
                 Print(fwrite, w, pT, exact_soln.EaxctDistribution(w, pT, tau, params));
