@@ -127,7 +127,7 @@ class HydroBayesianAnalysis(object):
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
-                        bounds = np.outer(self.parameter_ranges[0], (1e-2, 100))
+                        bounds = np.outer(np.diff(self.parameter_ranges), (1e-2, 100))
                         # StandardScaler takes mean and std dev of every column and calculates z-score
                         SS = StandardScaler().fit(hydro_lists[i][j,:,m].reshape(-1,1))
                         local_scalers.append(SS)
@@ -137,7 +137,7 @@ class HydroBayesianAnalysis(object):
                         GPR = gpr(kernel=kernel, n_restarts_optimizer=30)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
                         GPR.fit(design_points.reshape(-1,1), data)
-                        f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points, data)))
+                        f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,1), data)))
                         local_emulators.append(GPR)
                     global_scalers.append(local_scalers)
                     global_emulators.append(local_emulators)
