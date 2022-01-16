@@ -1016,21 +1016,63 @@ namespace hydro
         auto Rnrq = [=](double p_bar)
         {
             double w = std::sqrt(alpha_L * alpha_L + std::pow(m_bar / p_bar, 2.0));
+            double w3 = w * w * w;
             double z = (alpha_T * alpha_T - alpha_L * alpha_L) / (w * w);
+            double z2 {z * z}, z3 {z2 * z}, z4 {z3 * z}, z5 {z4 * z};
             double t = 0;
             if (z == 0) t = 0;
             else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
             else t = std::atan(std::sqrt(z)) / std::sqrt(z);
 
-            if (n == 2 && r == 0 && q == 0) return w * (1.0 + (1.0 + z) * t);
-            else if (n == 2 && r == 0 && q == 1) return (1.0 + (z - 1.0) * t) / (z * w);
-            else if (n == 2 && r == 2 && q == 0) return (-1.0 + (1.0 + z) * t) / (z * w);
-            else if (n == 2 && r == 2 && q == 1) return (-3.0 + (3.0 + z) * t) / (z * z * w * w * w);
-            else if (n == 2 && r == 4 && q == 0) return (3.0 + 2.0 * z - 3.0 * (1.0 + z) * t) / (z * z * w * w * w);
-            else if (n == 4 && r == 2 && q == 0) return (w * (-1.0 + z + (1.0 + z) * (1.0 + z) * t)) / (4.0 * z);
-            else if (n == 4 && r == 2 && q == 1) return (3.0 + z + (1.0 + z) * (z - 3.0) * t) / (4.0 * z * z * w);
-            else if (n == 4 && r == 4 && q == 0) return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);
-            else exit(-112233);
+            // TODO: Need to properly take the z=0 case into account
+            if (std::fabs(z) < 0.1)
+            {
+                if (n == 2 && r == 0 && q == 0)
+                {
+                    return 2.0 * w * (1.0 + z / 3.0 - z2 / 15.0 + z3 / 35.0  - z4 / 63.0 + z5 / 99.0);
+                }
+                else if (n == 2 && r == 0 && q == 1)
+                {
+                    return 4.0 / w * (1.0 / 3.0 - z / 15.0 + z2 / 35.0 - z3 / 63.0  + z4 / 99.0 - z5 / 143.0);      
+                }
+                else if (n == 2 && r == 2 && q == 0)
+                {
+                    return 2.0 / w * (1.0 / 3.0 - z / 15.0 + z2 / 35.0 - z3 / 63.0  + z4 / 99.0 - z5 / 143.0);
+                }
+                else if (n == 2 && r == 2 && q == 1)
+                {
+                    return 4.0 / w3 * (1.0 / 15.0 - 2.0 * z / 35.0 + z2 / 21.0 - 4.0 * z3 / 99.0 + 5.0 * z4 / 143.0 - 2.0 * z5 / 65.0);
+                }
+                else if (n == 2 && r == 4 && q == 0)
+                {
+                    return 2.0 / w3 * (1.0 / 5.0 - 3.0 * z / 35.0 + z2 / 21.0 - z3 / 33.0 + 3.0 * z4 / 143.0  - z5 / 65.0);
+                }
+                else if (n == 4 && r == 2 && q == 0)
+                {
+                    return 2.0 * w * (1.0 / 3.0 + z / 15.0 - z2 / 105.0 + z3 / 315.0 - z4 / 693.0 + z5 / 1287.0);
+                }
+                else if (n == 4 && r == 2 && q == 1)
+                {
+                    return 4.0 / w * (1.0 / 15.0 - 2.0 * z / 105.0 + z2 / 105.0 - 4.0 *z3 / 693.0 + 5.0 * z4 / 1287.0 - 2.0 * z5 / 715.0);
+                }
+                else if (n == 4 && r == 4 && q == 0)
+                {
+                    return 2.0 / w * (1.0 / 5.0 - z / 35.0 + z2 / 105.0 - z3 / 231.0 + z4 / 429.0 - z5 / 715.0); 
+                }
+                else assert("Unsupported choice");
+            }
+            else
+            {
+                if (n == 2 && r == 0 && q == 0) return w * (1.0 + (1.0 + z) * t);
+                else if (n == 2 && r == 0 && q == 1) return (1.0 + (z - 1.0) * t) / (z * w);
+                else if (n == 2 && r == 2 && q == 0) return (-1.0 + (1.0 + z) * t) / (z * w);
+                else if (n == 2 && r == 2 && q == 1) return (-3.0 + (3.0 + z) * t) / (z * z * w * w * w);
+                else if (n == 2 && r == 4 && q == 0) return (3.0 + 2.0 * z - 3.0 * (1.0 + z) * t) / (z * z * w * w * w);
+                else if (n == 4 && r == 2 && q == 0) return (w * (-1.0 + z + (1.0 + z) * (1.0 + z) * t)) / (4.0 * z);                   // I calculated by hand
+                else if (n == 4 && r == 2 && q == 1) return (3.0 + z + (1.0 + z) * (z - 3.0) * t) / (4.0 * z * z * w);
+                else if (n == 4 && r == 4 && q == 0) return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);   // I calculated by hand
+                else assert("Unsupported choice");
+            }
         };
 
         auto integrand = [=](double p_bar)
