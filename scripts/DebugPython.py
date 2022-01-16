@@ -81,14 +81,14 @@ if __name__ == '__main__':
     pi = specific_hydro_output[:,2]
     Pi = specific_hydro_output[:,3]
     p = specific_hydro_output[:,4]
-    print(specific_hydro_output.shape)
+    print(e)
 
     #specific_hydro_output[:,1] = e / e[0]
     #specific_hydro_output[:,2] = pi / (e + p)
     #specific_hydro_output[:,3] = Pi / (e + p)
 
     
-    axis_labels = [r'$\mathcal E/\mathcal E_0$', r'$\pi/(\mathcal E + \mathcal P)$', r'$\Pi/(\mathcal E + \mathcal P)$']
+    axis_labels = [r'$\mathcal E/\mathcal E_0$', r'$\pi/(\mathcal E + \mathcal P)$', r'$\pi/(\mathcal E + \mathcal P)$']
     for i, label in enumerate(axis_labels):
         ax[i].plot(specific_hydro_output[:,0], specific_hydro_output[:,i+1], lw=3)
         costumize_axis(ax[i], r'$\tau$ MeV', label)

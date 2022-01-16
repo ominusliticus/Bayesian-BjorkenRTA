@@ -102,16 +102,16 @@ class HydroBayesianAnalysis(object):
                 hydro_simulations = dict((key, np.array([np.array(global_last_output[key])[:, j, :] for j in range(simulation_taus.size)])) for key in self.hydro_names)
             else:
                 with open(f'design_points/design_points_n={self.num_params}.dat', 'r') as f_design_points:
-                    design_points = np.array([float(line) for line in f_design_points.readlines()])
-
+                    design_points = np.array([line for line in f_design_points.readlines()])
+                print(design_points)
                 for k, name in enumerate(self.hydro_names):
                     for j, tau in enumerate(simulation_taus):
-                        with open(f'hydro_simulation_points/{name}_simulation_points_n={self.num_params}_tau={tau}.dat', 'r') as f_hydro_simulation_points:
-                            hydro_simulations[name].append([[float(entry) for entry in line.split()] for line  in f_hydro_simulation_points.readlines()])
+                        with open(f'hydro_simulation_points/{name}_simulation_points_n={self.num_params}_tau={tau}.dat', 'r') as f_hydro_simulation_taus:
+                            hydro_simulations[name].append([[float(entry) for entry in line.split()] for line in f_hydro_simulation_taus.readline()])
                 hydro_simulations = dict((key, np.array(hydro_simulations[key])) for key in hydro_simulations)
     
             hydro_lists = np.array([hydro_simulations[key] for key in self.hydro_names])
-
+            print(hydro_lists)
             # make emulators and standard scaler
             self.scalers = dict((key, []) for key in self.hydro_names)
             self.GP_emulators = dict((key, []) for key in self.hydro_names)
@@ -132,11 +132,13 @@ class HydroBayesianAnalysis(object):
                         SS = StandardScaler().fit(hydro_lists[i][j,:,m].reshape(-1,1))
                         local_scalers.append(SS)
                         data = SS.transform(hydro_lists[i][j,:,m].reshape(-1,1))
+                        print(data.shape, np.array(design_points).shape)
+                        quit()
 
-                        kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
+                        kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds) 
                         GPR = gpr(kernel=kernel, n_restarts_optimizer=30)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
-                        GPR.fit(design_points.reshape(-1,1), data)
+                        GPR.fit(design_points, data)
                         f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points, data)))
                         local_emulators.append(GPR)
                     global_scalers.append(local_scalers)
