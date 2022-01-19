@@ -44,9 +44,8 @@ class HydroBayesianAnalysis(object):
         
         if not self.train_GP:
             # Load GP and scalers data from pickle files
-            print(os.getcwd())
-            f_pickle_emulators = open('pickle_files/emulators_data.pkl','rb')
-            f_pickle_scalers = open('pickle_files/scalers_data.pkl','rb')
+            f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl','rb')
+            f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl','rb')
             self.GP_emulators = pickle.load(f_pickle_emulators)
             self.scalers = pickle.load(f_pickle_scalers)
             f_pickle_emulators.close()
@@ -116,7 +115,7 @@ class HydroBayesianAnalysis(object):
             self.scalers = dict((key, []) for key in self.hydro_names)
             self.GP_emulators = dict((key, []) for key in self.hydro_names)
 
-            f_emulator_scores = open('emulator_scores.txt', 'w')
+            f_emulator_scores = open('full_outputs/emulator_scores.txt', 'w')
             f_pickle_scalers = open('pickle_files/scalers_data.pkl', 'wb')
             f_pickle_emulators = open('pickle_files/emulators_data.pkl', 'wb')
             for i, name in enumerate(self.hydro_names):
@@ -162,7 +161,9 @@ class HydroBayesianAnalysis(object):
         X  = np.array(evaluation_point).reshape(1,-1)
         lower = np.all(X >= np.array(parameter_ranges)[:,0])
         upper = np.all(X <= np.array(parameter_ranges)[:,1])
-
+        print("Evaluating prior")
+        print(np.all(lower), np.all(upper))
+        
         if (np.all(lower) and np.all(upper)):
             return 0
         else:
@@ -227,7 +228,9 @@ class HydroBayesianAnalysis(object):
                 running_log_likelihood += -0.5 * np.dot(y, b) - np.log(L.diagonal()).sum()
             else:
                 raise print('Diagonal has negative entry')
-
+        
+        print("Evaluating loglikelihood")
+        print(running_log_likelihood)
         return running_log_likelihood
 
 
@@ -370,15 +373,15 @@ class HydroBayesianAnalysis(object):
                 return np.array(temp_list)
 
         def GetExactResults() -> List:
-            f_exact = open('../output/exact/MCMC_calculation_moments.dat','r')
-            if store_whole_file:
-                return f_exact.readlines()
-            else:
-                t, e, pl, pt, p = f_exact.readlines()[-1].split()
-                pi = (float(pt) - float(pl)) / 1.5
-                Pi = (2 *  float(pt) + float(pl)) / 3 - float(p)
-                temp_list = [float(t), float(e), pi, Pi]
-                return temp_list
+            with open('../output/exact/MCMC_calculation_moments.dat','r') as f_exact:
+                if store_whole_file:
+                    return np.array([[float(entry) for entry in line.split()] for line in f_exact.readlines()])
+                else:
+                    t, e, pl, pt, p = f_exact.readlines()[-1].split()
+                    pi = (float(pt) - float(pl)) / 1.5
+                    Pi = (2 *  float(pt) + float(pl)) / 3 - float(p)
+                    temp_list = [float(t), float(e), pi, Pi, float(p)]
+                    return temp_list
 
         if len(simulation_points) > len(parameter_names):
             for parameters in simulation_points:
