@@ -115,9 +115,9 @@ class HydroBayesianAnalysis(object):
             self.scalers = dict((key, []) for key in self.hydro_names)
             self.GP_emulators = dict((key, []) for key in self.hydro_names)
 
-            f_emulator_scores = open('full_outputs/emulator_scores.txt', 'w')
-            f_pickle_scalers = open('pickle_files/scalers_data.pkl', 'wb')
-            f_pickle_emulators = open('pickle_files/emulators_data.pkl', 'wb')
+            f_emulator_scores = open(f'full_outputs/emulator_scores_n={self.num_params}.txt', 'w')
+            f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl', 'wb')
+            f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl', 'wb')
             for i, name in enumerate(self.hydro_names):
                 global_scalers = []
                 global_emulators = []
@@ -126,14 +126,14 @@ class HydroBayesianAnalysis(object):
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
-                        bounds = np.outer(np.diff(self.parameter_ranges), (1e-2, 100))
+                        bounds = np.outer(np.diff(self.parameter_ranges), (1e-4, 1e4))
                         # StandardScaler takes mean and std dev of every column and calculates z-score
                         SS = StandardScaler().fit(hydro_lists[i][j,:,m].reshape(-1,1))
                         local_scalers.append(SS)
                         data = SS.transform(hydro_lists[i][j,:,m].reshape(-1,1))
 
                         kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
-                        GPR = gpr(kernel=kernel, n_restarts_optimizer=30)
+                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
                         GPR.fit(design_points.reshape(-1,1), data)
                         f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,1), data)))
@@ -147,6 +147,7 @@ class HydroBayesianAnalysis(object):
 
             f_emulator_scores.close()
             f_pickle_emulators.close()
+            f_pickle_scalers.close()
 
 
     def LogPrior(self, evaluation_point: np.ndarray, parameter_ranges: np.ndarray) -> float:
@@ -161,8 +162,6 @@ class HydroBayesianAnalysis(object):
         X  = np.array(evaluation_point).reshape(1,-1)
         lower = np.all(X >= np.array(parameter_ranges)[:,0])
         upper = np.all(X <= np.array(parameter_ranges)[:,1])
-        print("Evaluating prior")
-        print(np.all(lower), np.all(upper))
         
         if (np.all(lower) and np.all(upper)):
             return 0

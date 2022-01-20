@@ -6,7 +6,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
-
+#include <cassert>
 
 namespace hydro
 {
@@ -56,13 +56,13 @@ namespace hydro
         switch (theo)
         {
             case theory::CE:
-                Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
                 e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 shear_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 bulk_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
-                Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+                // Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
                 e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 shear_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 bulk_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
@@ -428,7 +428,7 @@ namespace hydro
     ///////////////////////////////////////
     void AnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        Print(std::cout, "Calculating anistropic hydrodynamic evolution");
+        // Print(std::cout, "Calculating anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -758,7 +758,7 @@ namespace hydro
     //////////////.////////////////////////////
     void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
     {
-        Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+        // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 

@@ -16,7 +16,6 @@
 int main()
 {
     SimulationParameters params("utils/params.txt");
-    Print(std::cout, params);
     // Add logic for runing exact solution: should check if the soluiton with a give parameter set has already run
     // SimulationParameters exact_params("utils/exact_params.txt");
     // if (params != exact_params)
