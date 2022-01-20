@@ -110,6 +110,8 @@ class HydroBayesianAnalysis(object):
                 hydro_simulations = dict((key, np.array(hydro_simulations[key])) for key in hydro_simulations)
     
             hydro_lists = np.array([hydro_simulations[key] for key in self.hydro_names])
+            print(hydro_lists.shape)
+            quit()
 
             # make emulators and standard scaler
             self.scalers = dict((key, []) for key in self.hydro_names)
@@ -135,8 +137,8 @@ class HydroBayesianAnalysis(object):
                         kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
                         GPR = gpr(kernel=kernel, n_restarts_optimizer=40)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
-                        GPR.fit(design_points.reshape(-1,1), data)
-                        f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,1), data)))
+                        GPR.fit(design_points.reshape(-1,self.num_params), data)
+                        f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,self.num_params), data)))
                         local_emulators.append(GPR)
                     global_scalers.append(local_scalers)
                     global_emulators.append(local_emulators)
@@ -228,8 +230,6 @@ class HydroBayesianAnalysis(object):
             else:
                 raise print('Diagonal has negative entry')
         
-        print("Evaluating loglikelihood")
-        print(running_log_likelihood)
         return running_log_likelihood
 
 
