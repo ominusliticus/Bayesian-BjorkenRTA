@@ -6,7 +6,7 @@
 
 // Uncomment to enable parallel evaluation
 // Parallelizing used for ExactSolution.cpp and BayesianParameterEstimation.hpp
-#define USE_PARALLEL 0
+#define USE_PARALLEL 1
 
 // Need for dertain inversions of determinatn calculations
 #define ARMA_DONT_USE_WRAPPER
