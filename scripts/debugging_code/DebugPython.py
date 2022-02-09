@@ -154,8 +154,8 @@ def DebugGPEmulator_1param():
     
 
     # After the first run, you should update files to reflect param count
-    with open(f'../pickle_files/scalers_data_n=1.pkl','rb') as f:
-        scalers = pickle.load(f)
+    # with open(f'../pickle_files/scalers_data_n=1.pkl','rb') as f:
+    #     scalers = pickle.load(f)
     with open(f'../pickle_files/emulators_data_n=1.pkl','rb') as f:
         emulators = pickle.load(f)
 
@@ -176,14 +176,14 @@ def DebugGPEmulator_1param():
                 # Get emulator prediction and rescale with scalers
                 emul_pred, emul_err = emulators[name][k][j].predict(x_vals.reshape(-1,1), return_std=True)
                 emul_err = emul_err.reshape(-1,1)
-                pred = scalers[name][k][j].inverse_transform(emul_pred)
-                err_plus = scalers[name][k][j].inverse_transform(emul_pred + emul_err) - pred
-                err_minus = pred - scalers[name][k][j].inverse_transform(emul_pred - emul_err)
-                err = np.sqrt(err_plus * err_plus + err_minus * err_minus)
+                # pred = scalers[name][k][j].inverse_transform(emul_pred)
+                # err_plus = scalers[name][k][j].inverse_transform(emul_pred + emul_err) - pred
+                # err_minus = pred - scalers[name][k][j].inverse_transform(emul_pred - emul_err)
+                # err = np.sqrt(err_plus * err_plus + err_minus * err_minus)
 
                 # prepare rescaled predictions for plotting
-                pred = pred.reshape(-1,)
-                err = err.reshape(-1,)
+                pred = emul_pred.reshape(-1,)
+                err = emul_err.reshape(-1,)
                 ax[j].fill_between(x_vals.reshape(-1,), pred + err, pred - err, color=cmap(i), alpha=0.5)
     costumize_axis(ax[0], r'$\mathcal C$', r'$\mathcal E$ [fm$^{-4}$]')
     ax[0].legend(loc='upper left', fontsize=20)
@@ -191,7 +191,8 @@ def DebugGPEmulator_1param():
     costumize_axis(ax[2], r'$\mathcal C$', r'$\Pi$ [fm$^{-4}$]')
     fig.tight_layout()
     fig.savefig('../plots/debug_emulator_and_scalers.pdf')
-
+    
+    return
     
     # check to see if scalers are normally distributed
     scaled_hydro = {}

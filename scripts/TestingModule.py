@@ -106,12 +106,13 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False      # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True           # If true, HydroBayesAnalysis fits GPs to available training points
+    b_run_new_hydro = True     # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True          # If true, HydroBayesAnalysis fits GPs to available training points
     b_read_in_exact = True      # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
     b_read_mcmc = False         # If true, reads in last store MCMC chains
     b_read_observables = False  # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
-
+    
+    print("Inside main function")
 
     # GP_parameter_names = ['eta_s','tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
     # GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)], [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
@@ -127,9 +128,10 @@ if __name__ == '__main__':
         train_GP=b_train_GP
     )
 
+    print("finished initialization of Bayesian Analysis class")
+    quit()
     if b_run_new_hydro and True:
         bayesian_analysis_class_instance.RunExactHydroForGPDesignPoints()
-    quit()
 
     exact_out = []
     # true_params = [5 / (4 * np.pi), 0.1, 0.2/.197, 2 * pow(10, -3), 0]

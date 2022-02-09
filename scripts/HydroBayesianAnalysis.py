@@ -29,7 +29,8 @@ class HydroBayesianAnalysis(object):
     """
     Add description
     """
-    def __init__(self, default_params: Dict, parameter_names: List, parameter_ranges: np.ndarray, simulation_taus: np.ndarray, run_new_hydro: bool, train_GP: bool=False) -> None:
+    def __init__(self, default_params: Dict, parameter_names: List, parameter_ranges: np.ndarray, simulation_taus: np.ndarray, run_new_hydro: bool, train_GP: bool) -> None:
+        print("Initializing Bayesian Analysis class")
         self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
         self.params = default_params 
         self.parameter_names = parameter_names
@@ -47,14 +48,16 @@ class HydroBayesianAnalysis(object):
             with open(f'design_points/design_points_n={self.num_params}.dat','r') as f:
                 self.design_points = np.array([[float(entry) for entry in line.split()] for line in f.readlines()])
             f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl','rb')
-            f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl','rb')
+            # f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl','rb')
             self.GP_emulators = pickle.load(f_pickle_emulators)
-            self.scalers = pickle.load(f_pickle_scalers)
+            # self.scalers = pickle.load(f_pickle_scalers)
+            self.scalers = {}
             f_pickle_emulators.close()
-            f_pickle_scalers.close()
+            # f_pickle_scalers.close()
         else:
+            print("Running hydro")
             # Run hydro code and generate scalers and GP pickle files
-            unit = lhs(n=self.num_params, samples=40 * self.num_params, criterion='maximin')
+            unit = lhs(n=self.num_params, samples=5 * self.num_params, criterion='maximin')
             self.design_points = self.parameter_ranges[:,0] + unit * (self.parameter_ranges[:,1] - self.parameter_ranges[:,0])
             design_points = self.design_points
 
@@ -111,55 +114,56 @@ class HydroBayesianAnalysis(object):
                         with open(f'hydro_simulation_points/{name}_simulation_points_n={self.num_params}_tau={tau}.dat', 'r') as f_hydro_simulation_points:
                             hydro_simulations[name].append([[float(entry) for entry in line.split()] for line  in f_hydro_simulation_points.readlines()])
                 hydro_simulations = dict((key, np.array(hydro_simulations[key])) for key in hydro_simulations)
-    
+            
+            print("Fitting emulators")
             hydro_lists = np.array([hydro_simulations[key] for key in self.hydro_names])
             
             # make emulators and standard scaler 
-            self.scalers = dict((key, []) for key in self.hydro_names) 
+            # self.scalers = dict((key, []) for key in self.hydro_names) 
             self.GP_emulators = dict((key, []) for key in self.hydro_names)
 
             f_emulator_scores = open(f'full_outputs/emulator_scores_n={self.num_params}.txt', 'w')
-            f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl', 'wb')
+            # f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl', 'wb')
             f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl', 'wb')
             for i, name in enumerate(self.hydro_names):
-                global_scalers = []
+                # global_scalers = []
                 global_emulators = []
-                f_scaled_hydro_output = open(f'full_outputs/{name}_scaled_hydro_output_n={self.num_params}.dat','w')
+                # f_scaled_hydro_output = open(f'full_outputs/{name}_scaled_hydro_output_n={self.num_params}.dat','w')
                 for j, tau in enumerate(simulation_taus):
-                    local_scalers = []
+                    # local_scalers = []
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
                         # StandardScaler takes mean and std dev of every column and calculates z-score
                         data = hydro_lists[i,j,:,m].reshape(-1,1)
-                        SS = StandardScaler().fit(data)
-                        print('#################################')
-                        print(f"Debug: {name}, {tau}: mean = {SS.mean_}, scale = {SS.scale_}")  
-                        print('#################################')
-                        local_scalers.append(SS)
-                        data = SS.transform(data)
-                        for entry in data.reshape(-1,):
-                            f_scaled_hydro_output.write(f'{entry} ')
-                        f_scaled_hydro_output.write('\n')
+                        # SS = StandardScaler().fit(data)
+                        # local_scalers.append(SS)
+                        # data = SS.transform(data)
+                        # for entry in data.reshape(-1,):
+                        #     f_scaled_hydro_output.write(f'{entry} ')
+                        # f_scaled_hydro_output.write('\n')
 
                         bounds = np.outer(np.diff(self.parameter_ranges), (1e-2, 1e2))
                         kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
-                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40)
+                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40, alpha=1e-10, normalize_y=True)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
                         GPR.fit(design_points.reshape(-1,self.num_params), data)
                         f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,self.num_params), data)))
                         local_emulators.append(GPR)
-                    global_scalers.append(local_scalers)
+                    # global_scalers.append(local_scalers)
                     global_emulators.append(local_emulators)
-                self.scalers[name] = global_scalers
+                # self.scalers[name] = global_scalers
+                self.scalers = {}
                 self.GP_emulators[name] = global_emulators
-                f_scaled_hydro_output.close()
-            pickle.dump(self.scalers, f_pickle_scalers)
+                # f_scaled_hydro_output.close()
+            # pickle.dump(self.scalers, f_pickle_scalers)
             pickle.dump(self.GP_emulators, f_pickle_emulators)
 
             f_emulator_scores.close()
             f_pickle_emulators.close()
-            f_pickle_scalers.close()
+            # f_pickle_scalers.close()
+
+            print("Done")
 
 
     def LogPrior(self, evaluation_point: np.ndarray, parameter_ranges: np.ndarray) -> float:
@@ -181,7 +185,7 @@ class HydroBayesianAnalysis(object):
             return -np.inf
 
     
-    def LogLikelihood(self, evaluation_point: np.ndarray, true_observables: np.ndarray, true_errors: np.ndarray, hydro_name: str, GP_emulator: Dict, scalers: Dict) -> np.ndarray:
+    def LogLikelihood(self, evaluation_point: np.ndarray, true_observables: np.ndarray, true_errors: np.ndarray, hydro_name: str, GP_emulator: Dict, scalers: Dict={}) -> np.ndarray:
         '''
         Parameters:
         ------------
@@ -194,7 +198,7 @@ class HydroBayesianAnalysis(object):
                                 emulator_list[1] - shear stress  \n
                                 emulator_list[2] - bulk stress
         '''
-        def PredictObservable(evaluation_points: np.ndarray, hydro_name: str, tau_index: int, GP_emulator: Dict, scalers: Dict) -> np.ndarray:
+        def PredictObservable(evaluation_points: np.ndarray, hydro_name: str, tau_index: int, GP_emulator: Dict, scalers: Dict={}) -> np.ndarray:
             """
             Add description
             """
@@ -202,15 +206,17 @@ class HydroBayesianAnalysis(object):
             variances = []
             for i in range(3):
                 prediction, error = GP_emulator[hydro_name][tau_index][i].predict(np.array(evaluation_points).reshape(-1, len(evaluation_points)), return_std=True)
-
+                
+                mean = prediction.reshape(-1,1)
+                std = error.reshape(-1,)
                 # inverse transform error bars
-                scaler = scalers[hydro_name][tau_index][i]
-                error = error.reshape(-1,1)
-                mean = scaler.inverse_transform(prediction) 
-                std_p = scaler.inverse_transform(prediction + error) - mean
-                std_m = mean - scaler.inverse_transform(prediction - error)
-                std = np.sqrt(std_p ** 2 + std_m ** 2).reshape(-1,)
-                mean = mean.reshape(-1,)
+                # scaler = scalers[hydro_name][tau_index][i]
+                # error = error.reshape(-1,1)
+                # mean = scaler.inverse_transform(prediction) 
+                # std_p = scaler.inverse_transform(prediction + error) - mean
+                # std_m = mean - scaler.inverse_transform(prediction - error)
+                # std = np.sqrt(std_p ** 2 + std_m ** 2).reshape(-1,)
+                # mean = mean.reshape(-1,)
 
                 means.append(mean)
                 variances.append(std ** 2)
