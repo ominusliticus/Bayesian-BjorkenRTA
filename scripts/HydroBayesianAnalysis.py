@@ -48,16 +48,13 @@ class HydroBayesianAnalysis(object):
             with open(f'design_points/design_points_n={self.num_params}.dat','r') as f:
                 self.design_points = np.array([[float(entry) for entry in line.split()] for line in f.readlines()])
             f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl','rb')
-            # f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl','rb')
             self.GP_emulators = pickle.load(f_pickle_emulators)
-            # self.scalers = pickle.load(f_pickle_scalers)
             self.scalers = {}
             f_pickle_emulators.close()
-            # f_pickle_scalers.close()
         else:
             print("Running hydro")
             # Run hydro code and generate scalers and GP pickle files
-            unit = lhs(n=self.num_params, samples=5 * self.num_params, criterion='maximin')
+            unit = lhs(n=self.num_params, samples=20 * self.num_params, criterion='maximin')
             self.design_points = self.parameter_ranges[:,0] + unit * (self.parameter_ranges[:,1] - self.parameter_ranges[:,0])
             design_points = self.design_points
 
@@ -118,50 +115,39 @@ class HydroBayesianAnalysis(object):
             print("Fitting emulators")
             hydro_lists = np.array([hydro_simulations[key] for key in self.hydro_names])
             
-            # make emulators and standard scaler 
-            # self.scalers = dict((key, []) for key in self.hydro_names) 
+
             self.GP_emulators = dict((key, []) for key in self.hydro_names)
 
+            obs = ['E','pi','Pi']
             f_emulator_scores = open(f'full_outputs/emulator_scores_n={self.num_params}.txt', 'w')
-            # f_pickle_scalers = open(f'pickle_files/scalers_data_n={self.num_params}.pkl', 'wb')
             f_pickle_emulators = open(f'pickle_files/emulators_data_n={self.num_params}.pkl', 'wb')
             for i, name in enumerate(self.hydro_names):
-                # global_scalers = []
                 global_emulators = []
-                # f_scaled_hydro_output = open(f'full_outputs/{name}_scaled_hydro_output_n={self.num_params}.dat','w')
                 for j, tau in enumerate(simulation_taus):
-                    # local_scalers = []
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
-                        # StandardScaler takes mean and std dev of every column and calculates z-score
                         data = hydro_lists[i,j,:,m].reshape(-1,1)
-                        # SS = StandardScaler().fit(data)
-                        # local_scalers.append(SS)
-                        # data = SS.transform(data)
-                        # for entry in data.reshape(-1,):
-                        #     f_scaled_hydro_output.write(f'{entry} ')
-                        # f_scaled_hydro_output.write('\n')
 
                         bounds = np.outer(np.diff(self.parameter_ranges), (1e-2, 1e2))
                         kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
-                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40, alpha=1e-10, normalize_y=True)
+                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40, alpha=1e-8, normalize_y=True, random_state=12345)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
                         GPR.fit(design_points.reshape(-1,self.num_params), data)
-                        f_emulator_scores.write('GP score: {:1.3f}\n'.format(GPR.score(design_points.reshape(-1,self.num_params), data)))
+
+                        f_emulator_scores.write(f'Runnig fit for {name} at time {tau} fm/c for observable {obs[m-1]}')
+                        f_emulator_scores.write('GP score: {:1.3f}'.format(GPR.score(design_points.reshape(-1,self.num_params), data)))
+                        f_emulator_scores.write('GP parameters: {}'.format(GPR.kernel_))
+                        f_emulator_scores.write('GP log-likelihood: {}'.format(GPR.log_marginal_likelihood(GPR.kernel_.theta)))
+                        f_emulator_scores.write('------------------------------\n')
                         local_emulators.append(GPR)
-                    # global_scalers.append(local_scalers)
                     global_emulators.append(local_emulators)
-                # self.scalers[name] = global_scalers
                 self.scalers = {}
                 self.GP_emulators[name] = global_emulators
-                # f_scaled_hydro_output.close()
-            # pickle.dump(self.scalers, f_pickle_scalers)
             pickle.dump(self.GP_emulators, f_pickle_emulators)
 
             f_emulator_scores.close()
             f_pickle_emulators.close()
-            # f_pickle_scalers.close()
 
             print("Done")
 
@@ -209,14 +195,6 @@ class HydroBayesianAnalysis(object):
                 
                 mean = prediction.reshape(-1,1)
                 std = error.reshape(-1,)
-                # inverse transform error bars
-                # scaler = scalers[hydro_name][tau_index][i]
-                # error = error.reshape(-1,1)
-                # mean = scaler.inverse_transform(prediction) 
-                # std_p = scaler.inverse_transform(prediction + error) - mean
-                # std_m = mean - scaler.inverse_transform(prediction - error)
-                # std = np.sqrt(std_p ** 2 + std_m ** 2).reshape(-1,)
-                # mean = mean.reshape(-1,)
 
                 means.append(mean)
                 variances.append(std ** 2)
@@ -227,7 +205,7 @@ class HydroBayesianAnalysis(object):
             emulation_values, emulation_variance = PredictObservable(evaluation_point, hydro_name, k, GP_emulator, scalers) 
 
             y = np.array(emulation_values).flatten() - np.array(true_observables[k]).flatten()
-            cov = emulation_variance + np.diag(true_errors) ** 2
+            cov = emulation_variance + np.diag(true_errors[k].flatten()) ** 2
 
             # Use Cholesky decomposition for efficient lin alg algo
             L, info = lapack.dpotrf(cov, clean=True)

@@ -106,11 +106,11 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = True     # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True          # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_in_exact = True      # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
-    b_read_mcmc = False         # If true, reads in last store MCMC chains
-    b_read_observables = False  # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
+    b_run_new_hydro = False         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True               # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_in_exact = True          # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
+    b_read_mcmc = False             # If true, reads in last store MCMC chains
+    b_calculate_observables = True  # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
 
@@ -129,8 +129,8 @@ if __name__ == '__main__':
     )
 
     print("finished initialization of Bayesian Analysis class")
-    quit()
-    if b_run_new_hydro and True:
+    # quit()
+    if b_run_new_hydro and False:
         bayesian_analysis_class_instance.RunExactHydroForGPDesignPoints()
 
     exact_out = []
@@ -169,7 +169,7 @@ if __name__ == '__main__':
 
     print(mcmc_chains['ce'].shape)
     mcmc_observables = {}
-    if b_read_observables:
+    if b_calculate_observables:
         with open(f'pickle_files/mcmc_observables_n={len(GP_parameter_names)}.pkl', 'wb') as f:
             for name in bayesian_analysis_class_instance.hydro_names:
                 mcmc_observables[name] = np.zeros((20 * len(GP_parameter_names), 200, 5))
