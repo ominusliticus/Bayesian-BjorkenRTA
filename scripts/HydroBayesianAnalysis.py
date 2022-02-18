@@ -131,7 +131,7 @@ class HydroBayesianAnalysis(object):
 
                         bounds = np.outer(np.diff(self.parameter_ranges), (1e-2, 1e2))
                         kernel = 1 * krnl.RBF(length_scale=np.diff(self.parameter_ranges), length_scale_bounds=bounds)
-                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40, alpha=1e-8, normalize_y=True, random_state=12345)
+                        GPR = gpr(kernel=kernel, n_restarts_optimizer=40, alpha=1e-8, normalize_y=True)
                         f_emulator_scores.write(f'\t\tTraining GP for {name} and time {tau}\n')
                         GPR.fit(design_points.reshape(-1,self.num_params), data)
 
@@ -241,7 +241,8 @@ class HydroBayesianAnalysis(object):
         Dictionary of MCMC chains, index by the hydro name
         """
         if read_from_file:
-            with open('pickle_files/mcmc_chain.pkl','rb') as f:
+            print("Reading mcmc_chain from file")
+            with open('pickle_files/mcmc_chains.pkl','rb') as f:
                 self.MCMC_chains = pickle.load(f)
             with open('pickle_files/evidence.pkl','rb') as f:
                 self.evidence = pickle.load(f)
@@ -273,6 +274,11 @@ class HydroBayesianAnalysis(object):
                 
                 self.MCMC_chains[name] = np.array(sampler.chain)
                 self.evidence[name] = sampler.log_evidence_estimate()
+            
+            with open('pickle_files/mcmc_chains.pkl', 'wb') as f:
+                pickle.dump(self.MCMC_chains, f)
+            with open('pickle_files/evidence.pkl', 'wb') as f:
+                pickle.dump(self.evidence, f)
 
 
     def CalculateBayesFactor(self, hydro1: str, hydro2: str) -> float:

@@ -1,29 +1,25 @@
 #!/home/ominusliticus/anaconda3/bin/python3
 
 from platform import uname
+# import sys
+import pickle
 
-from numpy.lib import stride_tricks
+import matplotlib.pyplot as plt
+# import seaborn as sns
+import numpy as np
+
+from HydroBayesianAnalysis import HydroBayesianAnalysis
+
+# My costumizations for plots
+import matplotlib.ticker as tck
+from matplotlib import rc
+rc('font',**{'family':'serif', 'serif':['Computer Modern Roman']})
+rc('text', usetex=True)
 
 # If on WSL set temporary directory
 if 'microsoft' in uname().release:
     import os
     os.environ['MPLCONFIGDIR'] = '/tmp/'
-
-import sys
-
-import matplotlib.pyplot as plt
-# import seaborn as sns
-import numpy as np
-from scipy.stats import poisson
-
-from HydroBayesianAnalysis import *
-
-# My costumizations for plots
-import matplotlib.ticker as tck
-import matplotlib.font_manager
-from matplotlib import rc
-rc('font',**{'family':'serif', 'serif':['Computer Modern Roman']})
-rc('text', usetex=True)
 
 def get_cmap(n: int, name: str='hsv'):
     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
@@ -95,7 +91,7 @@ default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
     'xi_0':         -0.90, 
-    'alpha_0':      0.654868759, #2 * pow(10, -3),
+    'alpha_0':      2 * pow(10, -3),
     'tau_f':        12.1,
     'mass':         1.015228426,
     'eta_s':        5 / (4 * np.pi),
@@ -106,11 +102,11 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True               # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_in_exact = True          # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
+    b_run_new_hydro = True         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_in_exact = False         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
     b_read_mcmc = False             # If true, reads in last store MCMC chains
-    b_calculate_observables = True  # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
+    b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
 
@@ -162,7 +158,7 @@ if __name__ == '__main__':
         exact_psuedo[i, 1:4] = SampleObservables(alpha_error, exact_out[i, 1:4], False)
 
     psuedo_error = alpha_error * exact_out[:,1:4]
-
+    
     bayesian_analysis_class_instance.RunMCMC(nsteps=200, nburn=50, ntemps=20, exact_observables=exact_psuedo, exact_error=psuedo_error, read_from_file=b_read_mcmc)
     mcmc_chains = bayesian_analysis_class_instance.MCMC_chains
     evidences = bayesian_analysis_class_instance.evidence
@@ -175,28 +171,28 @@ if __name__ == '__main__':
                 mcmc_observables[name] = np.zeros((20 * len(GP_parameter_names), 200, 5))
                 for i in range(mcmc_chains[name].shape[1]):
                     for j in range(mcmc_chains[name].shape[2]):
-                        sys.stdout.write(f'\r({i},{j})')
                         mcmc_observables[name][i, j, :] = ConvertFromExactParametersToObservables(bayesian_analysis_class_instance, mcmc_chains[name][0,i,j,:])
             pickle.dump(mcmc_observables, f)
     else:
-        with open(f'pickle_files/mcmc_observables_n={len(GP_parameter_names)}.pkl', 'rb') as f:
-            mcmc_observables = pickle.load(f)
+        pass
+        #with open(f'pickle_files/mcmc_observables_n={len(GP_parameter_names)}.pkl', 'rb') as f:
+        #    mcmc_observables = pickle.load(f)
 
-    if True:
+    cmap = get_cmap(10, 'tab10')
+    if False:
         fig, ax = plt.subplots(nrows=1, ncols=len(GP_parameter_names), figsize=(len(GP_parameter_names) * 10,10))
         fig.patch.set_facecolor('white')
         
         if len(GP_parameter_names) == 1:
             axis_labels = [r'$\mathcal C$']
             limits = np.array([GP_parameter_ranges[0]])
-            cmap = get_cmap(10, 'tab10')
             for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
                 bins = np.linspace(*limits[0], 40, endpoint=True)
                 ax.hist(mcmc_observables[name][:,:,0].flatten(), bins=bins, color=cmap(i), lw=2, histtype=u'step', label=name)
             costumize_axis(ax, axis_labels[0], r'Posterior')
             ax.legend(loc='upper right', fontsize=25)
             fig.tight_layout()
-            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists.pdf')
+            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_observables.pdf')
         else:
             axis_labels = [r'$\mathcal C$', r'$\tau_0$', r'$\mathcal E_0$', r'$\pi_0$', r'$\Pi_0$']
             limits = np.array([GP_parameter_ranges[0], GP_parameter_ranges[1], [0, 10], [-3, 1], [-0.1, 0.01]])
@@ -210,7 +206,35 @@ if __name__ == '__main__':
                      ax[n].legend(loc='upper right', fontsize=25)
                     #  ax[n].text(4, 4500, true_values_str, fontsize=20)
             fig.tight_layout()
-            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists.pdf')
+            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_obseravble.pdf')
+    else:
+        fig, ax = plt.subplots(nrows=1, ncols=len(GP_parameter_names), figsize=(len(GP_parameter_names) * 10,10))
+        fig.patch.set_facecolor('white')
+        
+        if len(GP_parameter_names) == 1:
+            axis_labels = [r'$\mathcal C$']
+            limits = np.array([GP_parameter_ranges[0]])
+            for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+                bins = np.linspace(*limits[0], 40, endpoint=True)
+                ax.hist(mcmc_chains[name][0,:,:].flatten(), bins=bins, color=cmap(i), lw=2, histtype=u'step', label=name)
+            costumize_axis(ax, axis_labels[0], r'Posterior')
+            ax.legend(loc='upper right', fontsize=25)
+            fig.tight_layout()
+            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
+        else:
+            axis_labels = [r'$\mathcal C$', r'$\tau_0$', r'$\mathcal E_0$', r'$\pi_0$', r'$\Pi_0$']
+            limits = np.array([GP_parameter_ranges[0], GP_parameter_ranges[1], [0, 10], [-3, 1], [-0.1, 0.01]])
+            cmap = get_cmap(10, 'tab10')
+            for n in range(len(axis_labels)):   
+                for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+                    bins = np.linspace(*limits[n], 40, endpoint=True)
+                    ax[n].hist(mcmc_observables[name][0,:,:].flatten(), bins=bins, color=cmap(i), lw=2, histtype=u'step', label=name)
+                costumize_axis(ax[n], axis_labels[n], r'Posterior')
+                if n == 2:
+                     ax[n].legend(loc='upper right', fontsize=25)
+                    #  ax[n].text(4, 4500, true_values_str, fontsize=20)
+            fig.tight_layout()
+            fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
 
     outputs = {}
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
@@ -225,8 +249,10 @@ if __name__ == '__main__':
 
     exact_e = exact_output[:, 1]
     exact_p = exact_output[:, 4]
-    exact_pi_bar = exact_output[:, 2] / (exact_e + exact_p)
-    exact_Pi_bar = exact_output[:, 3] / (exact_e + exact_p)
+    exact_pl = exact_output[:, 2]
+    exact_pt = exact_output[:, 3]
+    exact_pi_bar = (2/3) * (exact_pt - exact_pl) / (exact_e + exact_p)
+    exact_Pi_bar = ((2 * exact_pt + exact_pl) / 3 - exact_p) / (exact_e + exact_p)
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(30,10))
     fig.patch.set_facecolor('white')
