@@ -4,7 +4,7 @@ echo "Checking for 3rd party libraries, and installing if needed"
 echo pwd
 cd ../3rd_party
 
-if [[-d fmt]]
+if [[ -d fmt ]]
 then
     echo 'fmt library exists'
 else
@@ -14,7 +14,7 @@ else
     echo "Done"
 fi
 
-if [[-d aramadillo]]
+if [[ -d aramadillo ]]
 then 
     echo "armadillo library exists"
 else
@@ -31,11 +31,11 @@ echo "Done installing all dependencies."
 echo "Creating necessary directories"
 mkdir build
 mkdir output
+mkdir output/exact
 mkdir output/aniso_hydro
 mkdir output/bayes
 mkdir output/CE_hydro
-mdkir output/DNMR_hydro
-mkdir exact
+mkdir output/DNMR_hydro
 cd script/
 mkdir design_points
 mkdir full_outputs
