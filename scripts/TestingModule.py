@@ -91,7 +91,7 @@ default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
     'xi_0':         -0.90, 
-    'alpha_0':      2 * pow(10, -3),
+    'alpha_0':      0.6548, # 2 * pow(10, -3),
     'tau_f':        12.1,
     'mass':         1.015228426,
     'eta_s':        5 / (4 * np.pi),
@@ -102,10 +102,10 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = True         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True              # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_in_exact = False         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
-    b_read_mcmc = False             # If true, reads in last store MCMC chains
+    b_run_new_hydro = False        # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = False              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_in_exact = True         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
+    b_read_mcmc = True             # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
@@ -247,7 +247,9 @@ if __name__ == '__main__':
     bayesian_analysis_class_instance.params['hydro_type'] = 4
     exact_output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
 
+    # add error bars for exact solution using `alpha_error` <- need to rename
     exact_e = exact_output[:, 1]
+    exact_e_err = alpha_error * exact_e
     exact_p = exact_output[:, 4]
     exact_pl = exact_output[:, 2]
     exact_pt = exact_output[:, 3]
