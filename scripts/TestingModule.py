@@ -102,10 +102,10 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False        # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = False              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_run_new_hydro = True         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True              # If true, HydroBayesAnalysis fits GPs to available training points
     b_read_in_exact = True         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
-    b_read_mcmc = True             # If true, reads in last store MCMC chains
+    b_read_mcmc = False            # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
@@ -250,11 +250,22 @@ if __name__ == '__main__':
     # add error bars for exact solution using `alpha_error` <- need to rename
     exact_e = exact_output[:, 1]
     exact_e_err = alpha_error * exact_e
+    exact_e_err_0 = np.full_like(exact_e, exact_e_err[0])
     exact_p = exact_output[:, 4]
+    exact_p_err = alpha_error * exact_p 
     exact_pl = exact_output[:, 2]
+    exact_pl_err = alpha_error * exact_pl
     exact_pt = exact_output[:, 3]
-    exact_pi_bar = (2/3) * (exact_pt - exact_pl) / (exact_e + exact_p)
+    exact_pt_err = alpha_error *  exact_pt
+    exact_s = exact_e + exact_p
+    exact_pi_bar = (2/3) * (exact_pt - exact_pl) / exact_s
+    exact_pi_bar_err = np.sqrt(((2 / 3) * exact_pt_err) ** 2 + ((2 / 3) * exact_pl_err) ** 2 \
+                               + (exact_pi_bar / exact_s) ** 2 * (exact_e_err ** 2 + exact_p_err ** 2))
     exact_Pi_bar = ((2 * exact_pt + exact_pl) / 3 - exact_p) / (exact_e + exact_p)
+    exact_Pi_bar_err = np.sqrt(((2 / 3) * exact_pt_err) ** 2 + ((1 / 3) * exact_pl_err) ** 2 + exact_p_err ** 2 \
+                               + (exact_Pi_bar / exact_s) ** 2 * (exact_e_err ** 2 + exact_p_err ** 2))
+
+    exact_e_plot_err = np.sqrt(exact_e_err ** 2 + (exact_e_err_0/ exact_e[0]) ** 2) / exact_e[0]
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(30,10))
     fig.patch.set_facecolor('white')
@@ -262,9 +273,13 @@ if __name__ == '__main__':
     costumize_axis(ax[1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
     costumize_axis(ax[2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
 
-    ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color=cmap(4), label='exact')
-    ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color=cmap(4))
-    ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color=cmap(4))
+    r = exact_e / exact_e[0]
+    ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color='black', label='exact')
+    ax[0].fill_between(exact_output[:,0], r + exact_e_plot_err, r - exact_e_plot_err, color='black', alpha=0.3) 
+    ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color='black')
+    ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_par - exact_pi_bar_err, color='black', alpha=0.3)
+    ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color='black')
+    ax[1].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_par - exact_Pi_bar_err, color='black', alpha=0.3)
 
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         output = outputs[name]
