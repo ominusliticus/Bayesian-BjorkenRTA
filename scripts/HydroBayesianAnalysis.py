@@ -3,17 +3,12 @@ import subprocess as sp
 import os
 from typing import Dict, List
 
-# since using WSL2
-os.environ['MPLCONFIGDIR'] = '/tmp/'
-
-
 # Typical functionality for data manipulation and generation of latin hypercube
 import numpy as np
 from pyDOE import lhs
 import ptemcee
 
 # Gaussian Process emulator 
-from sklearn.preprocessing import StandardScaler
 from sklearn.gaussian_process import GaussianProcessRegressor as gpr
 from sklearn.gaussian_process import kernels as krnl
 
@@ -23,13 +18,23 @@ from scipy.linalg import lapack
 # data storage
 import pickle
 
+# for warnings when running on WSL
+os.environ['MPLCONFIGDIR'] = '/tmp/'
 
 
 class HydroBayesianAnalysis(object):
     """
     Add description
     """
-    def __init__(self, default_params: Dict, parameter_names: List, parameter_ranges: np.ndarray, simulation_taus: np.ndarray, run_new_hydro: bool, train_GP: bool) -> None:
+    def __init__(
+            self,
+            default_params: Dict,
+            parameter_names: List,
+            parameter_ranges: np.ndarray,
+            simulation_taus: np.ndarray,
+            run_new_hydro: bool,
+            train_GP: bool
+            ) -> None:
         print("Initializing Bayesian Analysis class")
         self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
         self.params = default_params 
@@ -238,7 +243,8 @@ class HydroBayesianAnalysis(object):
 
         Returns:
         ----------
-        Dictionary of MCMC chains, index by the hydro name
+        Dictionary of MCMC chains, index by the hydro name.\n
+        MCMC chain has the shape (ntemps, nwalkers, nsteps, num_params), where nwalkers = 20 * num_params
         """
         if read_from_file:
             print("Reading mcmc_chain from file")

@@ -237,11 +237,12 @@ if __name__ == '__main__':
             fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
 
     outputs = {}
+    map_values = {}
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         bayesian_analysis_class_instance.params['hydro_type'] = i
-        map_values = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
-        outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values, store_whole_file=True)
+        map_values[name] = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
+        outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
 
     #exact_params = [5 / (4 * np.pi), 0.1, 1.647204044, 0.654868759, -0.8320365099]
     bayesian_analysis_class_instance.params['hydro_type'] = 4
@@ -251,21 +252,40 @@ if __name__ == '__main__':
     exact_e = exact_output[:, 1]
     exact_e_err = alpha_error * exact_e
     exact_e_err_0 = np.full_like(exact_e, exact_e_err[0])
+
+    # energy density
     exact_p = exact_output[:, 4]
     exact_p_err = alpha_error * exact_p 
+    
+    # longitudinal pressur
     exact_pl = exact_output[:, 2]
     exact_pl_err = alpha_error * exact_pl
+    
+    # transverse pressure
     exact_pt = exact_output[:, 3]
     exact_pt_err = alpha_error *  exact_pt
-    exact_s = exact_e + exact_p
-    exact_pi_bar = (2/3) * (exact_pt - exact_pl) / exact_s
-    exact_pi_bar_err = np.sqrt(((2 / 3) * exact_pt_err) ** 2 + ((2 / 3) * exact_pl_err) ** 2 \
-                               + (exact_pi_bar / exact_s) ** 2 * (exact_e_err ** 2 + exact_p_err ** 2))
-    exact_Pi_bar = ((2 * exact_pt + exact_pl) / 3 - exact_p) / (exact_e + exact_p)
-    exact_Pi_bar_err = np.sqrt(((2 / 3) * exact_pt_err) ** 2 + ((1 / 3) * exact_pl_err) ** 2 + exact_p_err ** 2 \
-                               + (exact_Pi_bar / exact_s) ** 2 * (exact_e_err ** 2 + exact_p_err ** 2))
+    exact_e_plot_err = np.sqrt(exact_e_err ** 2 + (exact_e * exact_e_err_0/ exact_e[0]) ** 2) / exact_e[0]
+    
+    # shear pressure
+    exact_pi = (2 / 3) * (exact_pt - exact_pl)
+    exact_pi_err = (2 / 3) * np.sqrt(exact_pt_err ** 2 + exact_pl_err ** 2)
 
-    exact_e_plot_err = np.sqrt(exact_e_err ** 2 + (exact_e_err_0/ exact_e[0]) ** 2) / exact_e[0]
+    # bulk pressure
+    exact_Pi = (2 * exact_pt + exact_pl) / 3 - exact_p
+    exact_Pi_err = np.sqrt((4 / 9) * exact_pt_err ** 2 + (1 / 9) * exact_pl_err ** 2 + exact_p_err ** 2)
+
+    # enthalpy, for calculating normalized bulk and shear pressure
+    exact_h = exact_e + exact_p
+    exact_h_err = np.sqrt(exact_e_err ** 2 + exact_p_err ** 2)
+    
+    # normalized shear pressure
+    exact_pi_bar = exact_pi / exact_h 
+    exact_pi_bar_err = np.sqrt(exact_pi_err ** 2 + (exact_pi * exact_h_err / exact_h) ** 2) / exact_h
+    
+    # normalized bulk pressure
+    exact_Pi_bar = exact_Pi / exact_h
+    exact_Pi_bar_err = np.sqrt(exact_Pi_err ** 2 + (exact_Pi * exact_h_err / exact_h) ** 2) / exact_h
+
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(30,10))
     fig.patch.set_facecolor('white')
@@ -277,11 +297,12 @@ if __name__ == '__main__':
     ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color='black', label='exact')
     ax[0].fill_between(exact_output[:,0], r + exact_e_plot_err, r - exact_e_plot_err, color='black', alpha=0.3) 
     ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color='black')
-    ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_par - exact_pi_bar_err, color='black', alpha=0.3)
+    ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_bar - exact_pi_bar_err, color='black', alpha=0.3)
     ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color='black')
-    ax[1].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_par - exact_Pi_bar_err, color='black', alpha=0.3)
+    ax[2].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_bar - exact_Pi_bar_err, color='black', alpha=0.3)
 
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+        print(f'map parameters for {name}: {map_values[name]}')
         output = outputs[name]
         e = output[:,1]
         p = output[:,4]
