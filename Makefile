@@ -7,7 +7,7 @@ OBJ = ./build/
 THIRD_PARTY = ./3rd_party/
 
 # Armadillo instructions
-ARMA_INC = $(THIRD_PARTY)armadillo/inlcude/
+ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
 ARMA_LIB = -lopenblas -llapack
 
 FILES := $(shell find $(SRC) -name '*.cpp') $(SRC)fmt/format.cc
@@ -22,7 +22,7 @@ TST_HYDROS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_HYDROS))
 CC = g++-11 -std=c++17 -Wall#-g3 -fsanitize=address
 OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 LIBS = -lpthread $(ARMA_LIB)
-INCLUDE = -I /usr/local/include -I $(ARMA_INC)
+INCLUDE = -I /usr/local/include -I $(ARMA_INC) -I $(INC)
 
 CFLAGS = $(OPT)
 
