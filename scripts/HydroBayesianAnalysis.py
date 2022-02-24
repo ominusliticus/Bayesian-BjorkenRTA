@@ -18,6 +18,9 @@ from scipy.linalg import lapack
 # data storage
 import pickle
 
+# debugging
+from pdb import set_trace as bp
+
 # for warnings when running on WSL
 os.environ['MPLCONFIGDIR'] = '/tmp/'
 
@@ -180,7 +183,7 @@ class HydroBayesianAnalysis(object):
         '''
         Parameters:
         ------------
-        evaluation_points    - 1d-array like (n,m) \n
+        evaluation_points    - 1d-array like (1, num_params) \n
         true_observables     - data
         true_error           - data error  
         hydro_name           - string containing hydro theory: 'ce', 'dnmr', 'vah', 'mvah'  \n
@@ -196,8 +199,8 @@ class HydroBayesianAnalysis(object):
             means = []
             variances = []
             for i in range(3):
-                prediction, error = GP_emulator[hydro_name][tau_index][i].predict(np.array(evaluation_points).reshape(-1, len(evaluation_points)), return_std=True)
-                
+                prediction, error = GP_emulator[hydro_name][tau_index][i].predict(np.array(evaluation_points).reshape(1, -1), return_std=True)
+                print(np.array(evaluation_points).reshape(-1, len(evaluation_points)))
                 mean = prediction.reshape(-1,1)
                 std = error.reshape(-1,)
 
@@ -209,6 +212,10 @@ class HydroBayesianAnalysis(object):
         for k in range(true_observables.shape[0]):
             emulation_values, emulation_variance = PredictObservable(evaluation_point, hydro_name, k, GP_emulator, scalers) 
 
+            # print(f'pred: {emulation_values}')
+            # print(f'true: {true_observables[k]}')
+            # print(f'err: {emulation_variance}')
+            quit()
             y = np.array(emulation_values).flatten() - np.array(true_observables[k]).flatten()
             cov = emulation_variance + np.diag(true_errors[k].flatten()) ** 2
 
