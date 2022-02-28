@@ -102,8 +102,8 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = True         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_run_new_hydro = False        # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = False             # If true, HydroBayesAnalysis fits GPs to available training points
     b_read_in_exact = True         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
     b_read_mcmc = False            # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
