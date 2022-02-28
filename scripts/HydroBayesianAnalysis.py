@@ -200,7 +200,6 @@ class HydroBayesianAnalysis(object):
             variances = []
             for i in range(3):
                 prediction, error = GP_emulator[hydro_name][tau_index][i].predict(np.array(evaluation_points).reshape(1, -1), return_std=True)
-                print(np.array(evaluation_points).reshape(-1, len(evaluation_points)))
                 mean = prediction.reshape(-1,1)
                 std = error.reshape(-1,)
 
@@ -215,7 +214,6 @@ class HydroBayesianAnalysis(object):
             # print(f'pred: {emulation_values}')
             # print(f'true: {true_observables[k]}')
             # print(f'err: {emulation_variance}')
-            quit()
             y = np.array(emulation_values).flatten() - np.array(true_observables[k]).flatten()
             cov = emulation_variance + np.diag(true_errors[k].flatten()) ** 2
 

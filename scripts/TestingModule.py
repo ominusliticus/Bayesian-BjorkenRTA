@@ -104,8 +104,8 @@ if __name__ == '__main__':
     # Flags for flow control of analysis:
     b_run_new_hydro = False        # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
     b_train_GP = False             # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_in_exact = True         # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
-    b_read_mcmc = False            # If true, reads in last store MCMC chains
+    b_read_in_exact = True        # If true, reads in last stored values for exact evolution. Set to false and edit parameters to change 
+    b_read_mcmc = True            # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
@@ -151,6 +151,7 @@ if __name__ == '__main__':
                     f.write(f'{entry} ')
                 f.write('\n')
 
+    # FIXME: 0.05 error should be applied to PT, PL and P observables to calculate pi and Pi error
     alpha_error = 0.05
     exact_psuedo = np.zeros((simulation_taus.shape[0], 4))
     for i, tau in enumerate(simulation_taus):
@@ -293,12 +294,19 @@ if __name__ == '__main__':
     costumize_axis(ax[1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
     costumize_axis(ax[2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
 
+    tau_start = 0.1
+    delta_tau = tau_start / 20
+    observ_indices = np.array((simulation_taus - np.full_like(simulation_taus, tau_start)) / delta_tau - np.full_like(simulation_taus, 1), dtype=int)
+
     r = exact_e / exact_e[0]
-    ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color='black', label='exact')
+    # ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color='black', label='exact')
+    ax[0].scatter(simulation_taus, exact_psuedo[:,1] / exact_e[0], lw=2, color='black', label='exact') 
     ax[0].fill_between(exact_output[:,0], r + exact_e_plot_err, r - exact_e_plot_err, color='black', alpha=0.3) 
-    ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color='black')
+    # ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color='black')
+    ax[1].scatter(simulation_taus, exact_psuedo[:,2] / exact_h[observ_indices], lw=2, color='black') 
     ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_bar - exact_pi_bar_err, color='black', alpha=0.3)
-    ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color='black')
+    # ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color='black')
+    ax[2].scatter(simulation_taus, exact_psuedo[:,3] / exact_h[observ_indices], lw=3, color='black')
     ax[2].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_bar - exact_Pi_bar_err, color='black', alpha=0.3)
 
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
