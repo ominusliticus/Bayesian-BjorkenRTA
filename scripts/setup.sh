@@ -36,7 +36,7 @@ mkdir output/aniso_hydro
 mkdir output/bayes
 mkdir output/CE_hydro
 mkdir output/DNMR_hydro
-cd script/
+cd scripts/
 mkdir design_points
 mkdir full_outputs
 mkdir hydro_simulation_points
