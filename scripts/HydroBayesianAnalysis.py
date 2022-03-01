@@ -336,7 +336,7 @@ class HydroBayesianAnalysis(object):
         os.chdir('scripts/')
         return None
 
-    def ProcessHydro(self, parameter_names: List, simulation_points: List, store_whole_file=False) -> np.ndarray:
+    def ProcessHydro(self, parameter_names: List, simulation_points: List, store_whole_file: bool = False, return_Ps: bool = False) -> np.ndarray:
         out_list = []
         def GetFromOutputFiles(hydro_type: str) -> np.ndarray:
             if hydro_type == 0:
@@ -385,13 +385,30 @@ class HydroBayesianAnalysis(object):
         def GetExactResults() -> List:
             with open('../output/exact/MCMC_calculation_moments.dat','r') as f_exact:
                 if store_whole_file:
-                    return np.array([[float(entry) for entry in line.split()] for line in f_exact.readlines()])
+                    output = np.array([[float(entry) for entry in line.split()] for line in f_exact.readlines()])
+                    e = output[:,1]
+                    pl = output[:,2]
+                    pt = output[:,3]
+                    p = output[:,4]
+
+                    pi = (float(pt) - float(pl)) / 1.5
+                    Pi = (2 *  float(pt) + float(pl)) / 3 - float(p)
+                    temp_list = [float(t), float(e), pi, Pi, float(p)]
+
+                    if return_Ps:
+                        return np.hstack((t, e, pi, Pi)), pt, pl, p
+                    else:
+                        return np.hstack((t, e, pi, Pi))
                 else:
                     t, e, pl, pt, p = f_exact.readlines()[-1].split()
                     pi = (float(pt) - float(pl)) / 1.5
                     Pi = (2 *  float(pt) + float(pl)) / 3 - float(p)
                     temp_list = [float(t), float(e), pi, Pi, float(p)]
-                    return temp_list
+                    print(return_Ps)
+                    if return_Ps:
+                        return temp_list, pt, pl, p
+                    else:
+                        return temp_list
 
         if len(simulation_points) > len(parameter_names):
             for parameters in simulation_points:
@@ -400,7 +417,11 @@ class HydroBayesianAnalysis(object):
                 self.PrintParametersFile(self.params)
                 self.RunHydroSimulation()
                 if self.params['hydro_type'] == 4:
-                    out_list.append(GetExactResults())
+                    if return_Ps:
+                        return_val, pt, pl, p = GetExactResults()
+                        return np.array(return_val), np.array(pt), np.array(pl), np.array(p)
+                    else:
+                        return np.array(GetExactResults())
                 else:
                     out_list.append(GetFromOutputFiles(self.params['hydro_type']))
 
@@ -410,7 +431,11 @@ class HydroBayesianAnalysis(object):
             self.PrintParametersFile(self.params)
             self.RunHydroSimulation()
             if self.params['hydro_type'] == 4:
-                return np.array(GetExactResults())
+                if return_Ps:
+                    return_val, pt, pl, p = GetExactResults()
+                    return np.array(return_val), np.array(pt), np.array(pl), np.array(p)
+                else:
+                    return np.array(GetExactResults())
             else:
                 return np.array(GetFromOutputFiles(self.params['hydro_type']))
 

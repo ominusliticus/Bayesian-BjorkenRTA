@@ -36,7 +36,7 @@ def costumize_axis(ax: plt.Axes, x_title: str, y_title: str):
     ax.tick_params(axis='both', which='minor', direction='in', length=4, top=True, right=True)
     return ax
 
-def SampleObservables(error_level: float, exact_out: np.ndarray, b_fixed_detector_resolution: bool) -> np.ndarray:
+def SampleObservables(error_level: float, exact_out: np.ndarray, pt_err: float, pl_err: float, p_err: float, ab_fixed_detector_resolution: bool) -> np.ndarray:
     if b_fixed_detector_resolution:
         return np.full_like(exact_out, error_level)
     else:
@@ -50,10 +50,13 @@ def SampleObservables(error_level: float, exact_out: np.ndarray, b_fixed_detecto
             return x
 
         Ex = YieldPositiveEnergyDensity()
+
+        pi_err = (2/3) * np.sqrt(pt_err ** 2 + np.sqrt ** 2)
+        Pi_err = np.sqrt((4/9) * pt_err ** 2 + (1/9) * pl_err ** 2 + p_err ** 2)
         
         # shear and bulk are gaussian distributed
-        pix = np.random.normal(pi, np.fabs(error_level * pi))
-        Pix = np.random.normal(Pi, np.fabs(error_level * Pi))
+        pix = np.random.normal(pi, np.fabs(pi_err))
+        Pix = np.random.normal(Pi, np.fabs(Pi_err))
         
         return np.array([Ex, pix, Pix]) 
 
@@ -132,35 +135,31 @@ if __name__ == '__main__':
     exact_out = []
     # true_params = [5 / (4 * np.pi), 0.1, 0.2/.197, 2 * pow(10, -3), 0]
     true_params = [5 / (4 * np.pi)]
-    if b_read_in_exact:
-        with open('hydro_simulation_points/exact_output_various_times.dat','r') as f:
-            exact_out = np.array([[float(entry) for entry in line.split()] for line in f.readlines()])
-    else:
-        bayesian_analysis_class_instance.params['tau_f'] = 12.1
-        bayesian_analysis_class_instance.params['hydro_type'] = 4
-        output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
-        tau_start = 0.1
-        delta_tau = tau_start / 20
-        observ_indices = (simulation_taus - np.full_like(simulation_taus, tau_start)) / delta_tau
+    bayesian_analysis_class_instance.params['tau_f'] = 12.1
+    bayesian_analysis_class_instance.params['hydro_type'] = 4
+    output, pt, pl, p = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True, return_Ps=True)
+    tau_start = 0.1
+    delta_tau = tau_start / 20
+    observ_indices = (simulation_taus - np.full_like(simulation_taus, tau_start)) / delta_tau
 
-        exact_out = np.array([output[int(i)-1] for i in observ_indices])
-
-        with open('hydro_simulation_points/exact_output_various_times.dat','w') as f:
-            for line in exact_out:
-                for entry in line:
-                    f.write(f'{entry} ')
-                f.write('\n')
+    exact_out = np.array([output[int(i)-1] for i in observ_indices])
+    track_pt = np.array([pt[int(i)-1] for i in observ_indices])
+    track_pl = np.array([pl[int(i)-1] for i in observ_indices])
+    track_p = np.array([p[int(i)-1] for i in observ_indices])
 
     # FIXME: 0.05 error should be applied to PT, PL and P observables to calculate pi and Pi error
     alpha_error = 0.05
-    exact_psuedo = np.zeros((simulation_taus.shape[0], 4))
+    track_pt_err = alpha_error * track_pt
+    track_pl_err = alpha_error * track_pl
+    track_p_err = alpha_error * track_p
+    exact_pseudo = np.zeros((simulation_taus.shape[0], 4))
     for i, tau in enumerate(simulation_taus):
-        exact_psuedo[i, 0] = tau
-        exact_psuedo[i, 1:4] = SampleObservables(alpha_error, exact_out[i, 1:4], False)
+        exact_pseudo[i, 0] = tau
+        exact_pseudo[i, 1:4] = SampleObservables(alpha_error, exact_out[i, 1:4], track_pt_err[i], track_pl_err[i], track_p_err[i], False)
 
-    psuedo_error = alpha_error * exact_out[:,1:4]
+    pseudo_error = alpha_error * exact_out[:,1:4]
     
-    bayesian_analysis_class_instance.RunMCMC(nsteps=200, nburn=50, ntemps=20, exact_observables=exact_psuedo, exact_error=psuedo_error, read_from_file=b_read_mcmc)
+    bayesian_analysis_class_instance.RunMCMC(nsteps=200, nburn=50, ntemps=20, exact_observables=exact_pseudo, exact_error=pseudo_error, read_from_file=b_read_mcmc)
     mcmc_chains = bayesian_analysis_class_instance.MCMC_chains
     evidences = bayesian_analysis_class_instance.evidence
 
@@ -237,56 +236,72 @@ if __name__ == '__main__':
             fig.tight_layout()
             fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
 
-    outputs = {}
-    map_values = {}
-    bayesian_analysis_class_instance.params['tau_f'] = 12.1
-    for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
-        bayesian_analysis_class_instance.params['hydro_type'] = i
-        map_values[name] = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
-        outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
+    # outputs = {}
+    # map_values = {}
+    # bayesian_analysis_class_instance.params['tau_f'] = 12.1
+    # for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+    #     bayesian_analysis_class_instance.params['hydro_type'] = i
+    #     map_values[name] = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
+    #     outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
 
-    #exact_params = [5 / (4 * np.pi), 0.1, 1.647204044, 0.654868759, -0.8320365099]
-    bayesian_analysis_class_instance.params['hydro_type'] = 4
-    exact_output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
+    # #exact_params = [5 / (4 * np.pi), 0.1, 1.647204044, 0.654868759, -0.8320365099]
+    # bayesian_analysis_class_instance.params['hydro_type'] = 4
+    # exact_output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
 
-    # add error bars for exact solution using `alpha_error` <- need to rename
-    exact_e = exact_output[:, 1]
-    exact_e_err = alpha_error * exact_e
-    exact_e_err_0 = np.full_like(exact_e, exact_e_err[0])
+    # # add error bars for exact solution using `alpha_error` <- need to rename
+    # exact_e = exact_output[:, 1]
+    # exact_e_err = alpha_error * exact_e
+    # exact_e_err_0 = np.full_like(exact_e, exact_e_err[0])
 
-    # energy density
-    exact_p = exact_output[:, 4]
-    exact_p_err = alpha_error * exact_p 
-    
-    # longitudinal pressur
-    exact_pl = exact_output[:, 2]
-    exact_pl_err = alpha_error * exact_pl
-    
-    # transverse pressure
-    exact_pt = exact_output[:, 3]
-    exact_pt_err = alpha_error *  exact_pt
-    exact_e_plot_err = np.sqrt(exact_e_err ** 2 + (exact_e * exact_e_err_0/ exact_e[0]) ** 2) / exact_e[0]
-    
-    # shear pressure
-    exact_pi = (2 / 3) * (exact_pt - exact_pl)
-    exact_pi_err = (2 / 3) * np.sqrt(exact_pt_err ** 2 + exact_pl_err ** 2)
+    # # energy density
+    # exact_p = exact_output[:, 4]
+    # exact_p_err = alpha_error * exact_p 
+    # 
+    # # longitudinal pressur
+    # exact_pl = exact_output[:, 2]
+    # exact_pl_err = alpha_error * exact_pl
+    # 
+    # # transverse pressure
+    # exact_pt = exact_output[:, 3]
+    # exact_pt_err = alpha_error *  exact_pt
+    # exact_e_plot_err = np.sqrt(exact_e_err ** 2 + (exact_e * exact_e_err_0/ exact_e[0]) ** 2) / exact_e[0]
+    # 
+    # # shear pressure
+    # exact_pi = (2 / 3) * (exact_pt - exact_pl)
+    # exact_pi_err = (2 / 3) * np.sqrt(exact_pt_err ** 2 + exact_pl_err ** 2)
 
-    # bulk pressure
-    exact_Pi = (2 * exact_pt + exact_pl) / 3 - exact_p
-    exact_Pi_err = np.sqrt((4 / 9) * exact_pt_err ** 2 + (1 / 9) * exact_pl_err ** 2 + exact_p_err ** 2)
+    # # bulk pressure
+    # exact_Pi = (2 * exact_pt + exact_pl) / 3 - exact_p
+    # exact_Pi_err = np.sqrt((4 / 9) * exact_pt_err ** 2 + (1 / 9) * exact_pl_err ** 2 + exact_p_err ** 2)
 
-    # enthalpy, for calculating normalized bulk and shear pressure
-    exact_h = exact_e + exact_p
-    exact_h_err = np.sqrt(exact_e_err ** 2 + exact_p_err ** 2)
-    
-    # normalized shear pressure
-    exact_pi_bar = exact_pi / exact_h 
-    exact_pi_bar_err = np.sqrt(exact_pi_err ** 2 + (exact_pi * exact_h_err / exact_h) ** 2) / exact_h
-    
-    # normalized bulk pressure
-    exact_Pi_bar = exact_Pi / exact_h
-    exact_Pi_bar_err = np.sqrt(exact_Pi_err ** 2 + (exact_Pi * exact_h_err / exact_h) ** 2) / exact_h
+    # # enthalpy, for calculating normalized bulk and shear pressure
+    # exact_h = exact_e + exact_p
+    # exact_h_err = np.sqrt(exact_e_err ** 2 + exact_p_err ** 2)
+    # 
+    # # normalized shear pressure
+    # exact_pi_bar = exact_pi / exact_h 
+    # exact_pi_bar_err = np.sqrt(exact_pi_err ** 2 + (exact_pi * exact_h_err / exact_h) ** 2) / exact_h
+    # 
+    # # normalized bulk pressure
+    # exact_Pi_bar = exact_Pi / exact_h
+    # exact_Pi_bar_err = np.sqrt(exact_Pi_err ** 2 + (exact_Pi * exact_h_err / exact_h) ** 2) / exact_h
 
+    # calculating error bars from pseudo-data
+    pseudo_e0 = np.random.normal(output[0,1], alpha_error * output[0,1])
+    pseudo_e = exact_out[:,1]
+    pseudo_pi = exact_out[:,2]
+    pseudo_Pi = exact_out[:,3]
+
+    pseudo_h = pseudo_e + track_p
+
+    pseudo_e_e0 = pseudo / pseudo_e0
+    pseudo_e_e0_err = alpha_error * psuedp_e_e0 * np.sqrt(2)
+
+    pseudo_pi_bar = pseudo_pi / pseudo_h
+    pseudo_pi_bar_err = alpha_error * pseudo_pi_bar * np.sqrt(1 + (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
+
+    pseudo_Pi_bar = pseudo_Pi / pseudo_h
+    pseudo_Pi_bar_err = alpha_error * pseudo_Pi_bar * np.sqrt(1 + (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(30,10))
     fig.patch.set_facecolor('white')
@@ -294,20 +309,16 @@ if __name__ == '__main__':
     costumize_axis(ax[1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
     costumize_axis(ax[2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
 
-    tau_start = 0.1
-    delta_tau = tau_start / 20
-    observ_indices = np.array((simulation_taus - np.full_like(simulation_taus, tau_start)) / delta_tau - np.full_like(simulation_taus, 1), dtype=int)
-
     r = exact_e / exact_e[0]
     # ax[0].plot(exact_output[:, 0], exact_e / exact_e[0], lw=2, color='black', label='exact')
-    ax[0].scatter(simulation_taus, exact_psuedo[:,1] / exact_e[0], lw=2, color='black', label='exact') 
-    ax[0].fill_between(exact_output[:,0], r + exact_e_plot_err, r - exact_e_plot_err, color='black', alpha=0.3) 
+    ax[0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', label='exact')
+    # ax[0].fill_between(exact_output[:,0], r + exact_e_plot_err, r - exact_e_plot_err, color='black', alpha=0.3) 
     # ax[1].plot(exact_output[:, 0], exact_pi_bar, lw=2, color='black')
-    ax[1].scatter(simulation_taus, exact_psuedo[:,2] / exact_h[observ_indices], lw=2, color='black') 
-    ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_bar - exact_pi_bar_err, color='black', alpha=0.3)
+    ax[1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black') 
+    # ax[1].fill_between(exact_output[:,0], exact_pi_bar + exact_pi_bar_err, exact_pi_bar - exact_pi_bar_err, color='black', alpha=0.3)
     # ax[2].plot(exact_output[:, 0], exact_Pi_bar, lw=2, color='black')
-    ax[2].scatter(simulation_taus, exact_psuedo[:,3] / exact_h[observ_indices], lw=3, color='black')
-    ax[2].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_bar - exact_Pi_bar_err, color='black', alpha=0.3)
+    ax[2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black')
+    # ax[2].fill_between(exact_output[:,0], exact_Pi_bar + exact_Pi_bar_err, exact_Pi_bar - exact_Pi_bar_err, color='black', alpha=0.3)
 
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         print(f'map parameters for {name}: {map_values[name]}')
