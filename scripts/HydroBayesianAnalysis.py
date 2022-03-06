@@ -386,19 +386,25 @@ class HydroBayesianAnalysis(object):
             with open('../output/exact/MCMC_calculation_moments.dat','r') as f_exact:
                 if store_whole_file:
                     output = np.array([[float(entry) for entry in line.split()] for line in f_exact.readlines()])
+                    t = output[:,0]
                     e = output[:,1]
                     pl = output[:,2]
                     pt = output[:,3]
                     p = output[:,4]
 
-                    pi = (float(pt) - float(pl)) / 1.5
-                    Pi = (2 *  float(pt) + float(pl)) / 3 - float(p)
-                    temp_list = [float(t), float(e), pi, Pi, float(p)]
+                    pi = (pt - pl) / 1.5
+                    Pi = (2 *  pt + pl) / 3 - p
 
                     if return_Ps:
-                        return np.hstack((t, e, pi, Pi)), pt, pl, p
+                        return np.hstack((t.reshape(-1,1),
+                                          e.reshape(-1,1),
+                                          pi.reshape(-1,1),
+                                          Pi.reshape(-1,1))), pt, pl, p
                     else:
-                        return np.hstack((t, e, pi, Pi))
+                        return np.hstack((t.reshape(-1,1),
+                                          e.reshape(-1,1),
+                                          pi.reshape(-1,1),
+                                          Pi.reshape(-1,1)))
                 else:
                     t, e, pl, pt, p = f_exact.readlines()[-1].split()
                     pi = (float(pt) - float(pl)) / 1.5
