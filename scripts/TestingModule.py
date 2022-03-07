@@ -6,7 +6,7 @@ import pickle
 from typing import List, Dict
 
 import matplotlib.pyplot as plt
-# import seaborn as sns
+import seaborn as sns
 import numpy as np
 
 from HydroBayesianAnalysis import HydroBayesianAnalysis
@@ -95,20 +95,18 @@ default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
     'xi_0':         -0.90, 
-    'alpha_0':      0.6548, # 2 * pow(10, -3),
+    'alpha_0':      0.655, #2 * pow(10, -3),
     'tau_f':        12.1,
     'mass':         1.015228426,
     'eta_s':        5 / (4 * np.pi),
-    'pl0':          8.1705525351457684,
-    'pt0':          1.9875332965147663,
     'hydro_type':   0
 }
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = False              # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_mcmc = True              # If true, reads in last store MCMC chains
+    b_run_new_hydro = True          # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True               # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_mcmc = False             # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
@@ -147,7 +145,7 @@ if __name__ == '__main__':
     track_pl = np.array([pl[int(i)-1] for i in observ_indices])
     track_p = np.array([p[int(i)-1] for i in observ_indices])
 
-    alpha_error = 0.05
+    alpha_error = 0.
     track_pt_err = alpha_error * track_pt
     track_pl_err = alpha_error * track_pl
     track_p_err = alpha_error * track_p
@@ -214,7 +212,8 @@ if __name__ == '__main__':
             limits = np.array([GP_parameter_ranges[0]])
             for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
                 bins = np.linspace(*limits[0], 40, endpoint=True)
-                ax.hist(mcmc_chains[name][0,:,:].flatten(), bins=bins, color=cmap(i), lw=2, histtype=u'step', label=name)
+                sns.kdeplot(data=mcmc_chains[name][0,:,:].flatten(), ax=ax, color=cmap(i), lw=2, label=name)
+                # ax.hist(mcmc_chains[name][0,:,:].flatten(), bins=bins, color=cmap(i), lw=2, histtype=u'step', label=name)
             costumize_axis(ax, axis_labels[0], r'Posterior')
             ax.legend(loc='upper right', fontsize=25)
             fig.tight_layout()
@@ -234,15 +233,16 @@ if __name__ == '__main__':
             fig.tight_layout()
             fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
 
-    outputs = {}
+    map_outputs = {}
     map_values = {}
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         bayesian_analysis_class_instance.params['hydro_type'] = i
         map_values[name] = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
-        outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
+        map_outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
 
 
+    print(f'alpha_error = {alpha_error}')
     # calculating error bars from pseudo-data
     pseudo_e0 = np.random.normal(output[0,1], alpha_error * output[0,1])
     pseudo_e = exact_out[:,1]
@@ -260,10 +260,10 @@ if __name__ == '__main__':
     pseudo_e_e0_err = alpha_error * pseudo_e_e0 * np.sqrt(2)
 
     pseudo_pi_bar = pseudo_pi / pseudo_h
-    pseudo_pi_bar_err = alpha_error * pseudo_pi_bar * np.sqrt(1 + (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
+    pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + alpha_error ** 2 * (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
 
     pseudo_Pi_bar = pseudo_Pi / pseudo_h
-    pseudo_Pi_bar_err = alpha_error * pseudo_Pi_bar * np.sqrt(1 + (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
+    pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + alpha_error ** 2 * (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
 
     fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30,20))
     fig.patch.set_facecolor('white')
@@ -275,18 +275,18 @@ if __name__ == '__main__':
     costumize_axis(ax[1,1], r'$\tau$ [fm]', r'$\pi $ [fm$^{-4}$]')
     costumize_axis(ax[1,2], r'$\tau$ [fm]', r'$\Pi $ [fm$^{-4}$]')
 
-    ax[0,0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', lolims=True, uplims=True, label='exact')
-    ax[0,1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black', lolims=True, uplims=True) 
-    ax[0,2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black', lolims=True, uplims=True)
+    ax[0,0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', label='exact')
+    ax[0,1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black') 
+    ax[0,2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black')
 
-    ax[1,0].errorbar(simulation_taus, pseudo_e, yerr=pseudo_e_err, fmt='o', color='black', lolims=True, uplims=True, label='exact')
-    ax[1,1].errorbar(simulation_taus, pseudo_pi, yerr=pseudo_pi_err, fmt='o', color='black', lolims=True, uplims=True) 
-    ax[1,2].errorbar(simulation_taus, pseudo_Pi, yerr=pseudo_Pi_err, fmt='o', color='black', lolims=True, uplims=True)
+    ax[1,0].errorbar(simulation_taus, pseudo_e, yerr=pseudo_e_err, fmt='o', color='black', label='exact')
+    ax[1,1].errorbar(simulation_taus, pseudo_pi, yerr=pseudo_pi_err, fmt='o', color='black') 
+    ax[1,2].errorbar(simulation_taus, pseudo_Pi, yerr=pseudo_Pi_err, fmt='o', color='black')
 
 
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         print(f'map parameters for {name}: {map_values[name]}')
-        output = outputs[name]
+        output = map_outputs[name]
         t = output[:,0]
         e = output[:,1]
         p = output[:,4]
@@ -295,8 +295,8 @@ if __name__ == '__main__':
         pi_bar = pi / (e + p)
         Pi_bar = Pi / (e + p)
         ax[0,0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
-        ax[0,1].plot(t, pi_bar, lw=2, color=cmap(i))
-        ax[0,2].plot(t, Pi_bar, lw=2, color=cmap(i))
+        ax[0,1].plot(t, pi_bar, lw=2, color=cmap(i)); 
+        ax[0,2].plot(t, Pi_bar, lw=2, color=cmap(i)); 
 
         ax[1,0].plot(t, e, lw=2, color=cmap(i), label=name)
         ax[1,1].plot(t, pi, lw=2, color=cmap(i))

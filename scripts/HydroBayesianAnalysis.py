@@ -321,8 +321,6 @@ class HydroBayesianAnalysis(object):
             fout.write(f'll {params_dict["tau_0"]}\n')
             fout.write(f'mass {params_dict["mass"]}\n')
             fout.write(f'eta_s {params_dict["eta_s"]}\n')
-            fout.write(f'pl0 {params_dict["pl0"]}\n')
-            fout.write(f'pt0 {params_dict["pt0"]}\n')
             fout.write(f'TYPE {params_dict["hydro_type"]}')
         os.chdir('scripts/')
         return None
