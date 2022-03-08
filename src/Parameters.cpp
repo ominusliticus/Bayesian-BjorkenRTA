@@ -42,8 +42,6 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("mass") == 0)         buffer >> mass;
             else if (var_name.compare("eta_s") == 0)        buffer >> eta_s;
             else if (var_name.compare("steps") == 0)        buffer >> steps;
-            else if (var_name.compare("pl0") == 0)          buffer >> pl0;
-            else if (var_name.compare("pt0") == 0)          buffer >> pt0;
             else if (var_name.compare("TYPE") == 0)         buffer >> type;
             else if (var_name.compare("FILE") == 0)         buffer >> file_identifier;
         } // end else
@@ -88,15 +86,15 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
 
 bool SimulationParameters::operator==(const SimulationParameters& other)
 {
-    if      (tau_0      != other.tau_0)     return false;
-    else if (Lambda_0   != other.Lambda_0)  return false;
-    else if (xi_0       != other.xi_0)      return false;
-    else if (alpha_0    != other.alpha_0)   return false;
-    else if (ul         != other.ul)        return false;
-    else if (ll         != other.ll)        return false;
-    else if (mass       != other.mass)      return false;
-    else if (eta_s      != other.eta_s)     return false;
-    else return true;
+    bool is_match = (tau_0 == other.tau_0)
+        && (Lambda_0 == other.Lambda_0)
+        && (xi_0 == other.xi_0)
+        && (alpha_0 == other.alpha_0)
+        && (ul == other.ul)
+        && (ll == other.ll)
+        && (mass == other.mass)
+        && (eta_s == other.eta_s);
+    return is_match;
 }
 
 bool SimulationParameters::operator!=(const SimulationParameters& other)
@@ -244,7 +242,6 @@ double SimulationParameters::IntegralJ(int n, int r, int q, int s, double mass, 
         else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
         else t = std::atan(std::sqrt(z)) / std::sqrt(z);
 
-        // TODO: Need to properly take the z=0 case into account
         if (std::fabs(z) < 0.1)
         {
             if (n == 2 && r == 0 && q == 0)
