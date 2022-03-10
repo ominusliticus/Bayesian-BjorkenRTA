@@ -87,6 +87,28 @@ def ConvertFromExactParametersToObservables(bayesian_inference: HydroBayesianAna
 
     return params[0], t0, e0, pi0, Pi0
 
+def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2_exp, dP2_exp, P2_sim):
+    '''
+    We can write the analytic form of the posterior distributions and want to 
+    to be able to compare these to those outputted by the MCMC walk
+    '''
+    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10,10))
+    fig.patch.set_facecolor('white')
+
+    size = Cs.size
+    cmap = get_cmap(10, 'tab10')
+    for j, name in ['ce', 'dnmr', 'vah', 'mvah']:
+        E_contrib = np.array([np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2) for i in range(size)])
+        P1_contrib = np.array([np.sum((P1_exp[i] - P1_sim[name][i]) ** 2 / dP1_exp[i] ** 2) for i in range(size)])
+        P2_contrib = np.array([np.sum((P2_exp[i] - P2_sim[name][i]) ** 2 / dP2_exp[i] ** 2) for i in range(size)])
+        post = np.exp(- E_contrib - P1_contrib - P2_contrib) / (Cs[-1] - Cs[0])
+    
+        ax.plot(Cs, post, lw=2, ls='dashed', color=cmap(i), label=name)
+    ax.legend()
+    fig.savefig("./plots/analytic_posteriors.pdf")
+
+    return fig, ax
+
 default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
@@ -100,8 +122,8 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = False              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_run_new_hydro = False          # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = False               # If true, HydroBayesAnalysis fits GPs to available training points
     b_read_mcmc = True             # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
@@ -313,3 +335,42 @@ if __name__ == '__main__':
     ax[0,0].legend(loc='upper right', fontsize=20)
     fig.tight_layout()
     fig.savefig(f'plots/map_value_runs_n={len(GP_parameter_names)}.pdf')
+
+    pts_analytic_post = 100
+    hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
+    Cs = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), pts_analytic_post, endpoint=True)
+    for_analytic_hydro_output = dict((name, []) for name in hydro_names)
+    bayesian_analysis_class_instance.params['tau_f'] = simulation_taus[-1]
+    for i, name in enumerate(hydro_names):
+        bayesian_analysis_class_instance.params['hydro_type'] = i
+        output = np.array([[bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, [C], store_whole_file=True)[int(i)-1] for i in observ_indices] for C in Cs])
+        for_analytic_hydro_output[name] = output
+        
+    for_analytic_hydro_output = dict((key, np.array(for_analytic_hydro_output[key])) for key in hydro_names)
+    print(for_analytic_hydro_output['ce'].shape)
+    
+    E_exp = np.array([[pseudo_e for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    dE_exp = np.array([[pseudo_e_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+
+    P1_exp = np.array([[pseudo_pt for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    dP1_exp = np.array([[pseudo_pt_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+
+    P2_exp = np.array([[pseudo_pl for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    dP2_exp = np.array([[pseudo_pl_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+
+    E_sim = dict((key, for_analytic_hydro_output[key][:,:,1]) for key in hydro_names)
+    P1_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
+    P2_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
+
+    PlotAnalyticPosteriors(Cs=Cs,
+                           E_exp=E_exp,
+                           dE_exp=dE_exp,
+                           E_sim=E_sim,
+                           P1_exp=P1_exp,
+                           dP1_exp=dP1_exp,
+                           P1_sim=P1_sim,
+                           P2_exp=P2_exp,
+                           dP2_exp=dP1_exp,
+                           P2_sim=P2_sim)
+
+    

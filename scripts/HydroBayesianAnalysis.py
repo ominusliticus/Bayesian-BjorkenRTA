@@ -516,6 +516,7 @@ class HydroBayesianAnalysis(object):
 
                 return np.array(out_list)
             else:
+                # TODO: update this to return PT and PL instead of pi and Pi
                 f_e = open(prefix + 'e' + suffix + '_m=0.200GeV.dat', 'r')
                 last_e = f_e.readlines()[-1]
                 tau, e = last_e.split()[0], last_e.split()[1]
@@ -548,7 +549,9 @@ class HydroBayesianAnalysis(object):
                                        for line in f_exact.readlines()])
                     return output
                 else:
-                    return np.array(output[-1])
+                    return np.array([float(entry) 
+                                     for entry in 
+                                     f_exact.readlines()[-1].split()])
 
         if len(simulation_points) > len(parameter_names):
             for parameters in simulation_points:
