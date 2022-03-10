@@ -536,10 +536,10 @@ namespace exact{
         {
             double tau = params.tau_0 + (double)i * params.step_size;
             double new_e_density = GetMoments(tau, params, Moment::ED);
-            double new_pL        = GetMoments(tau, params, Moment::PL);
             double new_pT        = GetMoments(tau, params, Moment::PT);
+            double new_pL        = GetMoments(tau, params, Moment::PL);
             double new_peq       = GetMoments(tau, params, Moment::PEQ);
-            Print(fout, tau, new_e_density, new_pL, new_pT, new_peq);
+            Print(fout, tau, new_e_density, new_pT, new_pL, new_peq);
         }
         fout.close();
     }

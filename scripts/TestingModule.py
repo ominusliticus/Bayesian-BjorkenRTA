@@ -41,7 +41,7 @@ def SampleObservables(error_level: float, exact_out: np.ndarray, pt_err: float, 
     if b_fixed_detector_resolution:
         return np.full_like(exact_out, error_level)
     else:
-        E, pi, Pi = exact_out
+        E, pt, pl = exact_out
         
         # energy density should not be normal distributed, but not other solution for now
         def YieldPositiveEnergyDensity() -> float:
@@ -52,14 +52,10 @@ def SampleObservables(error_level: float, exact_out: np.ndarray, pt_err: float, 
 
         Ex = YieldPositiveEnergyDensity()
 
-        pi_err = (2/3) * np.sqrt(pt_err ** 2 + pl_err ** 2)
-        Pi_err = np.sqrt((4/9) * pt_err ** 2 + (1/9) * pl_err ** 2 + p_err ** 2)
+        ptx = np.random.normal(pt, np.fabs(pt_err))
+        plx = np.random.normal(pl, np.fabs(pl_err))
         
-        # shear and bulk are gaussian distributed
-        pix = np.random.normal(pi, np.fabs(pi_err))
-        Pix = np.random.normal(Pi, np.fabs(Pi_err))
-        
-        return np.array([Ex, pix, Pix]) 
+        return np.array([Ex, ptx, plx]) 
 
 def ConvertFromExactParametersToObservables(bayesian_inference: HydroBayesianAnalysis, params: np.ndarray):
     '''
@@ -104,9 +100,9 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = True          # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = True               # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_mcmc = False             # If true, reads in last store MCMC chains
+    b_run_new_hydro = False         # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = False              # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_mcmc = True             # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
@@ -135,17 +131,17 @@ if __name__ == '__main__':
     true_params = [5 / (4 * np.pi)]
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
     bayesian_analysis_class_instance.params['hydro_type'] = 4
-    output, pt, pl, p = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True, return_Ps=True)
+    output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
     tau_start = 0.1
     delta_tau = tau_start / 20
     observ_indices = (simulation_taus - np.full_like(simulation_taus, tau_start)) / delta_tau
 
     exact_out = np.array([output[int(i)-1] for i in observ_indices])
-    track_pt = np.array([pt[int(i)-1] for i in observ_indices])
-    track_pl = np.array([pl[int(i)-1] for i in observ_indices])
-    track_p = np.array([p[int(i)-1] for i in observ_indices])
+    track_pt = np.array([output[int(i)-1,1] for i in observ_indices])
+    track_pl = np.array([output[int(i)-1,2] for i in observ_indices])
+    track_p = np.array([output[int(i)-1,3] for i in observ_indices])
 
-    alpha_error = 0.
+    alpha_error = 0.10
     track_pt_err = alpha_error * track_pt
     track_pl_err = alpha_error * track_pl
     track_p_err = alpha_error * track_p
@@ -156,7 +152,7 @@ if __name__ == '__main__':
 
     pseudo_error = alpha_error * exact_out[:,1:4]
     
-    bayesian_analysis_class_instance.RunMCMC(nsteps=200, nburn=50, ntemps=20, exact_observables=exact_pseudo, exact_error=pseudo_error, read_from_file=b_read_mcmc)
+    bayesian_analysis_class_instance.RunMCMC(nsteps=2000, nburn=50, ntemps=10, exact_observables=exact_pseudo, exact_error=pseudo_error, read_from_file=b_read_mcmc)
     mcmc_chains = bayesian_analysis_class_instance.MCMC_chains
     evidences = bayesian_analysis_class_instance.evidence
 
@@ -238,7 +234,8 @@ if __name__ == '__main__':
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
     for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
         bayesian_analysis_class_instance.params['hydro_type'] = i
-        map_values[name] = [np.max(mcmc_chains[name][0,:,:,i]) for i in range(len(GP_parameter_names))]
+        n, b, p = plt.hist(mcmc_chains[name][0,:,:,:].flatten(), bins=1000)
+        map_values[name] = [b[np.argmax(n)]] 
         map_outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
 
 
@@ -248,22 +245,32 @@ if __name__ == '__main__':
     pseudo_e = exact_out[:,1]
     pseudo_e_err = alpha_error * pseudo_e
 
-    pseudo_pi = exact_out[:,2]
-    pseudo_pi_err = (2 / 3) * np.sqrt(track_pt_err ** 2 + track_pl_err ** 2)
+    pseudo_pt = exact_out[:,2]
+    pseudo_pt_err = alpha_error * pseudo_pt
 
-    pseudo_Pi = exact_out[:,3]
-    pseudo_Pi_err = np.sqrt(4 * track_pt_err ** 2 + track_pl_err ** 2 + 9 * track_p_err ** 2) / 3
+    pseudo_pl = exact_out[:,3]
+    pseudo_pl_err = alpha_error * pseudo_pl
+
+    pseudo_p = exact_out[:,4]
+    pseudo_p_err = alpha_error * pseudo_p
+
+    pseudo_pi = (2 / 3) * (pseudo_pt - pseudo_pl)
+    pseudo_pi_err = (2 / 3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2)
+
+    pseudo_Pi = (2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p
+    pseudo_Pi_err = np.sqrt(4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2 + 9 * pseudo_p_err ** 2) / 3
 
     pseudo_h = pseudo_e + track_p
+    pseudo_h_err = alpha_error * pseudo_h
 
     pseudo_e_e0 = pseudo_e / pseudo_e0
     pseudo_e_e0_err = alpha_error * pseudo_e_e0 * np.sqrt(2)
 
     pseudo_pi_bar = pseudo_pi / pseudo_h
-    pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + alpha_error ** 2 * (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
+    pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + pseudo_h_err ** 2 / pseudo_h ** 2)
 
     pseudo_Pi_bar = pseudo_Pi / pseudo_h
-    pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + alpha_error ** 2 * (pseudo_e ** 2 + track_p ** 2) / pseudo_h ** 2)
+    pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + pseudo_h_err / pseudo_h ** 2)
 
     fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30,20))
     fig.patch.set_facecolor('white')
@@ -290,8 +297,10 @@ if __name__ == '__main__':
         t = output[:,0]
         e = output[:,1]
         p = output[:,4]
-        pi = output[:,2]
-        Pi = output[:,3]
+        pt = output[:,2]
+        pl = output[:,3]
+        pi = (2 / 3) * (pt - pl)
+        Pi = (2 * pt + pl) / 3 - p
         pi_bar = pi / (e + p)
         Pi_bar = Pi / (e + p)
         ax[0,0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
