@@ -355,26 +355,35 @@ if __name__ == '__main__':
     E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
     dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
 
-    P1_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
-    dP1_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
+    PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
+    dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
 
-    P2_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
-    dP2_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
+    PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
+    dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
+
+    pi_exp = np.array([(2/3) * (pseudo_pt - pseudo_pl) for _ in range(pts_analytic_post)])
+    dpi_exp = np.array([(2/3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2) for _ in range(pts_analytic_post)])
+
+    Pi_exp = np.array([(2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p for _ in range(pts_analytic_post)])
+    dPi_exp = np.array([np.sqrt((4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2) / 9 + pseudo_p_err ** 2) for _ in range(pts_analytic_post)])
 
     E_sim = dict((key, for_analytic_hydro_output[key][:,:,1]) for key in hydro_names)
-    P1_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
-    P2_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
+    P_sim = dict((key, for_analytic_hydro_output[key][:,:,4]) for key in hydro_names)
+    PT_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
+    PL_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
+    pi_sim = dict((key, (2/3) * (PT_sim - PL_sim)) for key in hydro_names)
+    Pi_sim = dict((key, (2 * PT_sim + PL_sim) / 3) for key in hydro_names)
     print(E_sim['ce'].shape, E_exp.shape)
 
     PlotAnalyticPosteriors(Cs=Cs,
                            E_exp=E_exp,
                            dE_exp=dE_exp,
                            E_sim=E_sim,
-                           P1_exp=P1_exp,
-                           dP1_exp=dP1_exp,
-                           P1_sim=P1_sim,
-                           P2_exp=P2_exp,
-                           dP2_exp=dP1_exp,
-                           P2_sim=P2_sim)
+                           P1_exp=pi_exp,
+                           dP1_exp=dpi_exp,
+                           P1_sim=pi_sim,
+                           P2_exp=Pi_exp,
+                           dP2_exp=dPi_exp,
+                           P2_sim=Pi_sim)
 
     
