@@ -97,14 +97,18 @@ def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2
 
     size = Cs.size
     cmap = get_cmap(10, 'tab10')
-    for j, name in ['ce', 'dnmr', 'vah', 'mvah']:
+    lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
+    for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
         E_contrib = np.array([np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2) for i in range(size)])
         P1_contrib = np.array([np.sum((P1_exp[i] - P1_sim[name][i]) ** 2 / dP1_exp[i] ** 2) for i in range(size)])
         P2_contrib = np.array([np.sum((P2_exp[i] - P2_sim[name][i]) ** 2 / dP2_exp[i] ** 2) for i in range(size)])
         post = np.exp(- E_contrib - P1_contrib - P2_contrib) / (Cs[-1] - Cs[0])
+        print(post)
+        print(np.sum(post))
     
-        ax.plot(Cs, post, lw=2, ls='dashed', color=cmap(i), label=name)
+        ax.plot(Cs, post / np.sum(post), lw=2, ls=lines[j], color=cmap(j), label=name)
     ax.legend()
+    costumize_axis(ax, r'$\mathcal C$', r'Posterior')
     fig.savefig("./plots/analytic_posteriors.pdf")
 
     return fig, ax
@@ -347,20 +351,20 @@ if __name__ == '__main__':
         for_analytic_hydro_output[name] = output
         
     for_analytic_hydro_output = dict((key, np.array(for_analytic_hydro_output[key])) for key in hydro_names)
-    print(for_analytic_hydro_output['ce'].shape)
     
-    E_exp = np.array([[pseudo_e for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
-    dE_exp = np.array([[pseudo_e_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
+    dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
 
-    P1_exp = np.array([[pseudo_pt for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
-    dP1_exp = np.array([[pseudo_pt_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    P1_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
+    dP1_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
 
-    P2_exp = np.array([[pseudo_pl for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
-    dP2_exp = np.array([[pseudo_pl_err for _ in range(simulation_taus.size)] for _ in range(pts_analytic_post)])
+    P2_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
+    dP2_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
 
     E_sim = dict((key, for_analytic_hydro_output[key][:,:,1]) for key in hydro_names)
     P1_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
     P2_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
+    print(E_sim['ce'].shape, E_exp.shape)
 
     PlotAnalyticPosteriors(Cs=Cs,
                            E_exp=E_exp,
