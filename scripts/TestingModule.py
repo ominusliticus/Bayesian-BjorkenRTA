@@ -102,13 +102,15 @@ def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2
         E_contrib = np.array([np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2) for i in range(size)])
         P1_contrib = np.array([np.sum((P1_exp[i] - P1_sim[name][i]) ** 2 / dP1_exp[i] ** 2) for i in range(size)])
         P2_contrib = np.array([np.sum((P2_exp[i] - P2_sim[name][i]) ** 2 / dP2_exp[i] ** 2) for i in range(size)])
-        post = np.exp(- E_contrib - P1_contrib - P2_contrib) / (Cs[-1] - Cs[0])
+        post = np.exp(- E_contrib - P1_contrib - P2_contrib) / (Cs[1] - Cs[0])
         print(post)
         print(np.sum(post))
     
-        ax.plot(Cs, post / np.sum(post), lw=2, ls=lines[j], color=cmap(j), label=name)
-    ax.legend()
+        norm = np.sum(post) * (Cs[1] - Cs[0])
+        ax.plot(Cs, post / norm, lw=2, ls=lines[j], color=cmap(j), label=name)
+    ax.legend(fontsize=20)
     costumize_axis(ax, r'$\mathcal C$', r'Posterior')
+    fig.tight_layout()
     fig.savefig("./plots/analytic_posteriors.pdf")
 
     return fig, ax
@@ -371,8 +373,8 @@ if __name__ == '__main__':
     P_sim = dict((key, for_analytic_hydro_output[key][:,:,4]) for key in hydro_names)
     PT_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
     PL_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
-    pi_sim = dict((key, (2/3) * (PT_sim - PL_sim)) for key in hydro_names)
-    Pi_sim = dict((key, (2 * PT_sim + PL_sim) / 3) for key in hydro_names)
+    pi_sim = dict((key, (2/3) * (PT_sim[key] - PL_sim[key])) for key in hydro_names)
+    Pi_sim = dict((key, (2 * PT_sim[key] + PL_sim[key]) / 3 - P_sim[key]) for key in hydro_names)
     print(E_sim['ce'].shape, E_exp.shape)
 
     PlotAnalyticPosteriors(Cs=Cs,
