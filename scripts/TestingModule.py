@@ -3,11 +3,13 @@
 from platform import uname
 # import sys
 import pickle
+from tkinter import W
 from typing import List, Dict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+
 
 from HydroBayesianAnalysis import HydroBayesianAnalysis
 
@@ -87,7 +89,7 @@ def ConvertFromExactParametersToObservables(bayesian_inference: HydroBayesianAna
 
     return params[0], t0, e0, pi0, Pi0
 
-def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2_exp, dP2_exp, P2_sim):
+def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2_exp, dP2_exp, P2_sim, output_suffix):
     '''
     We can write the analytic form of the posterior distributions and want to 
     to be able to compare these to those outputted by the MCMC walk
@@ -103,15 +105,13 @@ def PlotAnalyticPosteriors(Cs, E_exp, dE_exp, E_sim, P1_exp, dP1_exp, P1_sim, P2
         P1_contrib = np.array([np.sum((P1_exp[i] - P1_sim[name][i]) ** 2 / dP1_exp[i] ** 2) for i in range(size)])
         P2_contrib = np.array([np.sum((P2_exp[i] - P2_sim[name][i]) ** 2 / dP2_exp[i] ** 2) for i in range(size)])
         post = np.exp(- E_contrib - P1_contrib - P2_contrib) / (Cs[1] - Cs[0])
-        print(post)
-        print(np.sum(post))
     
         norm = np.sum(post) * (Cs[1] - Cs[0])
         ax.plot(Cs, post / norm, lw=2, ls=lines[j], color=cmap(j), label=name)
     ax.legend(fontsize=20)
     costumize_axis(ax, r'$\mathcal C$', r'Posterior')
     fig.tight_layout()
-    fig.savefig("./plots/analytic_posteriors.pdf")
+    fig.savefig(f"./plots/analytic_posteriors_{output_suffix}.pdf")
 
     return fig, ax
 
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     track_pl = np.array([output[int(i)-1,2] for i in observ_indices])
     track_p = np.array([output[int(i)-1,3] for i in observ_indices])
 
-    alpha_error = 0.10
+    alpha_error = 0.01
     track_pt_err = alpha_error * track_pt
     track_pl_err = alpha_error * track_pl
     track_p_err = alpha_error * track_p
@@ -347,6 +347,18 @@ if __name__ == '__main__':
     Cs = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), pts_analytic_post, endpoint=True)
     for_analytic_hydro_output = dict((name, []) for name in hydro_names)
     bayesian_analysis_class_instance.params['tau_f'] = simulation_taus[-1]
+    
+    # Multiprocessing doesn't work because each call needs to write to a configuration file, and this can cause collision
+    # for_analytic_hydro_output = Manager.dict()
+    # def for_multiprocessing(dict: Dict, key: str, itr: int):
+    #     bayesian_analysis_class_instance.params['hydro_type'] = iter
+    #     output = np.array([[bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, [C], store_whole_file=True)[int(i)-1] for i in observ_indices] for C in Cs])
+    #     dict[key] = output
+    # 
+    # jobs = [Process(for_multiprocessing, args=(for_analytic_hydro_output, key, i)) for i, key in enumerate(hydro_names)]
+    # _ = [proc.start() for proc in jobs]
+    # _ = [proc.join() for proc in jobs]
+
     for i, name in enumerate(hydro_names):
         bayesian_analysis_class_instance.params['hydro_type'] = i
         output = np.array([[bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, [C], store_whole_file=True)[int(i)-1] for i in observ_indices] for C in Cs])
@@ -386,6 +398,19 @@ if __name__ == '__main__':
                            P1_sim=pi_sim,
                            P2_exp=Pi_exp,
                            dP2_exp=dPi_exp,
-                           P2_sim=Pi_sim)
+                           P2_sim=Pi_sim,
+                           output_suffix="Pipi")
+
+    PlotAnalyticPosteriors(Cs=Cs,
+                           E_exp=E_exp,
+                           dE_exp=dE_exp,
+                           E_sim=E_sim,
+                           P1_exp=PT_exp,
+                           dP1_exp=dPT_exp,
+                           P1_sim=PT_sim,
+                           P2_exp=PL_exp,
+                           dP2_exp=dPL_exp,
+                           P2_sim=PL_sim,
+                           output_suffix="PLPT")
 
     
