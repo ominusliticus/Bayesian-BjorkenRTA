@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <cassert>
 
+// TODO: Make easily parallelizable for python
+
 namespace hydro
 {
     const double tol = 1e-15;
