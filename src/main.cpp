@@ -29,10 +29,14 @@ int main(int argc, char** argv)
     //     hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
     // }
     
-    SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
-    Print(std::cout, params);
+    // SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
+    Print(std::cout, argc);
+    for (int i = 1; i < argc; i++) std::cout << argv[i] << " ";
+    std::cout << '\n';
+    // Print(std::cout, params);
     return 0;
-
+        
+    /*
     switch (params.type)
     {
         case 0: // Chapman-Enskog hydro
@@ -77,4 +81,5 @@ int main(int argc, char** argv)
         }
     }
     return 0;
+    */
 }

@@ -66,7 +66,7 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
 
     SimulationParameters params{};
     for (int i = 0; i < cmdln_count; i += 2)
-        params.SetParameter(cmdln_args[i], std::stof(cmdln_args[i+1]));
+        params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i+1]));
 
     return params;
 }
