@@ -63,7 +63,7 @@ void test_blue(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_blue.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -97,7 +97,7 @@ void test_green(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_green.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -131,7 +131,7 @@ void test_magenta(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_magenta.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -165,7 +165,7 @@ void test_maroon(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_maroon.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -199,7 +199,7 @@ void test_orange(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_orange.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -233,7 +233,7 @@ void test_black(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_black.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -267,7 +267,7 @@ void test_cyan(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/moments_of_distribution_cyan.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);
@@ -300,7 +300,7 @@ void generate_data(void)
 
     Print(std::cout, "Calculating moments of distribution function.");
     std::fstream fout = std::fstream("./output/psuedodata-3_4pi.dat", std::fstream::out);
-    for (double tau = params.ll; tau <= params.ul; tau += 10 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 10 * params.step_size)
     {
         // Print(std::cout, fmt::format("Evaluating for time {}", tau));
         double new_e_density = exact_soln.GetMoments(tau, params, exact::Moment::ED);

@@ -18,8 +18,9 @@ struct SimulationParameters
     SimulationParameters(const char* filename);
     ~SimulationParameters();
 
+    static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
     void SetParameter(const char* name, double value);
-    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _ul, double _mass, double _eta_s);
+    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _tau_f, double _mass, double _eta_s);
     void SetInitialTemperature(void);
     double IntegralJ(int n, int r, int q, int s, double mass, vec& X);
 
@@ -34,11 +35,9 @@ struct SimulationParameters
     double xi_0;
     double alpha_0;
 
-    // For exact solution code - specific
-    double ul; // Stopping time for simulation
-    double ll; // Starting time for simulation 
+    double tau_f; 
     double mass;
-    double eta_s;
+    double C;
 
     double steps;
     double step_size;

@@ -13,9 +13,9 @@
 #include <chrono>
 
 
-int main()
+int main(int argc, char** argv)
 {
-    SimulationParameters params("utils/params.txt");
+    // SimulationParameters params("utils/params.txt");
     // Add logic for runing exact solution: should check if the soluiton with a give parameter set has already run
     // SimulationParameters exact_params("utils/exact_params.txt");
     // if (params != exact_params)
@@ -28,6 +28,10 @@ int main()
     //     hydro_exact.Run("output/exact/MCMC_calculation_for_exact.dat", params);
     //     hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
     // }
+    
+    SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
+    Print(std::cout, params);
+    return 0;
 
     switch (params.type)
     {

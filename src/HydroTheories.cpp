@@ -290,7 +290,7 @@ namespace hydro
                 // double s = - beta * beta * I0_31;                             // thermal entropy density
 
                 // TO DO: should relaxation time always be the same in Bjorken flow?
-                double tau_pi = 5.0 * params.eta_s / T;
+                double tau_pi = 5.0 * params.C / T;
                 double tau_Pi = tau_pi;
 
                 // Eqs. (35) - (40) arXiv:1407:7231
@@ -364,7 +364,7 @@ namespace hydro
                 double beta_Pi = 5.0 * beta_pi / 3.0 - beta * I31 * cs2;
                 // double s = beta * beta * I31;                             // thermal entropy density
 
-                double tau_pi = 5.0 * params.eta_s / T;
+                double tau_pi = 5.0 * params.C / T;
                 double tau_Pi = tau_pi;
 
                 double delta_PiPi  = 1.0 - cs2 - pow(m, 4.0) * (cBar_e * I00 + cBar_Pi * I01) / 9.0;
@@ -616,7 +616,7 @@ namespace hydro
         
         // Coefficients for relaxation times
         // TO DO: should the relaxation times always be equal in Bjorken flow?
-        double tau_pi = 5.0 * params.eta_s / T;
+        double tau_pi = 5.0 * params.C / T;
         double tau_Pi = tau_pi;
 
         // Calculate shear pressure
@@ -1107,7 +1107,7 @@ namespace hydro
     {        
         // Coefficients for relaxation times
         // TO DO: should the relaxation times always be equal in Bjorken flow?
-        double tau_pi = 5.0 * params.eta_s / T;
+        double tau_pi = 5.0 * params.C / T;
         double tau_Pi = tau_pi;
 
         // Calculate transport coefficients

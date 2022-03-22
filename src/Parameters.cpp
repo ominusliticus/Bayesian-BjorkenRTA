@@ -7,8 +7,10 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <cmath>
 #include <cassert>
+
 
 SimulationParameters::SimulationParameters(const char* filename)
 {
@@ -37,17 +39,16 @@ SimulationParameters::SimulationParameters(const char* filename)
             else if (var_name.compare("Lambda_0") == 0)     buffer >> Lambda_0;
             else if (var_name.compare("xi_0") == 0)         buffer >> xi_0;
             else if (var_name.compare("alpha_0") == 0)      buffer >> alpha_0;
-            else if (var_name.compare("ul") == 0)           buffer >> ul;
-            else if (var_name.compare("ll") == 0)           buffer >> ll;
+            else if (var_name.compare("tau_f") == 0)        buffer >> tau_f;
             else if (var_name.compare("mass") == 0)         buffer >> mass;
-            else if (var_name.compare("eta_s") == 0)        buffer >> eta_s;
+            else if (var_name.compare("C") == 0)            buffer >> C;
             else if (var_name.compare("steps") == 0)        buffer >> steps;
             else if (var_name.compare("TYPE") == 0)         buffer >> type;
             else if (var_name.compare("FILE") == 0)         buffer >> file_identifier;
         } // end else
     } // end while(!fin.eof())
     step_size = tau_0 / 20;
-    steps     = std::ceil((ul - ll) / step_size);
+    steps     = std::ceil((tau_f - tau_0) / step_size);
 
     SetInitialTemperature();
     fin.close();
@@ -58,6 +59,19 @@ SimulationParameters::~SimulationParameters()
 {
 }
 
+SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** cmdln_args)
+{
+    if (cmdln_count == 0)
+        return SimulationParameters("utils/params.txt");
+
+    SimulationParameters params{};
+    for (int i = 0; i < cmdln_count; i += 2)
+        params.SetParameter(cmdln_args[i], std::stof(cmdln_args[i+1]));
+
+    return params;
+}
+// ----------------------------------------
+
 std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
 {
     Print(out, "#################################");
@@ -67,10 +81,9 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     Print(out, "Lambda_0 ", params.Lambda_0);
     Print(out, "xi_0     ", params.xi_0);
     Print(out, "alpha_0  ", params.alpha_0);
-    Print(out, "ul       ", params.ul);
-    Print(out, "ll       ", params.ll);
+    Print(out, "tau_f    ", params.tau_f);
     Print(out, "mass     ", params.mass);
-    Print(out, "eta_s    ", params.eta_s);
+    Print(out, "C        ", params.C);
     Print(out, "steps    ", params.steps);
     Print(out, "step_size", params.step_size);
     Print(out, "\n");
@@ -90,10 +103,9 @@ bool SimulationParameters::operator==(const SimulationParameters& other)
         && (Lambda_0 == other.Lambda_0)
         && (xi_0 == other.xi_0)
         && (alpha_0 == other.alpha_0)
-        && (ul == other.ul)
-        && (ll == other.ll)
+        && (tau_f == other.tau_f)
         && (mass == other.mass)
-        && (eta_s == other.eta_s);
+        && (C == other.C);
     return is_match;
 }
 
@@ -109,37 +121,35 @@ void SimulationParameters::SetParameter(const char* name, double value)
     else if (var_name.compare("Lambda_0") == 0)     Lambda_0 = value;
     else if (var_name.compare("xi_0") == 0)         xi_0     = value;
     else if (var_name.compare("alpha_0") == 0)      alpha_0  = value;
-    else if (var_name.compare("ul") == 0)           ul       = value;
-    else if (var_name.compare("ll") == 0)           ll       = value;
+    else if (var_name.compare("tau_f") == 0)        tau_f    = value;
     else if (var_name.compare("mass") == 0)         mass     = value;
-    else if (var_name.compare("eta_s") == 0)        eta_s    = value;
+    else if (var_name.compare("C") == 0)            C        = value;
     else if (var_name.compare("pl0") == 0)          pl0      = value;
     else if (var_name.compare("pt0") == 0)          pt0      = value;
 
 
-    if (var_name.compare("tau_0") == 0 || var_name.compare("ul") == 0 || var_name.compare("ll") == 0 || var_name.compare("steps") == 0)
+    if (var_name.compare("tau_0") == 0 || var_name.compare("tau_f") == 0 || var_name.compare("steps") == 0)
         {
             step_size = tau_0 / 20;
-            steps     = std::ceil((ul - ll) / step_size);
+            steps     = std::ceil((tau_f - tau_0) / step_size);
         }
     if (var_name.compare("Lambda_0") == 0 || var_name.compare("xi_0") == 0 || var_name.compare("alpha_0") == 0 || var_name.compare("mass") == 0)
         SetInitialTemperature();
 }
 // ----------------------------------------
 
-void SimulationParameters::SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpha_0, double _ul, double _mass, double _eta_s)
+void SimulationParameters::SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpha_0, double _tau_f, double _mass, double _C)
 {
     tau_0    = _tau_0;
     Lambda_0 = _Lambda_0;
     xi_0     = _xi_0;
     alpha_0  = _alpha_0;
-    ll       = _tau_0;
-    ul       = _ul;
+    tau_f    = _tau_f;
     mass     = _mass;
-    eta_s    = _eta_s;
+    C    = _C;
     
     step_size = tau_0 / 20;
-    steps     = std::ceil((ul - ll) / step_size);
+    steps     = std::ceil((tau_f - tau_0) / step_size);
 
     SetInitialTemperature();
 }

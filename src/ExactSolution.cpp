@@ -43,8 +43,8 @@ namespace exact{
     double ExactSolution::TauRelaxation(double tau, SP& params)
     {
         double T = GetTemperature(tau, params);
-        double eta_s = params.eta_s;
-        return 5.0 * eta_s / T;
+        double C = params.C;
+        return 5.0 * C / T;
     }
     // -------------------------------------
 

@@ -20,7 +20,7 @@ int main()
     exact::ExactSolution exact_soln;
     exact_soln.Run(file_name, params);
 
-    for (double tau = params.ll; tau <= params.ul; tau += 100 * params.step_size)
+    for (double tau = params.tau_0; tau <= params.tau_f; tau += 100 * params.step_size)
     {
         Print(std::cout, fmt::format("Evaluating for time {}", tau)); 
         std::fstream fwrite(fmt::format("./output/test_output/extact_solution_{:.{}f}.dat", tau, 1), std::fstream::out);        
