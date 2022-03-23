@@ -1,25 +1,22 @@
+#
+# Author: Kevin Ingles
+# File: HydroBayesianAnalysis.py
+# Description: This file defines the Bayesian inference routines used for 
+#              parameter estimation and model comparison
+
 # For changing directories to C++ programming and runnning files
-import subprocess as sp
-import os
 from typing import Dict, List
 
 # Typical functionality for data manipulation and generation of latin hypercube
 import numpy as np
-from pyDOE import lhs
 import ptemcee
 
-# Gaussian Process emulator
-from sklearn.gaussian_process import GaussianProcessRegressor as gpr
-from sklearn.gaussian_process import kernels as krnl
 
 # For calculations
 from scipy.linalg import lapack
 
 # data storage
 import pickle
-
-# for warnings when running on WSL
-os.environ['MPLCONFIGDIR'] = '/tmp/'
 
 # TODO: 1. Separate Bayesian inference portion of code to separate step
 #       2. Create function that inverts energy density, shear and bulk
@@ -55,197 +52,6 @@ class HydroBayesianAnalysis(object):
         self.MCMC_chains = {}   # Dict[str, np.ndarray]
         self.evidence = {}      # Dict[str, float]
 
-        if not self.train_GP:
-            # Load GP and scalers data from pickle files
-            with open(
-                    f'design_points/design_points_n={self.num_params}.dat',
-                    'r'
-                    ) as f:
-                self.design_points = np.array(
-                    [[float(entry) for entry in line.split()]
-                        for line in f.readlines()])
-
-            f_pickle_emulators = open(
-                f'pickle_files/emulators_data_n={self.num_params}.pkl',
-                'rb')
-
-            self.GP_emulators = pickle.load(f_pickle_emulators)
-            self.scalers = {}
-            f_pickle_emulators.close()
-        else:
-            print("Running hydro")
-            # Run hydro code and generate scalers and GP pickle files
-            unit = lhs(n=self.num_params,
-                       samples=20 * self.num_params,
-                       criterion='maximin')
-            self.design_points = self.parameter_ranges[:, 0] + unit * \
-                (self.parameter_ranges[:, 1] - self.parameter_ranges[:, 0])
-
-            design_points = self.design_points
-
-            global_last_output = dict((key, []) for key in self.hydro_names)
-            global_full_output = dict((key, []) for key in self.hydro_names)
-            hydro_simulations = dict((key, []) for key in self.hydro_names)
-
-            if run_new_hydro:
-                self.params['tau_f'] = simulation_taus[-1]
-
-                for i in range(4):  # index for hydro names
-                    self.params['hydro_type'] = i
-                    for design_point in design_points:
-                        local_last_output = []
-                        hydro_output = self.ProcessHydro(
-                            parameter_names=self.parameter_names,
-                            simulation_points=design_point,
-                            store_whole_file=True)
-
-                        # By now self.params has updated with correct tau_0
-                        tau_start = self.params['tau_0']
-                        delta_tau = tau_start / 20
-                        observ_indices = \
-                            (simulation_taus -
-                             np.full_like(simulation_taus,
-                                          tau_start)) / delta_tau
-                        for j in observ_indices:
-                            local_last_output.append(
-                                hydro_output[int(j) - 1, :])
-
-                        global_last_output[
-                            self.hydro_names[i]].append(local_last_output)
-                        global_full_output[
-                            self.hydro_names[i]].append(hydro_output)
-
-                print(os.getcwd())
-                with open(
-                        f'design_points/design_points_n={self.num_params}.dat',
-                        'w'
-                        ) as f_design_points:
-                    for line in design_points:
-                        for entry in line:
-                            f_design_points.write(f'{entry} ')
-                        f_design_points.write('\n')
-
-                for k, name in enumerate(self.hydro_names):
-                    for j, tau in enumerate(simulation_taus):
-                        with open(
-                                f'''hydro_simulation_points/
-                                    {name}_simulation_points_n=
-                                    {self.num_params}_tau=
-                                    {tau}.dat''',
-                                'w'
-                                ) as f_hydro_simulation_taus:
-                            for line in np.array(
-                                    global_last_output[name])[:, j, :]:
-                                for entry in line:
-                                    f_hydro_simulation_taus.write(f'{entry} ')
-                                f_hydro_simulation_taus.write('\n')
-
-                for k, name in enumerate(self.hydro_names):
-                    for i, design_point in enumerate(design_points):
-                        with open(
-                                f'''full_outputs/
-                                    {name}_full_output_C=
-                                    {design_point}.dat''',
-                                'w'
-                                ) as f_full_output:
-                            for line in np.array(global_full_output[name])[i]:
-                                for entry in line:
-                                    f_full_output.write(f'{entry} ')
-                                f_full_output.write('\n')
-
-                hydro_simulations = dict(
-                    (key, np.array([np.array(global_last_output[key])[:, j, :]
-                                    for j in range(simulation_taus.size)]))
-                    for key in self.hydro_names)
-            else:
-                with open(
-                        f'''design_points/
-                        design_points_n={self.num_params}.dat''',
-                        'r'
-                        ) as f_design_points:
-                    design_points = np.array(
-                        [float(line)
-                         for line in f_design_points.readlines()])
-
-                for k, name in enumerate(self.hydro_names):
-                    for j, tau in enumerate(simulation_taus):
-                        with open(
-                                f'''hydro_simulation_points/
-                                {name}_simulation_points_n=
-                                {self.num_params}_tau={tau}.dat''',
-                                'r'
-                                ) as f_hydro_simulation_pts:
-                            hydro_simulations[name].append(
-                                [[float(entry)
-                                  for entry in line.split()]
-                                 for line in f_hydro_simulation_pts.readlines()
-                                 ])
-                hydro_simulations = dict(
-                    (key, np.array(hydro_simulations[key]))
-                    for key in hydro_simulations)
-
-            print("Fitting emulators")
-            hydro_lists = np.array(
-                [hydro_simulations[key] for key in self.hydro_names])
-
-            self.GP_emulators = dict((key, []) for key in self.hydro_names)
-
-            obs = ['E', 'pi', 'Pi']
-            f_emulator_scores = open(
-                f'full_outputs/emulator_scores_n={self.num_params}.txt', 'w')
-            f_pickle_emulators = open(
-                f'pickle_files/emulators_data_n={self.num_params}.pkl', 'wb')
-
-            for i, name in enumerate(self.hydro_names):
-                global_emulators = []
-                for j, tau in enumerate(simulation_taus):
-                    local_emulators = []
-                    f_emulator_scores.write(f'\tTraining GP for {name}\n')
-                    for m in range(1, 4):
-                        data = hydro_lists[i, j, :, m].reshape(-1, 1)
-
-                        bounds = np.outer(
-                            np.diff(self.parameter_ranges), (1e-2, 1e2))
-                        kernel = 1 * krnl.RBF(
-                                length_scale=np.diff(self.parameter_ranges),
-                                length_scale_bounds=bounds)
-                        GPR = gpr(kernel=kernel,
-                                  n_restarts_optimizer=40,
-                                  alpha=1e-8,
-                                  normalize_y=True)
-                        f_emulator_scores.write(
-                            f'\t\tTraining GP for {name} and time {tau}\n')
-                        GPR.fit(design_points.reshape(-1,
-                                                      self.num_params), data)
-
-                        f_emulator_scores.write(
-                            f'''Runnig fit for {name} at time {tau} fm/c
-                                for observable {obs[m-1]}''')
-                        f_emulator_scores.write(
-                            'GP score: {:1.3f}'.format(
-                                GPR.score(
-                                    design_points.reshape(-1,
-                                                          self.num_params),
-                                    data))
-                            )
-                        f_emulator_scores.write(
-                            'GP parameters: {}'.format(GPR.kernel_))
-                        f_emulator_scores.write(
-                            'GP log-likelihood: {}'.format(
-                                GPR.log_marginal_likelihood(GPR.kernel_.theta))
-                            )
-                        f_emulator_scores.write(
-                            '------------------------------\n')
-                        local_emulators.append(GPR)
-                    global_emulators.append(local_emulators)
-                self.scalers = {}
-                self.GP_emulators[name] = global_emulators
-            pickle.dump(self.GP_emulators, f_pickle_emulators)
-
-            f_emulator_scores.close()
-            f_pickle_emulators.close()
-
-            print("Done")
 
     def LogPrior(self,
                  evaluation_point: np.ndarray,
@@ -318,9 +124,6 @@ class HydroBayesianAnalysis(object):
                                hydro_name,
                                k, GP_emulator, scalers)
 
-            # print(f'pred: {emulation_values}')
-            # print(f'true: {true_observables[k]}')
-            # print(f'err: {emulation_variance}')
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
             cov = emulation_variance + np.diag(true_errors[k].flatten()) ** 2
@@ -439,162 +242,3 @@ class HydroBayesianAnalysis(object):
         The Bayes factor, or ratio of evidences, for hydro1 to hydro2
         """
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
-
-    def PrintParametersFile(self, params_dict: Dict) -> None:
-        '''
-        Function ouputs file "params.txt" to the Code/util folder to
-        be used by the Code/build/exact_solution.x program
-        '''
-        os.chdir('../')
-        with open('./utils/params.txt', 'w') as fout:
-            fout.write(f'tau_0 {params_dict["tau_0"]}\n')
-            fout.write(f'Lambda_0 {params_dict["Lambda_0"]}\n')
-            fout.write(f'alpha_0 {params_dict["alpha_0"]}\n')
-            fout.write(f'xi_0 {params_dict["xi_0"]}\n')
-            fout.write(f'ul {params_dict["tau_f"]}\n')
-            fout.write(f'll {params_dict["tau_0"]}\n')
-            fout.write(f'mass {params_dict["mass"]}\n')
-            fout.write(f'eta_s {params_dict["eta_s"]}\n')
-            fout.write(f'TYPE {params_dict["hydro_type"]}')
-        os.chdir('scripts/')
-        return None
-
-    def RunHydroSimulation(self) -> None:
-        '''
-        Function calls the C++ excecutable that run hydro calculations
-        '''
-        os.chdir('../')
-        sp.run(['./build/exact_solution.x'], shell=True)
-        os.chdir('scripts/')
-        return None
-
-    def ProcessHydro(self, 
-                     parameter_names: List,
-                     simulation_points: List,
-                     store_whole_file: bool = False) -> np.ndarray:
-        out_list = []
-
-        def ConvertToPTandPL(p: np.ndarray,
-                             pi: np.ndarray,
-                             Pi: np.ndarray) -> np.ndarray:
-            pt = Pi + pi / 2 + p
-            pl = Pi - pi + p
-            return pt, pl
-
-        def GetFromOutputFiles(hydro_type: str) -> np.ndarray:
-            if hydro_type == 0:
-                prefix = '../output/CE_hydro/'
-                suffix = ''
-            elif hydro_type == 1:
-                prefix = '../output/DNMR_hydro/'
-                suffix = ''
-            elif hydro_type == 2:
-                prefix = '../output/aniso_hydro/'
-                suffix = ''
-            elif hydro_type == 3:
-                prefix = '../output/aniso_hydro/'
-                suffix = '2'
-
-            if store_whole_file:
-                f_e = open(
-                    prefix + 'e' + suffix + '_m=0.200GeV.dat', 'r').readlines()
-                f_pi = open(
-                    prefix + 'shear' + suffix + '_m=0.200GeV.dat', 'r'
-                    ).readlines()
-                f_Pi = open(
-                    prefix + 'bulk' + suffix + '_m=0.200GeV.dat', 'r'
-                    ).readlines()
-
-                out_list = []
-                for i in range(len(f_e)):
-                    tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
-                                        f_pi[i].split()[1], f_Pi[i].split()[1],\
-                                        f_e[i].split()[2]
-                    pt, pl = ConvertToPTandPL(float(p), float(pi), float(Pi))
-                    out_list.append([float(tau),
-                                     float(e),
-                                     float(pt),
-                                     float(pl),
-                                     float(p)])
-
-                return np.array(out_list)
-            else:
-                # TODO: update this to return PT and PL instead of pi and Pi
-                f_e = open(prefix + 'e' + suffix + '_m=0.200GeV.dat', 'r')
-                last_e = f_e.readlines()[-1]
-                tau, e = last_e.split()[0], last_e.split()[1]
-                f_e.close()
-                del last_e
-
-                f_pi = open(prefix + 'shear' + suffix + '_m=0.200GeV.dat', 'r')
-                last_pi = f_pi.readlines()[-1]
-                pi = last_pi.split()[1]
-                f_pi.close()
-                del last_pi
-
-                f_Pi = open(prefix + 'bulk' + suffix + '_m=0.200GeV.dat', 'r')
-                last_Pi = f_Pi.readlines()[-1]
-                Pi = last_Pi.split()[1]
-                f_Pi.close()
-                del last_Pi
-
-                temp_list = [float(tau), float(e), float(pi), float(Pi)]
-                return np.array(temp_list)
-
-        def GetExactResults() -> np.ndarray:
-            with open(
-                    '../output/exact/MCMC_calculation_moments.dat', 'r'
-                    ) as f_exact:
-                if store_whole_file:
-                    output = np.array([[
-                                        float(entry)
-                                        for entry in line.split()]
-                                       for line in f_exact.readlines()])
-                    return output
-                else:
-                    return np.array([float(entry) 
-                                     for entry in 
-                                     f_exact.readlines()[-1].split()])
-
-        if len(simulation_points) > len(parameter_names):
-            for parameters in simulation_points:
-                for i, name in enumerate(parameter_names):
-                    self.params[name] = parameters[i]
-                self.PrintParametersFile(self.params)
-                self.RunHydroSimulation()
-                if self.params['hydro_type'] == 4:
-                    return np.array(GetExactResults())
-                else:
-                    out_list.append(
-                        GetFromOutputFiles(self.params['hydro_type']))
-
-        else:
-            for i, name in enumerate(parameter_names):
-                self.params[name] = simulation_points[i]
-            self.PrintParametersFile(self.params)
-            self.RunHydroSimulation()
-            if self.params['hydro_type'] == 4:
-                return np.array(GetExactResults())
-            else:
-                return np.array(GetFromOutputFiles(self.params['hydro_type']))
-
-        return np.array(out_list)
-
-    def RunExactHydroForGPDesignPoints(self):
-
-        self.params['hydro_type'] = 4
-        exact_hydro_output = np.array([
-            self.ProcessHydro(parameter_names=self.parameter_names,
-                              simulation_points=design_point,
-                              store_whole_file=True)
-            for design_point in self.design_points]
-        )
-
-        for i, design_point in enumerate(self.design_points):
-            with open(
-                    f'full_outputs/exact_hydro_C={design_point}.dat', 'w'
-                    ) as f:
-                for line in exact_hydro_output[i]:
-                    for entry in line:
-                        f.write(f'{entry} ')
-                    f.write('\n')
