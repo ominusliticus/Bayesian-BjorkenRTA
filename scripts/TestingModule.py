@@ -3,7 +3,6 @@
 from platform import uname
 # import sys
 import pickle
-from tkinter import W
 from typing import List, Dict
 
 import matplotlib.pyplot as plt
@@ -119,7 +118,7 @@ default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
     'xi_0':         -0.90, 
-    'alpha_0':      0.655, #2 * pow(10, -3),
+    'alpha_0':      2 * pow(10, -3),
     'tau_f':        12.1,
     'mass':         1.015228426,
     'eta_s':        5 / (4 * np.pi),
@@ -128,17 +127,17 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_run_new_hydro = False          # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
-    b_train_GP = False               # If true, HydroBayesAnalysis fits GPs to available training points
-    b_read_mcmc = True             # If true, reads in last store MCMC chains
+    b_run_new_hydro = True          # If true, it tells HydroBayesAnalysis class to generate training points for GPs. 
+    b_train_GP = True               # If true, HydroBayesAnalysis fits GPs to available training points
+    b_read_mcmc = False             # If true, reads in last store MCMC chains
     b_calculate_observables = False # If true, reads in the observables (E, Pi, pi) calculated using the last MCMC chains
     
     print("Inside main function")
 
-    # GP_parameter_names = ['eta_s','tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
-    # GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)], [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
-    GP_parameter_names = ['eta_s']
-    GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
+    GP_parameter_names = ['eta_s','tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
+    GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)], [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
+    # GP_parameter_names = ['eta_s']
+    # GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.array([5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1])
     bayesian_analysis_class_instance = HydroBayesianAnalysis(
         default_params=default_params,
@@ -155,8 +154,8 @@ if __name__ == '__main__':
         bayesian_analysis_class_instance.RunExactHydroForGPDesignPoints()
 
     exact_out = []
-    # true_params = [5 / (4 * np.pi), 0.1, 0.2/.197, 2 * pow(10, -3), 0]
-    true_params = [5 / (4 * np.pi)]
+    true_params = [5 / (4 * np.pi), 0.1, 0.2/.197, 2 * pow(10, -3), 0]
+    # true_params = [5 / (4 * np.pi)]
     bayesian_analysis_class_instance.params['tau_f'] = 12.1
     bayesian_analysis_class_instance.params['hydro_type'] = 4
     output = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, true_params, store_whole_file=True)
@@ -169,7 +168,7 @@ if __name__ == '__main__':
     track_pl = np.array([output[int(i)-1,2] for i in observ_indices])
     track_p = np.array([output[int(i)-1,3] for i in observ_indices])
 
-    alpha_error = 0.01
+    alpha_error = 0.05
     track_pt_err = alpha_error * track_pt
     track_pl_err = alpha_error * track_pl
     track_p_err = alpha_error * track_p
@@ -257,96 +256,97 @@ if __name__ == '__main__':
             fig.tight_layout()
             fig.savefig(f'plots/{len(axis_labels)}_param_posterior_hists_parameters.pdf')
 
-    map_outputs = {}
-    map_values = {}
-    bayesian_analysis_class_instance.params['tau_f'] = 12.1
-    for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
-        bayesian_analysis_class_instance.params['hydro_type'] = i
-        n, b, p = plt.hist(mcmc_chains[name][0,:,:,:].flatten(), bins=1000)
-        map_values[name] = [b[np.argmax(n)]] 
-        map_outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
+    if False:
+        map_outputs = {}
+        map_values = {}
+        bayesian_analysis_class_instance.params['tau_f'] = 12.1
+        for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+            bayesian_analysis_class_instance.params['hydro_type'] = i
+            n, b, p = plt.hist(mcmc_chains[name][0,:,:,:].flatten(), bins=1000)
+            map_values[name] = [b[np.argmax(n)]] 
+            map_outputs[name] = bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
 
 
-    print(f'alpha_error = {alpha_error}')
-    # calculating error bars from pseudo-data
-    pseudo_e0 = np.random.normal(output[0,1], alpha_error * output[0,1])
-    pseudo_e = exact_out[:,1]
-    pseudo_e_err = alpha_error * pseudo_e
+        print(f'alpha_error = {alpha_error}')
+        # calculating error bars from pseudo-data
+        pseudo_e0 = np.random.normal(output[0,1], alpha_error * output[0,1])
+        pseudo_e = exact_out[:,1]
+        pseudo_e_err = alpha_error * pseudo_e
 
-    pseudo_pt = exact_out[:,2]
-    pseudo_pt_err = alpha_error * pseudo_pt
+        pseudo_pt = exact_out[:,2]
+        pseudo_pt_err = alpha_error * pseudo_pt
 
-    pseudo_pl = exact_out[:,3]
-    pseudo_pl_err = alpha_error * pseudo_pl
+        pseudo_pl = exact_out[:,3]
+        pseudo_pl_err = alpha_error * pseudo_pl
 
-    pseudo_p = exact_out[:,4]
-    pseudo_p_err = alpha_error * pseudo_p
+        pseudo_p = exact_out[:,4]
+        pseudo_p_err = alpha_error * pseudo_p
 
-    pseudo_pi = (2 / 3) * (pseudo_pt - pseudo_pl)
-    pseudo_pi_err = (2 / 3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2)
+        pseudo_pi = (2 / 3) * (pseudo_pt - pseudo_pl)
+        pseudo_pi_err = (2 / 3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2)
 
-    pseudo_Pi = (2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p
-    pseudo_Pi_err = np.sqrt(4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2 + 9 * pseudo_p_err ** 2) / 3
+        pseudo_Pi = (2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p
+        pseudo_Pi_err = np.sqrt(4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2 + 9 * pseudo_p_err ** 2) / 3
 
-    pseudo_h = pseudo_e + track_p
-    pseudo_h_err = alpha_error * pseudo_h
+        pseudo_h = pseudo_e + track_p
+        pseudo_h_err = alpha_error * pseudo_h
 
-    pseudo_e_e0 = pseudo_e / pseudo_e0
-    pseudo_e_e0_err = alpha_error * pseudo_e_e0 * np.sqrt(2)
+        pseudo_e_e0 = pseudo_e / pseudo_e0
+        pseudo_e_e0_err = alpha_error * pseudo_e_e0 * np.sqrt(2)
 
-    pseudo_pi_bar = pseudo_pi / pseudo_h
-    pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + pseudo_h_err ** 2 / pseudo_h ** 2)
+        pseudo_pi_bar = pseudo_pi / pseudo_h
+        pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + pseudo_h_err ** 2 / pseudo_h ** 2)
 
-    pseudo_Pi_bar = pseudo_Pi / pseudo_h
-    pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + pseudo_h_err / pseudo_h ** 2)
+        pseudo_Pi_bar = pseudo_Pi / pseudo_h
+        pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + pseudo_h_err / pseudo_h ** 2)
 
-    fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30,20))
-    fig.patch.set_facecolor('white')
-    costumize_axis(ax[0,0], r'$\tau$ [fm]', r'$\mathcal E / \mathcal E_0$'); ax[0,0].set_yscale('log')
-    costumize_axis(ax[0,1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
-    costumize_axis(ax[0,2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
+        fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30,20))
+        fig.patch.set_facecolor('white')
+        costumize_axis(ax[0,0], r'$\tau$ [fm]', r'$\mathcal E / \mathcal E_0$'); ax[0,0].set_yscale('log')
+        costumize_axis(ax[0,1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
+        costumize_axis(ax[0,2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
 
-    costumize_axis(ax[1,0], r'$\tau$ [fm]', r'$\mathcal E $ [fm$^{-4}$]'); ax[1,0].set_yscale('log')
-    costumize_axis(ax[1,1], r'$\tau$ [fm]', r'$\pi $ [fm$^{-4}$]')
-    costumize_axis(ax[1,2], r'$\tau$ [fm]', r'$\Pi $ [fm$^{-4}$]')
+        costumize_axis(ax[1,0], r'$\tau$ [fm]', r'$\mathcal E $ [fm$^{-4}$]'); ax[1,0].set_yscale('log')
+        costumize_axis(ax[1,1], r'$\tau$ [fm]', r'$\pi $ [fm$^{-4}$]')
+        costumize_axis(ax[1,2], r'$\tau$ [fm]', r'$\Pi $ [fm$^{-4}$]')
 
-    ax[0,0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', label='exact')
-    ax[0,1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black') 
-    ax[0,2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black')
+        ax[0,0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', label='exact')
+        ax[0,1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black') 
+        ax[0,2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black')
 
-    ax[1,0].errorbar(simulation_taus, pseudo_e, yerr=pseudo_e_err, fmt='o', color='black', label='exact')
-    ax[1,1].errorbar(simulation_taus, pseudo_pi, yerr=pseudo_pi_err, fmt='o', color='black') 
-    ax[1,2].errorbar(simulation_taus, pseudo_Pi, yerr=pseudo_Pi_err, fmt='o', color='black')
+        ax[1,0].errorbar(simulation_taus, pseudo_e, yerr=pseudo_e_err, fmt='o', color='black', label='exact')
+        ax[1,1].errorbar(simulation_taus, pseudo_pi, yerr=pseudo_pi_err, fmt='o', color='black') 
+        ax[1,2].errorbar(simulation_taus, pseudo_Pi, yerr=pseudo_Pi_err, fmt='o', color='black')
 
 
-    for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
-        print(f'map parameters for {name}: {map_values[name]}')
-        output = map_outputs[name]
-        t = output[:,0]
-        e = output[:,1]
-        p = output[:,4]
-        pt = output[:,2]
-        pl = output[:,3]
-        pi = (2 / 3) * (pt - pl)
-        Pi = (2 * pt + pl) / 3 - p
-        pi_bar = pi / (e + p)
-        Pi_bar = Pi / (e + p)
-        ax[0,0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
-        ax[0,1].plot(t, pi_bar, lw=2, color=cmap(i)); 
-        ax[0,2].plot(t, Pi_bar, lw=2, color=cmap(i)); 
+        for i, name in enumerate(bayesian_analysis_class_instance.hydro_names):
+            print(f'map parameters for {name}: {map_values[name]}')
+            output = map_outputs[name]
+            t = output[:,0]
+            e = output[:,1]
+            p = output[:,4]
+            pt = output[:,2]
+            pl = output[:,3]
+            pi = (2 / 3) * (pt - pl)
+            Pi = (2 * pt + pl) / 3 - p
+            pi_bar = pi / (e + p)
+            Pi_bar = Pi / (e + p)
+            ax[0,0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
+            ax[0,1].plot(t, pi_bar, lw=2, color=cmap(i)); 
+            ax[0,2].plot(t, Pi_bar, lw=2, color=cmap(i)); 
 
-        ax[1,0].plot(t, e, lw=2, color=cmap(i), label=name)
-        ax[1,1].plot(t, pi, lw=2, color=cmap(i))
-        ax[1,2].plot(t, Pi, lw=2, color=cmap(i))
-    ax[0,0].legend(loc='upper right', fontsize=20)
-    fig.tight_layout()
-    fig.savefig(f'plots/map_value_runs_n={len(GP_parameter_names)}.pdf')
+            ax[1,0].plot(t, e, lw=2, color=cmap(i), label=name)
+            ax[1,1].plot(t, pi, lw=2, color=cmap(i))
+            ax[1,2].plot(t, Pi, lw=2, color=cmap(i))
+        ax[0,0].legend(loc='upper right', fontsize=20)
+        fig.tight_layout()
+        fig.savefig(f'plots/map_value_runs_n={len(GP_parameter_names)}.pdf')
 
-    pts_analytic_post = 100
-    hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
-    Cs = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), pts_analytic_post, endpoint=True)
-    for_analytic_hydro_output = dict((name, []) for name in hydro_names)
-    bayesian_analysis_class_instance.params['tau_f'] = simulation_taus[-1]
+    # pts_analytic_post = 100
+    # hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
+    # Cs = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), pts_analytic_post, endpoint=True)
+    # for_analytic_hydro_output = dict((name, []) for name in hydro_names)
+    # bayesian_analysis_class_instance.params['tau_f'] = simulation_taus[-1]
     
     # Multiprocessing doesn't work because each call needs to write to a configuration file, and this can cause collision
     # for_analytic_hydro_output = Manager.dict()
@@ -359,58 +359,58 @@ if __name__ == '__main__':
     # _ = [proc.start() for proc in jobs]
     # _ = [proc.join() for proc in jobs]
 
-    for i, name in enumerate(hydro_names):
-        bayesian_analysis_class_instance.params['hydro_type'] = i
-        output = np.array([[bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, [C], store_whole_file=True)[int(i)-1] for i in observ_indices] for C in Cs])
-        for_analytic_hydro_output[name] = output
-        
-    for_analytic_hydro_output = dict((key, np.array(for_analytic_hydro_output[key])) for key in hydro_names)
-    
-    E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
-    dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
+    # for i, name in enumerate(hydro_names):
+    #     bayesian_analysis_class_instance.params['hydro_type'] = i
+    #     output = np.array([[bayesian_analysis_class_instance.ProcessHydro(GP_parameter_names, [C], store_whole_file=True)[int(i)-1] for i in observ_indices] for C in Cs])
+    #     for_analytic_hydro_output[name] = output
+    #     
+    # for_analytic_hydro_output = dict((key, np.array(for_analytic_hydro_output[key])) for key in hydro_names)
+    # 
+    # E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
+    # dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
 
-    PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
-    dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
+    # PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
+    # dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
 
-    PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
-    dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
+    # PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
+    # dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
 
-    pi_exp = np.array([(2/3) * (pseudo_pt - pseudo_pl) for _ in range(pts_analytic_post)])
-    dpi_exp = np.array([(2/3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2) for _ in range(pts_analytic_post)])
+    # pi_exp = np.array([(2/3) * (pseudo_pt - pseudo_pl) for _ in range(pts_analytic_post)])
+    # dpi_exp = np.array([(2/3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2) for _ in range(pts_analytic_post)])
 
-    Pi_exp = np.array([(2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p for _ in range(pts_analytic_post)])
-    dPi_exp = np.array([np.sqrt((4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2) / 9 + pseudo_p_err ** 2) for _ in range(pts_analytic_post)])
+    # Pi_exp = np.array([(2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p for _ in range(pts_analytic_post)])
+    # dPi_exp = np.array([np.sqrt((4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2) / 9 + pseudo_p_err ** 2) for _ in range(pts_analytic_post)])
 
-    E_sim = dict((key, for_analytic_hydro_output[key][:,:,1]) for key in hydro_names)
-    P_sim = dict((key, for_analytic_hydro_output[key][:,:,4]) for key in hydro_names)
-    PT_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
-    PL_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
-    pi_sim = dict((key, (2/3) * (PT_sim[key] - PL_sim[key])) for key in hydro_names)
-    Pi_sim = dict((key, (2 * PT_sim[key] + PL_sim[key]) / 3 - P_sim[key]) for key in hydro_names)
-    print(E_sim['ce'].shape, E_exp.shape)
+    # E_sim = dict((key, for_analytic_hydro_output[key][:,:,1]) for key in hydro_names)
+    # P_sim = dict((key, for_analytic_hydro_output[key][:,:,4]) for key in hydro_names)
+    # PT_sim = dict((key, for_analytic_hydro_output[key][:,:,2]) for key in hydro_names)
+    # PL_sim = dict((key, for_analytic_hydro_output[key][:,:,3]) for key in hydro_names)
+    # pi_sim = dict((key, (2/3) * (PT_sim[key] - PL_sim[key])) for key in hydro_names)
+    # Pi_sim = dict((key, (2 * PT_sim[key] + PL_sim[key]) / 3 - P_sim[key]) for key in hydro_names)
+    # print(E_sim['ce'].shape, E_exp.shape)
 
-    PlotAnalyticPosteriors(Cs=Cs,
-                           E_exp=E_exp,
-                           dE_exp=dE_exp,
-                           E_sim=E_sim,
-                           P1_exp=pi_exp,
-                           dP1_exp=dpi_exp,
-                           P1_sim=pi_sim,
-                           P2_exp=Pi_exp,
-                           dP2_exp=dPi_exp,
-                           P2_sim=Pi_sim,
-                           output_suffix="Pipi")
+    # PlotAnalyticPosteriors(Cs=Cs,
+    #                        E_exp=E_exp,
+    #                        dE_exp=dE_exp,
+    #                        E_sim=E_sim,
+    #                        P1_exp=pi_exp,
+    #                        dP1_exp=dpi_exp,
+    #                        P1_sim=pi_sim,
+    #                        P2_exp=Pi_exp,
+    #                        dP2_exp=dPi_exp,
+    #                        P2_sim=Pi_sim,
+    #                        output_suffix="Pipi")
 
-    PlotAnalyticPosteriors(Cs=Cs,
-                           E_exp=E_exp,
-                           dE_exp=dE_exp,
-                           E_sim=E_sim,
-                           P1_exp=PT_exp,
-                           dP1_exp=dPT_exp,
-                           P1_sim=PT_sim,
-                           P2_exp=PL_exp,
-                           dP2_exp=dPL_exp,
-                           P2_sim=PL_sim,
-                           output_suffix="PLPT")
+    # PlotAnalyticPosteriors(Cs=Cs,
+    #                        E_exp=E_exp,
+    #                        dE_exp=dE_exp,
+    #                        E_sim=E_sim,
+    #                        P1_exp=PT_exp,
+    #                        dP1_exp=dPT_exp,
+    #                        P1_sim=PT_sim,
+    #                        P2_exp=PL_exp,
+    #                        dP2_exp=dPL_exp,
+    #                        P2_sim=PL_sim,
+    #                        output_suffix="PLPT")
 
     

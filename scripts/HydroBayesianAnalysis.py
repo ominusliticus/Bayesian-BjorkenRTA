@@ -88,9 +88,6 @@ class HydroBayesianAnalysis(object):
             hydro_simulations = dict((key, []) for key in self.hydro_names)
 
             if run_new_hydro:
-                tau_start = self.params['tau_0']
-                delta_tau = tau_start / 20
-                n_steps_1_fm = 1 / delta_tau
                 self.params['tau_f'] = simulation_taus[-1]
 
                 for i in range(4):  # index for hydro names
@@ -102,10 +99,16 @@ class HydroBayesianAnalysis(object):
                             simulation_points=design_point,
                             store_whole_file=True)
 
-                        for j in np.arange(int(simulation_taus[0]),
-                                           int(simulation_taus[-1])+1, 1):
+                        # By now self.params has updated with correct tau_0
+                        tau_start = self.params['tau_0']
+                        delta_tau = tau_start / 20
+                        observ_indices = \
+                            (simulation_taus -
+                             np.full_like(simulation_taus,
+                                          tau_start)) / delta_tau
+                        for j in observ_indices:
                             local_last_output.append(
-                                hydro_output[int(j * n_steps_1_fm) - 1, :])
+                                hydro_output[int(j) - 1, :])
 
                         global_last_output[
                             self.hydro_names[i]].append(local_last_output)
