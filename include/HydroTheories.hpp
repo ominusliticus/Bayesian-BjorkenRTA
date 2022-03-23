@@ -32,7 +32,7 @@ namespace hydro
         ~ViscousHydroEvolution() = default;
 
         // Setup and run numerical evolution
-        void RunHydroSimulation(SP& params, theory theo);
+        void RunHydroSimulation(const char* file_path, SP& params, theory theo);
 
         // Need to invert enery density to get temperature. This is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
@@ -79,7 +79,7 @@ namespace hydro
         ~AnisoHydroEvolution() = default;
 
         // Setup and run numerical evolution
-        void RunHydroSimulation(SP& params);
+        void RunHydroSimulation(const char* file_path, SP& params);
 
         // Need to invert enery density to get temperature. This is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 
@@ -130,7 +130,7 @@ namespace hydro
         ~AltAnisoHydroEvolution() = default;
 
         // Setup and run numerical evolution
-        void RunHydroSimulation(SP& params);
+        void RunHydroSimulation(const char* file_path, SP& params);
 
         // Need to invert enery density to get temperature. This is done by taking advantage of
         // the Landau matching condition, i.e. the energy denisty in the comoving frame is 

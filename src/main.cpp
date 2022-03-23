@@ -29,49 +29,43 @@ int main(int argc, char** argv)
     //     hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
     // }
     
-    // SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
-    Print(std::cout, argc);
-    for (int i = 1; i < argc; i++) std::cout << argv[i] << " ";
-    std::cout << '\n';
-    // Print(std::cout, params);
-    return 0;
-        
-    /*
-    switch (params.type)
+    SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
+    
+    switch (std::atoi(argv[argc - 2]))
     {
         case 0: // Chapman-Enskog hydro
         {
             hydro::ViscousHydroEvolution hydro_ce;
-            hydro_ce.RunHydroSimulation(params, hydro::theory::CE);
+            hydro_ce.RunHydroSimulation(argv[argc - 1], params, hydro::theory::CE);
             hydro_ce.~ViscousHydroEvolution();
             break;
         }
         case 1: // DNMR hydro
         {
             hydro::ViscousHydroEvolution hydro_dnmr;
-            hydro_dnmr.RunHydroSimulation(params, hydro::theory::DNMR);
+            hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::theory::DNMR);
             hydro_dnmr.~ViscousHydroEvolution();
             break;
         }
         case 2: // Anisotropic
         {
             hydro::AnisoHydroEvolution hydro_aniso;
-            hydro_aniso.RunHydroSimulation(params);
+            hydro_aniso.RunHydroSimulation(argv[argc - 1], params);
             hydro_aniso.~AnisoHydroEvolution();
             break;
         }
         case 3: // Alternative anisotropic formulation
         {
             hydro::AltAnisoHydroEvolution hydro_altaniso;
-            hydro_altaniso.RunHydroSimulation(params);
+            hydro_altaniso.RunHydroSimulation(argv[argc - 1], params);
             hydro_altaniso.~AltAnisoHydroEvolution();
             break;
         }
         case 4:
         {
             exact::ExactSolution hydro_exact;
-            hydro_exact.Run("output/exact/MCMC_calculation_for_exact.dat", params);
-            hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
+            hydro_exact.Run(params);
+            hydro_exact.OutputMoments(argv[argc - 1], params);
             break;
         }
         default:
@@ -81,5 +75,5 @@ int main(int argc, char** argv)
         }
     }
     return 0;
-    */
+    
 }

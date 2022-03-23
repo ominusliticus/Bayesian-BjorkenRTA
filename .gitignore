@@ -42,3 +42,9 @@ scripts/plots/MCMC-posteriors_n=1.pdf
 scripts/__pycache__/HydroBayesianAnaylsis.cpython-39.pyc
 full_outputs
 old_notebooks
+output/test
+
+.clangd/
+3rd_party/armadillo-code/
+compile_commands.json
+fmt/

@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <cmath>
 #include <fstream>
+#include <filesystem>
 
 
 // Note: that the integration functions are written like this to make sure the 
@@ -14,6 +15,8 @@
 
 namespace exact{
     
+    static std::vector<double> D;
+
     // const double tol = eps;
     // const int max_depth = 5;
     // const int max_depth2 = 5;
@@ -458,7 +461,7 @@ namespace exact{
 
 
 
-    void ExactSolution::Run(const char* file_name, SP& params)
+    void ExactSolution::Run(SP& params)
     {
         double tau_0     = params.tau_0;
         int steps        = params.steps;
@@ -509,13 +512,13 @@ namespace exact{
             n++;
         } while (err > eps);   
         
-        std::fstream out(file_name, std::ios::out);
-        for (int i = 0; i < steps; i++)
-        {
-            double tau = tau_0 + (double)i * step_size;
-            Print(out, std::setprecision(16), tau, D[i], 1.0 / D[i] * 0.197); 
-        }
-        out.close();
+        // std::fstream out(file_name, std::ios::out);
+        // for (int i = 0; i < steps; i++)
+        // {
+        //     double tau = tau_0 + (double)i * step_size;
+        //     Print(out, std::setprecision(16), tau, D[i], 1.0 / D[i] * 0.197); 
+        // }
+        // out.close();
         Print(std::cout, "Temperature evolution calculation terminated successfully.");
     }
     //--------------------------------------
@@ -524,8 +527,10 @@ namespace exact{
 
     void ExactSolution::OutputMoments(const char* file_name, SP& params)
     {
+        std::filesystem::path file = file_name;
+        file = file / fmt::format("exact_m={:.3f}.dat", 0.197 * params.mass);
         Print(std::cout, "Calculating moments of distribution function.");
-        std::fstream fout(file_name, std::fstream::out);
+        std::fstream fout(file, std::fstream::out);
         if (!fout.is_open())
         {
             Print_Error(std::cerr, "Be sure the ./output/exact/ folder has been created!");

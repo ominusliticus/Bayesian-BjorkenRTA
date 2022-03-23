@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cassert>
+#include <filesystem>
 
 // TODO: Make easily parallelizable for python
 
@@ -44,7 +45,7 @@ namespace hydro
     ///////////////////////////////////
     // Viscous struct implementation //
     ///////////////////////////////////
-    void ViscousHydroEvolution::RunHydroSimulation(SP& params, theory theo)
+    void ViscousHydroEvolution::RunHydroSimulation(const char* file_path, SP& params, theory theo)
     {
         double t0 = params.tau_0;
         double dt = params.step_size;
@@ -54,20 +55,21 @@ namespace hydro
 
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
+        std::filesystem::path file = file_path;
         std::fstream e_plot, shear_plot, bulk_plot;
         switch (theo)
         {
             case theory::CE:
                 // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
-                e_plot  = std::fstream(fmt::format("output/CE_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                shear_plot = std::fstream(fmt::format("output/CE_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                bulk_plot = std::fstream(fmt::format("output/CE_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                e_plot  = std::fstream(file / fmt::format("ce_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                shear_plot = std::fstream(file / fmt::format("ce_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                bulk_plot = std::fstream(file / fmt::format("ce_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR:
                 // Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
-                e_plot  = std::fstream(fmt::format("output/DNMR_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                shear_plot = std::fstream(fmt::format("output/DNMR_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-                bulk_plot = std::fstream(fmt::format("output/DNMR_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                e_plot  = std::fstream(file / fmt::format("dnmr_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                shear_plot = std::fstream(file / fmt::format("dnmr_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+                bulk_plot = std::fstream(file / fmt::format("dnmr_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
         }
         if (!e_plot.is_open() && !shear_plot.is_open() && !bulk_plot.is_open())
@@ -107,7 +109,7 @@ namespace hydro
             else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
         };
 
-        // Note: ll dynamic variables are declared as struct memebrs variables
+        // Note: all dynamic variables are declared as struct memebrs variables
         e1  = e0;
         pi1 = 2.0 * (params.pt0 - params.pl0) / 3.0;
         Pi1 = (params.pl0 + 2.0 * params.pt0) / 3.0 - ThermalPressure(e0, params);
@@ -428,7 +430,7 @@ namespace hydro
     ///////////////////////////////////////
     // Anisotropic struct implementation //
     ///////////////////////////////////////
-    void AnisoHydroEvolution::RunHydroSimulation(SP& params)
+    void AnisoHydroEvolution::RunHydroSimulation(const char* file_path, SP& params)
     {
         // Print(std::cout, "Calculating anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
@@ -439,9 +441,10 @@ namespace hydro
 
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
-        std::fstream e_plot (fmt::format("output/aniso_hydro/e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream bulk_plot(fmt::format("output/aniso_hydro/bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream shear_plot(fmt::format("output/aniso_hydro/shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::filesystem::path file = file_path; 
+        std::fstream e_plot (file / fmt::format("vah_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream bulk_plot(file / fmt::format("vah_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream shear_plot(file / fmt::format("vah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
@@ -758,7 +761,7 @@ namespace hydro
     ///////////////////////////////////////////
     // Alt Anisotropic struct implementation //
     //////////////.////////////////////////////
-    void AltAnisoHydroEvolution::RunHydroSimulation(SP& params)
+    void AltAnisoHydroEvolution::RunHydroSimulation(const char* file_path, SP& params)
     {
         // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
         double t0 = params.tau_0;
@@ -769,9 +772,10 @@ namespace hydro
 
         // Opening output files
         double m   = params.mass;       // Note that the mass in already in units fm^{-1}
-        std::fstream e_plot (fmt::format("output/aniso_hydro/e2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream bulk_plot(fmt::format("output/aniso_hydro/bulk2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
-        std::fstream shear_plot(fmt::format("output/aniso_hydro/shear2_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::filesystem::path file = file_path;
+        std::fstream e_plot (file / fmt::format("mvah_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream bulk_plot(file / fmt::format("mvah_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+        std::fstream shear_plot(file / fmt::format("mvah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
             Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");

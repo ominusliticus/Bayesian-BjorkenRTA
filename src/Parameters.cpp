@@ -65,7 +65,7 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
         return SimulationParameters("utils/params.txt");
 
     SimulationParameters params{};
-    for (int i = 0; i < cmdln_count; i += 2)
+    for (int i = 1; i < cmdln_count - 1; i += 2)
         params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i+1]));
 
     return params;
@@ -78,10 +78,10 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
     Print(out, "# Parameters for exact solution #");
     Print(out, "#################################");
     Print(out, "tau_0    ", params.tau_0);
+    Print(out, "tau_f    ", params.tau_f);
     Print(out, "Lambda_0 ", params.Lambda_0);
     Print(out, "xi_0     ", params.xi_0);
     Print(out, "alpha_0  ", params.alpha_0);
-    Print(out, "tau_f    ", params.tau_f);
     Print(out, "mass     ", params.mass);
     Print(out, "C        ", params.C);
     Print(out, "steps    ", params.steps);

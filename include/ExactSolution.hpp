@@ -109,12 +109,11 @@ namespace exact{
         double InvertEnergyDensity(double e, SP& params);
 
         // Evolve simulation and output results;
-        void Run(const char* file_name, SP& params);
+        void Run(SP& params);
 
         // output moments of solution
         void OutputMoments(const char* file_name, SP& params);
 
-        std::vector<double> D;
     };
 }
 
