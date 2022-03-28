@@ -525,10 +525,10 @@ namespace exact{
 
 
 
-    void ExactSolution::OutputMoments(const char* file_name, SP& params)
+    void ExactSolution::OutputMoments(const char* file_path, SP& params)
     {
-        std::filesystem::path file = file_name;
-        file = file / fmt::format("exact_m={:.3f}.dat", 0.197 * params.mass);
+        std::filesystem::path file = file_path;
+        file = file / fmt::format("exact_m={:.3f}GeV.dat", 0.197 * params.mass);
         Print(std::cout, "Calculating moments of distribution function.");
         std::fstream fout(file, std::fstream::out);
         if (!fout.is_open())

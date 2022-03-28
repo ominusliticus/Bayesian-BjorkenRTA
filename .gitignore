@@ -3,6 +3,7 @@ output/plots/*
 output/bayes
 Archive/
 scripts/plots/*
+swap
 
 *.dat
 *.out

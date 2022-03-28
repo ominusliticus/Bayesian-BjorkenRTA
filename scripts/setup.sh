@@ -41,6 +41,7 @@ mkdir design_points
 mkdir full_outputs
 mkdir hydro_simulation_points
 mkdir pickle_files
+mkdir swap
 
 cd ../
 echo "Directories created"

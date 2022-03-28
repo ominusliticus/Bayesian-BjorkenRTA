@@ -6,16 +6,17 @@
 #              one directory higher
 
 # For directory changing and running command line commands
-from os import chdir as cd
+from os import chdir as cd, getcwd
 from subprocess import run as cmd
+from subprocess import CalledProcessError
 
 # For data manipulation and generation
 import numpy as np
 
-# for storing and reading arrays easily
-import pickle
+from typing import List, Dict
 
-from types import List, Dict
+# for running hydro in parallel
+from multiprocessing import Manager, Process
 
 
 class HydroCodeAPI:
@@ -23,149 +24,203 @@ class HydroCodeAPI:
     Add description
     """
 
-    def __init__(self, default_params_dict: Dict) -> None:
+    def __init__(self, path_to_output: str) -> None:
         self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
-        self.params = default_params_dict
-
+        self.path_to_output = path_to_output
         # data slots for storing hydro runs
-        self.hydro_outputs_dict
 
-    def PrintParametersFile(self, params_dict: Dict) -> None:
+    def PrintCommandLineArgs(self,
+                             params_dict: Dict[str, float]) -> List[str]:
         '''
         Function ouputs file "params.txt" to the Code/util folder to
         be used by the Code/build/exact_solution.x program
         '''
-        cd('../')
-        with open('./utils/params.txt', 'w') as fout:
-            fout.write(f'tau_0 {params_dict["tau_0"]}\n')
-            fout.write(f'Lambda_0 {params_dict["Lambda_0"]}\n')
-            fout.write(f'alpha_0 {params_dict["alpha_0"]}\n')
-            fout.write(f'xi_0 {params_dict["xi_0"]}\n')
-            fout.write(f'ul {params_dict["tau_f"]}\n')
-            fout.write(f'll {params_dict["tau_0"]}\n')
-            fout.write(f'mass {params_dict["mass"]}\n')
-            fout.write(f'eta_s {params_dict["eta_s"]}\n')
-            fout.write(f'TYPE {params_dict["hydro_type"]}')
-        cd('scripts/')
-        return None
+        keys = list(params_dict.keys())
+        values = list(params_dict.values())
+        return_val = f'{keys[0]} {values[0]}'
+        for i in range(1, len(keys)):
+            if keys[i] == 'hydro_type':
+                continue
+            return_val += f' {keys[i]} {values[i]}'
+        return return_val.split()
 
-    def RunHydroSimulation(self) -> None:
+    def ExecuteHydroCode(self,
+                         params_dict: Dict[str, float],
+                         which_hydro: int) -> None:
         '''
         Function calls the C++ excecutable that run hydro calculations
         '''
         cd('../')
-        cmd(['./build/exact_solution.x'], shell=True)
+        cmd_list = ['./build/exact_solution.x',
+                    *self.PrintCommandLineArgs(params_dict),
+                    f'{which_hydro}',
+                    self.path_to_output]
+        try:
+            cmd(cmd_list).check_returncode()
+        except (CalledProcessError):
+            print("Execution off hydro code faile.\nExiting. . .\n")
         cd('scripts/')
         return None
 
-    def ProcessHydro(self, 
-                     parameter_names: List,
-                     simulation_points: List,
-                     store_whole_file: bool = False) -> np.ndarray:
+    def ConvertToPTandPL(self,
+                         p: np.ndarray,
+                         pi: np.ndarray,
+                         Pi: np.ndarray) -> np.ndarray:
+        pt = Pi + pi / 2 + p
+        pl = Pi - pi + p
+        return pt, pl
+
+    def GetFromOutputFiles(self,
+                           params_dict: Dict[str, float],
+                           use_PL_PT: bool) -> np.ndarray:
+        '''
+        Add description
+        '''
+        hydro_type = params_dict['hydro_type']
+        mass = 0.197 * params_dict['mass']  # in MeV
+
+        if hydro_type == 0:
+            prefix = '/ce_'
+        elif hydro_type == 1:
+            prefix = '/dnmr_'
+        elif hydro_type == 2:
+            prefix = '/vah_'
+        elif hydro_type == 3:
+            prefix = '/mvah_'
+
+        f_e = open(
+            self.path_to_output + prefix + 'e' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+        f_pi = open(
+            self.path_to_output + prefix + 'shear' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+        f_Pi = open(
+            self.path_to_output + prefix + 'bulk' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+
         out_list = []
-
-        def ConvertToPTandPL(p: np.ndarray,
-                             pi: np.ndarray,
-                             Pi: np.ndarray) -> np.ndarray:
-            pt = Pi + pi / 2 + p
-            pl = Pi - pi + p
-            return pt, pl
-
-        def GetFromOutputFiles(hydro_type: str) -> np.ndarray:
-            if hydro_type == 0:
-                prefix = '../output/CE_hydro/'
-                suffix = ''
-            elif hydro_type == 1:
-                prefix = '../output/DNMR_hydro/'
-                suffix = ''
-            elif hydro_type == 2:
-                prefix = '../output/aniso_hydro/'
-                suffix = ''
-            elif hydro_type == 3:
-                prefix = '../output/aniso_hydro/'
-                suffix = '2'
-
-            if store_whole_file:
-                f_e = open(
-                    prefix + 'e' + suffix + '_m=0.200GeV.dat', 'r').readlines()
-                f_pi = open(
-                    prefix + 'shear' + suffix + '_m=0.200GeV.dat', 'r'
-                    ).readlines()
-                f_Pi = open(
-                    prefix + 'bulk' + suffix + '_m=0.200GeV.dat', 'r'
-                    ).readlines()
-
-                out_list = []
-                for i in range(len(f_e)):
-                    tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
-                                        f_pi[i].split()[1], f_Pi[i].split()[1],\
-                                        f_e[i].split()[2]
-                    pt, pl = ConvertToPTandPL(float(p), float(pi), float(Pi))
-                    out_list.append([float(tau),
-                                     float(e),
-                                     float(pt),
-                                     float(pl),
-                                     float(p)])
-
-                return np.array(out_list)
+        for i in range(len(f_e)):
+            tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
+                                f_pi[i].split()[1], f_Pi[i].split()[1],\
+                                f_e[i].split()[2]
+            if use_PL_PT:
+                p1, p2 = self.ConvertToPTandPL(float(p), float(pi), float(Pi))
             else:
-                # TODO: update this to return PT and PL instead of pi and Pi
-                f_e = open(prefix + 'e' + suffix + '_m=0.200GeV.dat', 'r')
-                last_e = f_e.readlines()[-1]
-                tau, e = last_e.split()[0], last_e.split()[1]
-                f_e.close()
-                del last_e
+                p1, p2 = float(pi), float(Pi)
 
-                f_pi = open(prefix + 'shear' + suffix + '_m=0.200GeV.dat', 'r')
-                last_pi = f_pi.readlines()[-1]
-                pi = last_pi.split()[1]
-                f_pi.close()
-                del last_pi
-
-                f_Pi = open(prefix + 'bulk' + suffix + '_m=0.200GeV.dat', 'r')
-                last_Pi = f_Pi.readlines()[-1]
-                Pi = last_Pi.split()[1]
-                f_Pi.close()
-                del last_Pi
-
-                temp_list = [float(tau), float(e), float(pi), float(Pi)]
-                return np.array(temp_list)
-
-        def GetExactResults() -> np.ndarray:
-            with open(
-                    '../output/exact/MCMC_calculation_moments.dat', 'r'
-                    ) as f_exact:
-                if store_whole_file:
-                    output = np.array([[
-                                        float(entry)
-                                        for entry in line.split()]
-                                       for line in f_exact.readlines()])
-                    return output
-                else:
-                    return np.array([float(entry) 
-                                     for entry in 
-                                     f_exact.readlines()[-1].split()])
-
-        if len(simulation_points) > len(parameter_names):
-            for parameters in simulation_points:
-                for i, name in enumerate(parameter_names):
-                    self.params[name] = parameters[i]
-                self.PrintParametersFile(self.params)
-                self.RunHydroSimulation()
-                if self.params['hydro_type'] == 4:
-                    return np.array(GetExactResults())
-                else:
-                    out_list.append(
-                        GetFromOutputFiles(self.params['hydro_type']))
-
-        else:
-            for i, name in enumerate(parameter_names):
-                self.params[name] = simulation_points[i]
-            self.PrintParametersFile(self.params)
-            self.RunHydroSimulation()
-            if self.params['hydro_type'] == 4:
-                return np.array(GetExactResults())
-            else:
-                return np.array(GetFromOutputFiles(self.params['hydro_type']))
+            out_list.append([float(tau),
+                             float(e),
+                             float(p1),
+                             float(p2),
+                             float(p)])
 
         return np.array(out_list)
+
+    def GetExactResults(self,
+                        params_dict: Dict[str, float]) -> np.ndarray:
+        '''
+        Add description
+        '''
+        with open(
+                self.path_to_output
+                + f'/exact_m={0.197 * params_dict["mass"]:.3f}GeV.dat',
+                'r'
+                ) as f_exact:
+            output = np.array([[
+                                float(entry)
+                                for entry in line.split()]
+                               for line in f_exact.readlines()])
+            return output
+
+    def ProcessHydro(self,
+                     params_dict: Dict[str, float],
+                     parameter_names: List[str],
+                     design_point: np.ndarray,
+                     use_PL_PT: bool = True) -> np.ndarray:
+        '''
+        Add description
+        '''
+        for i, name in enumerate(parameter_names):
+            params_dict[name] = design_point[i]
+        self.ExecuteHydroCode(params_dict, params_dict['hydro_type'])
+        if params_dict['hydro_type'] == 4:
+            return np.array(self.GetExactResults(params_dict))
+        else:
+            return np.array(self.GetFromOutputFiles(params_dict,
+                                                    use_PL_PT))
+
+    def RunHydro(self,
+                 params_dict: Dict[str, float],
+                 parameter_names: List[str],
+                 design_points: np.ndarray,
+                 simulation_taus: np.ndarray,
+                 use_PL_PT: bool = True) -> None:
+        # TODO: Enable using PL, PT, Pi and pi from same trainging set
+        '''
+        Add description
+        '''
+
+        # Multi-processing to run different hydros in sequence
+        manager = Manager()
+        hydro_output = manager.dict()
+        for name in self.hydro_names:
+            hydro_output[name] = None
+
+        def for_multiprocessing(params_dict: Dict[str, float],
+                                parameter_names: List[str],
+                                design_points: np.ndarray,
+                                output_dict: Dict[str, np.ndarray],
+                                key: str,
+                                itr: int):
+            if 'tau_0' in parameter_names:
+                j = parameter_names.index('tau_0')
+                observ_indices = np.array(
+                    [[(tau_f / design_point[j] - 1.0) / 20.0
+                      for tau_f in simulation_taus]
+                     for design_point in design_points])
+            else:
+                tau_0 = params_dict['tau_0']
+                observ_indices = np.array(
+                    [[(tau_f / tau_0 - 1.0) / 20.0
+                      for tau_f in simulation_taus]
+                     for design_point in design_points])
+
+            params_dict['hydro_type'] = itr
+            output = np.array(
+                [[self.ProcessHydro(
+                        params_dict,
+                        parameter_names,
+                        design_point,
+                        use_PL_PT)[int(j)-1]
+                  for j in observ_indices[i]]
+                 for i, design_point in enumerate(design_points)])
+            output_dict[key] = output
+
+        jobs = [Process(target=for_multiprocessing,
+                        args=(params_dict,
+                              parameter_names,
+                              design_points,
+                              hydro_output,
+                              key,
+                              i)) for i, key in enumerate(self.hydro_names)]
+
+        _ = [proc.start() for proc in jobs]
+        _ = [proc.join() for proc in jobs]
+
+        for k, name in enumerate(self.hydro_names):
+            for j, tau in enumerate(simulation_taus):
+                with open(
+                        ('hydro_simulation_points/{}_simulation_points_n='
+                         + '{}_tau={}.dat').
+                        format(name,
+                               len(parameter_names),
+                               tau),
+                        'w') as f_hydro_simulation_taus:
+                    for line in np.array(
+                            hydro_output[name])[:, j, :]:
+                        for entry in line:
+                            f_hydro_simulation_taus.write(f'{entry} ')
+                        f_hydro_simulation_taus.write('\n')

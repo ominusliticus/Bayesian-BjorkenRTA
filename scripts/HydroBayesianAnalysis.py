@@ -1,43 +1,45 @@
 #
 # Author: Kevin Ingles
 # File: HydroBayesianAnalysis.py
-# Description: This file defines the Bayesian inference routines used for 
+# Description: This file defines the Bayesian inference routines used for
 #              parameter estimation and model comparison
 
 # For changing directories to C++ programming and runnning files
-from typing import Dict, List
+from typing import Dict, List  # Dict and List args need to be added for all
 
 # Typical functionality for data manipulation and generation of latin hypercube
 import numpy as np
 import ptemcee
 
+# For plotting posteriors
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
-# For calculations
+# For calculation
 from scipy.linalg import lapack
 
 # data storage
 import pickle
 
-# TODO: 1. Separate Bayesian inference portion of code to separate step
-#       2. Create function that inverts energy density, shear and bulk
+# TODO: 1. Create function that inverts energy density, shear and bulk
 #          pressure to give energy density, transverse and longitudinal
 #          pressure
-#       3. Separate file I/O from class and make separate routines
-#       5. Reduce cyclomatic complexity
-
+#       2. Separate file I/O from class and make separate routines
+#       3. Add automated plotting routines for posteriors and MCMC chains
+#       3. Updated ALL function descriptions to match current functions
 
 class HydroBayesianAnalysis(object):
     """
     Add description
     """
+
     def __init__(
             self,
             default_params: Dict,
             parameter_names: List,
             parameter_ranges: np.ndarray,
             simulation_taus: np.ndarray,
-            run_new_hydro: bool,
-            train_GP: bool
             ) -> None:
         print("Initializing Bayesian Analysis class")
         self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
@@ -46,12 +48,9 @@ class HydroBayesianAnalysis(object):
         self.num_params = len(parameter_names)
         self.parameter_ranges = parameter_ranges
         self.simulation_taus = simulation_taus
-        self.train_GP = train_GP
-        self.run_new_hydro = run_new_hydro
 
         self.MCMC_chains = {}   # Dict[str, np.ndarray]
         self.evidence = {}      # Dict[str, float]
-
 
     def LogPrior(self,
                  evaluation_point: np.ndarray,
@@ -80,8 +79,7 @@ class HydroBayesianAnalysis(object):
                       true_observables: np.ndarray,
                       true_errors: np.ndarray,
                       hydro_name: str,
-                      GP_emulator: Dict,
-                      scalers: Dict = {}) -> np.ndarray:
+                      GP_emulator: Dict) -> np.ndarray:
         '''
         Parameters:
         ------------
@@ -98,8 +96,7 @@ class HydroBayesianAnalysis(object):
         def PredictObservable(evaluation_points: np.ndarray,
                               hydro_name: str,
                               tau_index: int,
-                              GP_emulator: Dict,
-                              scalers: Dict = {}) -> np.ndarray:
+                              GP_emulator: Dict) -> np.ndarray:
             """
             Add description
             """
@@ -122,7 +119,7 @@ class HydroBayesianAnalysis(object):
             emulation_values, emulation_variance = \
              PredictObservable(evaluation_point,
                                hydro_name,
-                               k, GP_emulator, scalers)
+                               k, GP_emulator)
 
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
@@ -155,6 +152,7 @@ class HydroBayesianAnalysis(object):
                 ntemps: int,
                 exact_observables: np.ndarray,
                 exact_error: np.ndarray,
+                GP_emulators: Dict,
                 read_from_file: bool = False) -> Dict:
         """
         Parameters:
@@ -187,7 +185,7 @@ class HydroBayesianAnalysis(object):
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
                      np.random.rand(nwalkers, self.num_params) *
-                     np.diff(self.parameter_ranges)
+                     np.diff(self.parameter_ranges).reshape(-1,)
                      for _ in range(ntemps)])
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
                                           dim=self.num_params,
@@ -198,8 +196,7 @@ class HydroBayesianAnalysis(object):
                                           loglargs=[exact_observables[:, 1:4],
                                                     exact_error,
                                                     name,
-                                                    self.GP_emulators,
-                                                    self.scalers],
+                                                    GP_emulators],
                                           logpargs=[self.parameter_ranges])
 
                 print('burn in sampling started')
@@ -242,3 +239,32 @@ class HydroBayesianAnalysis(object):
         The Bayes factor, or ratio of evidences, for hydro1 to hydro2
         """
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
+
+    def PlotPosteriors(self, axis_names: List[str]):
+        dfs = pd.DataFrame(columns=[*self.parameter_names, 'hydro'])
+        # pallette = sns.color_palette('Colorblind')
+        for i, name in enumerate(self.hydro_names):
+            data = self.MCMC_chains[name][0].reshape(-1,
+                                                     len(self.
+                                                         parameter_names))
+            df = pd.DataFrame(dict((name, data[:, i])
+                              for i, name in enumerate(axis_names)))
+            g = sns.pairplot(data=df,
+                             corner=True,
+                             diag_kind='kde',
+                             kind='hist')
+            g.map_lower(sns.kdeplot, levels=4, color='black')
+            g.tight_layout()
+            g.savefig(f'plots/{name}_corner_plot.pdf')
+
+            df['hydro'] = name
+            dfs = pd.concat([dfs, df], ignore_index=True)
+
+        g = sns.pairplot(data=dfs,
+                         corner=True,
+                         diag_kind='kde',
+                         kind='hist',
+                         hue='hydro')
+        g.map_lower(sns.kdeplot, levels=4, color='black')
+        g.tight_layout()
+        g.savefig('plots/all_corner_plot.pdf')
