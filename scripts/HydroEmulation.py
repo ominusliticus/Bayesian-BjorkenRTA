@@ -35,7 +35,7 @@ class HydroEmulator:
                  simulation_taus: np.ndarray,
                  hydro_names: List[str],
                  use_existing_emulators: bool,
-                 use_PL_PT: bool):
+                 use_PT_PL: bool):
         '''
         Add description
         '''
@@ -62,7 +62,7 @@ class HydroEmulator:
             print("Running hydro")
             # Run hydro code and generate scalers and GP pickle files
             unit = lhs(n=len(parameter_names),
-                       samples=2 * len(parameter_names),
+                       samples=20 * len(parameter_names),
                        criterion='maximin')
             self.design_points = parameter_ranges[:, 0] + unit * \
                 (parameter_ranges[:, 1] - parameter_ranges[:, 0])
@@ -72,7 +72,7 @@ class HydroEmulator:
                          parameter_names=parameter_names,
                          design_points=design_points,
                          simulation_taus=simulation_taus,
-                         use_PL_PT=use_PL_PT)
+                         use_PT_PL=use_PT_PL)
 
             hydro_simulations = dict((key, []) for key in hydro_names)
             for k, name in enumerate(hydro_names):

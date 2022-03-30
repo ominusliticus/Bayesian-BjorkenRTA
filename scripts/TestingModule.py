@@ -119,7 +119,7 @@ default_params =  {
     'tau_0':        0.1,
     'Lambda_0':     0.2 / 0.197,
     'xi_0':         -0.90, 
-    'alpha_0':      2 * pow(10, -3),
+    'alpha_0':      0.655, #2 * pow(10, -3),
     'tau_f':        12.1,
     'mass':         1.015228426,
     'C':            5 / (4 * np.pi),
@@ -128,20 +128,21 @@ default_params =  {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_use_existing_emulators = True
-    b_read_mcmc = True
-    b_use_PL_PT = True
+    b_use_existing_emulators = False
+    b_read_mcmc = False
+    b_use_PT_PL = True
 
     print("Inside main function")
 
-    GP_parameter_names = ['C', 'tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
-    parameter_names_math = [r'$\mathcal C$', r'$\tau_0$',
-                            r'$\Lambda_0$', r'$\alpha_0$', r'$\xi_0$']
-    GP_parameter_ranges = np.array(
-        [[1 / (4 * np.pi), 10 / (4 * np.pi)],
-         [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
-    # GP_parameter_names = ['C']
-    # GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
+    # GP_parameter_names = ['C', 'tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
+    # parameter_names_math = [r'$\mathcal C$', r'$\tau_0$',
+    #                         r'$\Lambda_0$', r'$\alpha_0$', r'$\xi_0$']
+    # GP_parameter_ranges = np.array(
+    #     [[1 / (4 * np.pi), 10 / (4 * np.pi)],
+    #      [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
+    GP_parameter_names = ['C']
+    parameter_names_math = [r'$\mathcal C$']
+    GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.array([5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1])
     ba_class = HBA(
         default_params=default_params,
@@ -153,8 +154,8 @@ if __name__ == '__main__':
     local_params = default_params
 
     exact_out = []
-    true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 2 * pow(10, -3), -0.90]
-    # true_params = [5 / (4 * np.pi)]
+    # true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 2 * pow(10, -3), -0.90]
+    true_params = [5 / (4 * np.pi)]
     code_api = HCA(str(Path('./swap').absolute()))
 
     # Generate experimental data
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     output = code_api.ProcessHydro(params_dict=local_params,
                                    parameter_names=GP_parameter_names,
                                    design_point=true_params,
-                                   use_PL_PT=b_use_PL_PT)
+                                   use_PT_PL=b_use_PT_PL)
     tau_start = 0.1
     delta_tau = tau_start / 20
     observ_indices = (simulation_taus
@@ -198,10 +199,10 @@ if __name__ == '__main__':
                         simulation_taus=simulation_taus,
                         hydro_names=code_api.hydro_names,
                         use_existing_emulators=b_use_existing_emulators,
-                        use_PL_PT=b_use_PL_PT)
+                        use_PT_PL=b_use_PT_PL)
 
-    ba_class.RunMCMC(nsteps=20,
-                     nburn=5,
+    ba_class.RunMCMC(nsteps=200,
+                     nburn=50,
                      ntemps=10,
                      exact_observables=exact_pseudo,
                      exact_error=pseudo_error,

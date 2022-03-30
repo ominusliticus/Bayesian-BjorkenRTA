@@ -144,13 +144,13 @@ def DebugGPEmulator_1param():
     
     simulation_taus = np.array([5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1])
     observation_indices = np.array((simulation_taus - np.full_like(simulation_taus, 0.1)) / (0.1 / 20), dtype=int)
-    hydro_simulations = dict((key,[]) for key in hydro_names)
+    simulation_points = dict((key,[]) for key in hydro_names)
     for name in hydro_names:
-        for design_point in design_points:
-            with open(f'../full_outputs/{name}_full_output_C={design_point}.dat','r') as f:
+        for tau in simulation_taus:
+            with open(f'../hydro_simulation_points/{name}_simulation_points_n=1_tau={tau}.dat','r') as f:
                 temp = np.array([[float(entry) for entry in line.split()] for line in f.readlines()])
-            hydro_simulations[name].append(temp)
-        hydro_simulations[name] = np.array(hydro_simulations[name])
+            simulation_points[name].append(temp)
+        simulation_points[name] = np.array(simulation_points[name])
     
 
     # After the first run, you should update files to reflect param count
@@ -165,7 +165,7 @@ def DebugGPEmulator_1param():
     x_vals = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), 1000)
     for i, name in enumerate(hydro_names):
         print(name)
-        data = hydro_simulations[name]
+        data = simulation_points[name]
         for j in range(3):
             for k, tau in enumerate(simulation_taus):
                 if k == 0:

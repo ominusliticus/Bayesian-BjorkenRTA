@@ -18,6 +18,8 @@ from typing import List, Dict
 # for running hydro in parallel
 from multiprocessing import Manager, Process
 
+# TODO: Make GerExactSolution take the `use_PT_PL` keyword to hide thus
+#       complexity
 
 class HydroCodeAPI:
     """
@@ -72,7 +74,7 @@ class HydroCodeAPI:
 
     def GetFromOutputFiles(self,
                            params_dict: Dict[str, float],
-                           use_PL_PT: bool) -> np.ndarray:
+                           use_PT_PL: bool) -> np.ndarray:
         '''
         Add description
         '''
@@ -106,7 +108,7 @@ class HydroCodeAPI:
             tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
                                 f_pi[i].split()[1], f_Pi[i].split()[1],\
                                 f_e[i].split()[2]
-            if use_PL_PT:
+            if use_PT_PL:
                 p1, p2 = self.ConvertToPTandPL(float(p), float(pi), float(Pi))
             else:
                 p1, p2 = float(pi), float(Pi)
@@ -139,7 +141,7 @@ class HydroCodeAPI:
                      params_dict: Dict[str, float],
                      parameter_names: List[str],
                      design_point: np.ndarray,
-                     use_PL_PT: bool = True) -> np.ndarray:
+                     use_PT_PL: bool = True) -> np.ndarray:
         '''
         Add description
         '''
@@ -150,14 +152,14 @@ class HydroCodeAPI:
             return np.array(self.GetExactResults(params_dict))
         else:
             return np.array(self.GetFromOutputFiles(params_dict,
-                                                    use_PL_PT))
+                                                    use_PT_PL))
 
     def RunHydro(self,
                  params_dict: Dict[str, float],
                  parameter_names: List[str],
                  design_points: np.ndarray,
                  simulation_taus: np.ndarray,
-                 use_PL_PT: bool = True) -> None:
+                 use_PT_PL: bool = True) -> None:
         # TODO: Enable using PL, PT, Pi and pi from same trainging set
         '''
         Add description
@@ -194,7 +196,7 @@ class HydroCodeAPI:
                         params_dict,
                         parameter_names,
                         design_point,
-                        use_PL_PT)[int(j)-1]
+                        use_PT_PL)[int(j)-1]
                   for j in observ_indices[i]]
                  for i, design_point in enumerate(design_points)])
             output_dict[key] = output
@@ -210,7 +212,14 @@ class HydroCodeAPI:
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
 
+
         for k, name in enumerate(self.hydro_names):
+            # set up observation times
+            start_times = hydro_output[name][:, 0, 0]
+            time_step_sizes = start_times / 20
+            observe_indices = np.array(
+                [(tau - start_times) / time_step_sizes
+                 for tau in simulation_taus])
             for j, tau in enumerate(simulation_taus):
                 with open(
                         ('hydro_simulation_points/{}_simulation_points_n='
@@ -219,8 +228,8 @@ class HydroCodeAPI:
                                len(parameter_names),
                                tau),
                         'w') as f_hydro_simulation_taus:
-                    for line in np.array(
-                            hydro_output[name])[:, j, :]:
+                    for i in np.arange(hydro_output[name].shape[0]):
+                        line = hydro_output[name][i, observe_indices[j, i], :]
                         for entry in line:
                             f_hydro_simulation_taus.write(f'{entry} ')
                         f_hydro_simulation_taus.write('\n')
