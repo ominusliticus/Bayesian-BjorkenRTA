@@ -180,13 +180,13 @@ class HydroCodeAPI:
             if 'tau_0' in parameter_names:
                 j = parameter_names.index('tau_0')
                 observ_indices = np.array(
-                    [[(tau_f / design_point[j] - 1.0) / 20.0
+                    [[(tau_f / design_point[j] - 1.0) * 20.0
                       for tau_f in simulation_taus]
                      for design_point in design_points])
             else:
                 tau_0 = params_dict['tau_0']
                 observ_indices = np.array(
-                    [[(tau_f / tau_0 - 1.0) / 20.0
+                    [[(tau_f / tau_0 - 1.0) * 20.0
                       for tau_f in simulation_taus]
                      for design_point in design_points])
 
@@ -214,12 +214,6 @@ class HydroCodeAPI:
 
 
         for k, name in enumerate(self.hydro_names):
-            # set up observation times
-            start_times = hydro_output[name][:, 0, 0]
-            time_step_sizes = start_times / 20
-            observe_indices = np.array(
-                [(tau - start_times) / time_step_sizes
-                 for tau in simulation_taus])
             for j, tau in enumerate(simulation_taus):
                 with open(
                         ('hydro_simulation_points/{}_simulation_points_n='
@@ -228,8 +222,7 @@ class HydroCodeAPI:
                                len(parameter_names),
                                tau),
                         'w') as f_hydro_simulation_taus:
-                    for i in np.arange(hydro_output[name].shape[0]):
-                        line = hydro_output[name][i, observe_indices[j, i], :]
+                    for line in hydro_output[name][:, j, :]:
                         for entry in line:
                             f_hydro_simulation_taus.write(f'{entry} ')
                         f_hydro_simulation_taus.write('\n')
