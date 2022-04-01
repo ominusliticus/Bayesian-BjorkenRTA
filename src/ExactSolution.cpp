@@ -9,8 +9,23 @@
 #include <fstream>
 #include <filesystem>
 
+#if __APPLE__
+namespace std 
+{
+    static double cyl_bessel_k(int n, double x)
+    {
+        return GausQuad([n, x](double t) -> double
+        {
+            double val = std::exp(-x * std::cosh(t));
+            return val > 0 ? val * std::cosh(static_cast<double>(n) * t) 
+                           : 0;
+        }, 0, inf, 1e-8, 8);
+    }
+}
+#endif
 
-// Note: that the integration functions are written like this to make sure the 
+
+// Note: that the integration functions are written to capture `this` to make sure the 
 // integration routine GausQuad is aware of th calss instance and can see that functions
 
 namespace exact{

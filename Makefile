@@ -2,13 +2,9 @@
 
 SRC = ./src/
 TST = ./test/
-INC = ./include/
+INC = ./include
 OBJ = ./build/
 THIRD_PARTY = ./3rd_party/
-
-# Armadillo instructions
-ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
-ARMA_LIB = -lopenblas -llapack
 
 FILES := $(shell find $(SRC) -name '*.cpp') $(SRC)fmt/format.cc
 OBJ_FILES := $(patsubst $(SRC)%.cpp,$(OBJ)%.o,$(FILES))
@@ -19,11 +15,29 @@ TST_MOMENTS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_MOMENTS))
 TST_HYDROS := $(TST)test_run_all_hydros.cpp $(filter-out $(SRC)main.cpp, $(wildcard $(SRC)*.cpp)) $(SRC)fmt/format.cc
 TST_HYDROS_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_HYDROS))
 
-CC = g++-11 -std=c++17 -Wall#-g3 -fsanitize=address
-OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
-LIBS = -lpthread $(ARMA_LIB)
-INCLUDE = -I /usr/local/include -I $(ARMA_INC) -I $(INC)
+UNAME_S := $(shell uname -s)
+$(info $$UNAME_S is [$(UNAME_S)])
+ifeq ($(UNAME_S),Linux)
+	CC = g++-11 -std=c++17 -Wall #-g3 -fsanitize=address
+	OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 
+	# Armadillo instructions
+	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
+	ARMA_LIB = -lopenblas -llapack
+	
+	LIBS = -lpthread $(ARMA_LIB)
+	INCLUDE = -I /usr/local/include -I $(ARMA_INC) -I $(INC)
+endif
+ifeq ($(UNAME_S),Darwin)
+	CC = clang++ -std=c++20 -Wall
+	OPT = -O3 -funroll-loops -finline-functions # -fopenmp
+
+	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
+	ARMA_LIB = /usr/local/Cellar/openblas/0.3.20/lib/libopenblas.a
+
+	LIBS = -lpthread $(ARMA_LIB) /usr/local/Cellar/libomp/14.0.0/lib/libomp.a
+	INCLUDE = -I /usr/local/include -I /usr/local/Cellar/libomp/14.0.0/include -I $(ARMA_INC) -I $(INC)
+endif
 CFLAGS = $(OPT)
 
 EXE = ./build/exact_solution.x

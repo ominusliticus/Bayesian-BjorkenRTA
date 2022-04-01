@@ -2,12 +2,28 @@
 // Author: Kevin Ingles
 
 #include "../include/HydroTheories.hpp"
+#include "../include/Integration.hpp"
 
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <cassert>
 #include <filesystem>
+
+#if __APPLE__
+namespace std 
+{
+    static double cyl_bessel_k(int n, double x)
+    {
+        return GausQuad([n, x](double t) -> double
+        {
+            double val = std::exp(-x * std::cosh(t));
+            return val > 0 ? val * std::cosh(static_cast<double>(n) * t) 
+                           : 0;
+        }, 0, inf, 1e-8, 8);
+    }
+}
+#endif
 
 // TODO: Make easily parallelizable for python
 
