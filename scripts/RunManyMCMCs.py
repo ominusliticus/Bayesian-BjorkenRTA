@@ -97,4 +97,4 @@ if __name__ == "__main__":
 
     RunManyMCMCRuns(output_dir='./pickle_files',
                     local_params=local_params,
-                    n=3)
+                    n=2)

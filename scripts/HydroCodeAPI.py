@@ -154,6 +154,37 @@ class HydroCodeAPI:
             return np.array(self.GetFromOutputFiles(params_dict,
                                                     use_PT_PL))
 
+    def for_multiprocessing(self,
+                            params_dict: Dict[str, float],
+                            parameter_names: List[str],
+                            design_points: np.ndarray,
+                            output_dict: Dict[str, np.ndarray],
+                            key: str,
+                            itr: int):
+        if 'tau_0' in parameter_names:
+            j = parameter_names.index('tau_0')
+            observ_indices = np.array(
+                [[(tau_f / design_point[j] - 1.0) * 20.0
+                    for tau_f in simulation_taus]
+                    for design_point in design_points])
+        else:
+            tau_0 = params_dict['tau_0']
+            observ_indices = np.array(
+                [[(tau_f / tau_0 - 1.0) * 20.0
+                    for tau_f in simulation_taus]
+                    for design_point in design_points])
+
+        params_dict['hydro_type'] = itr
+        output = np.array(
+            [[self.ProcessHydro(
+                    params_dict,
+                    parameter_names,
+                    design_point,
+                    use_PT_PL)[int(j)-1]
+                for j in observ_indices[i]]
+                for i, design_point in enumerate(design_points)])
+        output_dict[key] = output
+
     def RunHydro(self,
                  params_dict: Dict[str, float],
                  parameter_names: List[str],
@@ -171,37 +202,7 @@ class HydroCodeAPI:
         for name in self.hydro_names:
             hydro_output[name] = None
 
-        def for_multiprocessing(params_dict: Dict[str, float],
-                                parameter_names: List[str],
-                                design_points: np.ndarray,
-                                output_dict: Dict[str, np.ndarray],
-                                key: str,
-                                itr: int):
-            if 'tau_0' in parameter_names:
-                j = parameter_names.index('tau_0')
-                observ_indices = np.array(
-                    [[(tau_f / design_point[j] - 1.0) * 20.0
-                      for tau_f in simulation_taus]
-                     for design_point in design_points])
-            else:
-                tau_0 = params_dict['tau_0']
-                observ_indices = np.array(
-                    [[(tau_f / tau_0 - 1.0) * 20.0
-                      for tau_f in simulation_taus]
-                     for design_point in design_points])
-
-            params_dict['hydro_type'] = itr
-            output = np.array(
-                [[self.ProcessHydro(
-                        params_dict,
-                        parameter_names,
-                        design_point,
-                        use_PT_PL)[int(j)-1]
-                  for j in observ_indices[i]]
-                 for i, design_point in enumerate(design_points)])
-            output_dict[key] = output
-
-        jobs = [Process(target=for_multiprocessing,
+        jobs = [Process(target=self.for_multiprocessing,
                         args=(params_dict,
                               parameter_names,
                               design_points,
