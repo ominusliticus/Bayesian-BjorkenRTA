@@ -22,6 +22,7 @@ __pycache__/
 .ipynb_checkpoints/
 psuedocode.txt
 .nvimlog
+.DS_Store
 
 Debug_Plots.ipynb
 useful_for_calculations.ipynb

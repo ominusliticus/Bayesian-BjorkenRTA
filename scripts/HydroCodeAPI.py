@@ -158,6 +158,8 @@ class HydroCodeAPI:
                             params_dict: Dict[str, float],
                             parameter_names: List[str],
                             design_points: np.ndarray,
+                            simulation_taus: np.ndarray,
+                            use_PT_PL: bool,
                             output_dict: Dict[str, np.ndarray],
                             key: str,
                             itr: int):
@@ -206,6 +208,8 @@ class HydroCodeAPI:
                         args=(params_dict,
                               parameter_names,
                               design_points,
+                              simulation_taus,
+                              use_PT_PL,
                               hydro_output,
                               key,
                               i)) for i, key in enumerate(self.hydro_names)]
