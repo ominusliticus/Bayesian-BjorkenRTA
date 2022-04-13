@@ -241,6 +241,7 @@ class HydroBayesianAnalysis(object):
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
     def PlotPosteriors(self, axis_names: List[str]):
+        # TODO: Add true and MAP values to plot
         dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
         # pallette = sns.color_palette('Colorblind')
         for i, name in enumerate(self.hydro_names):
@@ -250,12 +251,12 @@ class HydroBayesianAnalysis(object):
             df = pd.DataFrame(dict((name, data[:, i])
                               for i, name in enumerate(axis_names)))
             g1 = sns.pairplot(data=df,
-                             corner=True,
-                             diag_kind='kde',
-                             kind='hist')
+                              corner=True,
+                              diag_kind='kde',
+                              kind='hist')
             g1.map_lower(sns.kdeplot, levels=4, color='black')
             g1.tight_layout()
-            g1.savefig(f'plots/{name}_corner_plot.pdf')
+            g1.savefig(f'plots/{name}_corner_plot_n={self.num_params}.pdf')
 
             df['hydro'] = name
             dfs = pd.concat([dfs, df], ignore_index=True)
@@ -267,4 +268,4 @@ class HydroBayesianAnalysis(object):
                          hue='hydro')
         g.map_lower(sns.kdeplot, levels=4, color='black')
         g.tight_layout()
-        g.savefig('plots/all_corner_plot.pdf')
+        g.savefig(f'plots/all_corner_plot_n={self.num_params}.pdf')

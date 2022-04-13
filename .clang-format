@@ -1,0 +1,136 @@
+BasedOnStyle: GNU
+IndentWidth: 4
+
+Language: Cpp
+
+AccessModifiesOffset: 0     
+
+AlignAfterOpenBracket: Right
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: Align
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnSingleLine: false
+AllowShortEnumsOnSingleLine: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLambdasOnASingleLine: Empty
+
+AlwaysBreakBeforeMultilineStrings: false
+AlwaysBreakTemplateDeclarations: Yes
+
+BinPackArguments: false
+BinPackParameters: false
+
+BitFieldColonSpacing: Both
+
+BraceWrapping:
+    AfterCaseLabel: true
+    AfterClass: true
+    AfterControlStatement: true
+    AfterEnum: false
+    AfterFunction: true
+    AfterNamespace: false
+    AfterObjectDeclaration: true
+    AfterUnion: true
+    AfterExternBlock: false
+    BeforeCatch: false
+    BeforeElse: true
+    BeforeLambdaBody: true
+    BeforeWhile: false
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
+
+BreakBeforeBraces: Costum
+BreakBeforeConceptDeclarations: Always
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializer: BeforeColon
+BreakInheritanceList: AfterComma
+BreakStringLiterals: true
+
+ColumnLimit: 120
+ContinuationIndentWidth: 4
+
+DerivePointerAlignment: true
+
+EmptyLineAfterAccessModifier: Always
+EmptyLineBeforeAccessModifies: LogicalBlock
+
+FixNamespaceComments: true
+
+IncludeBlocks: Preserve
+
+IndentAccessModifiers: false
+IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentPPDirectives: AfterHash
+IndentRequiresClause: false
+
+InsertBraces: false
+InsertTrailingCommas: true
+
+LambdaBodyIndentation: Signature
+
+MaxEmptyLinesToKeep: 1
+
+NamespaceIndentation: All
+
+PPIndentWidth: 2
+
+PackConstructorInitializers: Always
+
+PointerAlignment: Left
+
+QualifierOrder: ['inline', 'static', 'const', 'constexpr', 'type', 'volatile', 'restrict']
+
+RawStringFormats:
+    - Language: Cpp
+        Delimiters:
+            - 'cc'
+            - 'cpp'
+            - 'hpp'
+
+ReferenceAlignment: Left
+
+ReflowComments: true
+
+RequiresClausePosition: OwnLine
+
+SeparateDefinitionBlocks: Always
+
+SortIncludes: CaseInsensitive
+SortUsingDeclarations: true
+
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpaceInEmptyParantheses: false
+
+SpacesBeforeTrailingComments: 4
+SpacesInAngles: Never
+SpacesInCondtionalStatement: false
+SpacesInContainerLiterals: true
+SpacesInLineCommentPrefix:
+    Minimum: 1
+    Maximum: -1
+SpacesInParantheses: false
+SpacesInSquareBrackets: false
+
+TabWidth: 4
+
+UseCRLF: false
+UseTab: Always

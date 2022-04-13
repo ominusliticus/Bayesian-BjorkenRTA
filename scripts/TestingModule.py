@@ -117,11 +117,11 @@ def PlotAnalyticPosteriors(Cs,
 
 default_params =  {
     'tau_0':        0.1,
-    'Lambda_0':     0.2 / 0.197,
+    'Lambda_0':     0.5 / 0.197,
     'xi_0':         -0.90, 
     'alpha_0':      0.655, #2 * pow(10, -3),
     'tau_f':        12.1,
-    'mass':         1.015228426,
+    'mass':         0.2 / 0.197,
     'C':            5 / (4 * np.pi),
     'hydro_type':   0
 }
@@ -134,15 +134,15 @@ if __name__ == '__main__':
 
     print("Inside main function")
 
-    # GP_parameter_names = ['C', 'tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
-    # parameter_names_math = [r'$\mathcal C$', r'$\tau_0$',
-    #                         r'$\Lambda_0$', r'$\alpha_0$', r'$\xi_0$']
-    # GP_parameter_ranges = np.array(
-    #     [[1 / (4 * np.pi), 10 / (4 * np.pi)],
-    #      [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
-    GP_parameter_names = ['C']
-    parameter_names_math = [r'$\mathcal C$']
-    GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
+    GP_parameter_names = ['C', 'tau_0', 'Lambda_0', 'alpha_0', 'xi_0']
+    parameter_names_math = [r'$\mathcal C$', r'$\tau_0$',
+                            r'$\Lambda_0$', r'$\alpha_0$', r'$\xi_0$']
+    GP_parameter_ranges = np.array(
+        [[1 / (4 * np.pi), 10 / (4 * np.pi)],
+         [0.05, 0.15], [1.0, 5.0], [0.0, 1.0], [-1.0, 1.0]])
+    # GP_parameter_names = ['C']
+    # parameter_names_math = [r'$\mathcal C$']
+    # GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.array([5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1, 12.1])
     ba_class = HBA(
         default_params=default_params,
@@ -154,8 +154,8 @@ if __name__ == '__main__':
     local_params = default_params
 
     exact_out = []
-    # true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 2 * pow(10, -3), -0.90]
-    true_params = [5 / (4 * np.pi)]
+    true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 0.655, -0.90]
+    # true_params = [5 / (4 * np.pi)]
     code_api = HCA(str(Path('./swap').absolute()))
 
     # Generate experimental data
