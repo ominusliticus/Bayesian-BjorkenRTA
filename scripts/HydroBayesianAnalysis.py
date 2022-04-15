@@ -12,7 +12,6 @@ import numpy as np
 import ptemcee
 
 # For plotting posteriors
-import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
@@ -28,6 +27,7 @@ import pickle
 #       2. Separate file I/O from class and make separate routines
 #       3. Add automated plotting routines for posteriors and MCMC chains
 #       3. Updated ALL function descriptions to match current functions
+
 
 class HydroBayesianAnalysis(object):
     """
