@@ -3,24 +3,27 @@ IndentWidth: 4
 
 Language: Cpp
 
-AccessModifiesOffset: 0     
+AccessModifierOffset: 0     
 
-AlignAfterOpenBracket: Right
-AlignConsecutiveAssignments: Consecutive
-AlignConsecutiveBitFields: Consecutive
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: true
+AlignConsecutiveBitFields: true
+AlignConsecutiveDeclarations: true
 AlignEscapedNewlines: Right
 AlignOperands: true
-AlignTrailingComments: Align
+AlignTrailingComments: true
 
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: Always
-AllowShortCaseLabelsOnSingleLine: false
-AllowShortEnumsOnSingleLine: true
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLambdasOnASingleLine: Empty
 
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 
@@ -36,7 +39,7 @@ BraceWrapping:
     AfterEnum: false
     AfterFunction: true
     AfterNamespace: false
-    AfterObjectDeclaration: true
+    AfterObjCDeclaration: true
     AfterUnion: true
     AfterExternBlock: false
     BeforeCatch: false
@@ -47,10 +50,10 @@ BraceWrapping:
     SplitEmptyRecord: true
     SplitEmptyNamespace: true
 
-BreakBeforeBraces: Costum
-BreakBeforeConceptDeclarations: Always
+BreakBeforeBraces: Custom
+BreakBeforeConceptDeclarations: true
 BreakBeforeTernaryOperators: true
-BreakConstructorInitializer: BeforeColon
+BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: AfterComma
 BreakStringLiterals: true
 
@@ -60,7 +63,7 @@ ContinuationIndentWidth: 4
 DerivePointerAlignment: true
 
 EmptyLineAfterAccessModifier: Always
-EmptyLineBeforeAccessModifies: LogicalBlock
+EmptyLineBeforeAccessModifier: LogicalBlock
 
 FixNamespaceComments: true
 
@@ -70,10 +73,9 @@ IndentAccessModifiers: false
 IndentCaseBlocks: false
 IndentCaseLabels: true
 IndentPPDirectives: AfterHash
-IndentRequiresClause: false
+# IndentRequiresClause: false
 
-InsertBraces: false
-InsertTrailingCommas: true
+# InsertBraces: false
 
 LambdaBodyIndentation: Signature
 
@@ -83,24 +85,25 @@ NamespaceIndentation: All
 
 PPIndentWidth: 2
 
-PackConstructorInitializers: Always
+PackConstructorInitializers: Never
 
 PointerAlignment: Left
 
-QualifierOrder: ['inline', 'static', 'const', 'constexpr', 'type', 'volatile', 'restrict']
+# QualifierOrder: ['inline', 'static', 'const', 'constexpr', 'type', 'volatile']
 
-RawStringFormats:
-    - Language: Cpp
-        Delimiters:
-            - 'cc'
-            - 'cpp'
-            - 'hpp'
+# RawStringFormats:
+#     - Language: Cpp
+#         Delimiters:
+#             - 'cc'
+#             - 'cpp'
+#             - 'hpp'
+#             - 'h'
 
 ReferenceAlignment: Left
 
 ReflowComments: true
 
-RequiresClausePosition: OwnLine
+# RequiresClausePosition: OwnLine
 
 SeparateDefinitionBlocks: Always
 
@@ -118,16 +121,16 @@ SpaceBeforeParens: ControlStatements
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceBeforeSquareBrackets: false
 SpaceInEmptyBlock: false
-SpaceInEmptyParantheses: false
+SpaceInEmptyParentheses: false
 
 SpacesBeforeTrailingComments: 4
 SpacesInAngles: Never
-SpacesInCondtionalStatement: false
+SpacesInConditionalStatement: false
 SpacesInContainerLiterals: true
 SpacesInLineCommentPrefix:
     Minimum: 1
     Maximum: -1
-SpacesInParantheses: false
+SpacesInParentheses: false
 SpacesInSquareBrackets: false
 
 TabWidth: 4
