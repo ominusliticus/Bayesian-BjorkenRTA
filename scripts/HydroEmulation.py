@@ -41,6 +41,8 @@ class HydroEmulator:
         '''
         Add description
         '''
+        # TODO: If hydro output contains NaN, output the design point
+        #       for which the NaN(s) were present
         self.GP_emulators = dict((key, None) for key in hydro_names)
         if use_existing_emulators:
             # Load GP data from pickle files
@@ -125,9 +127,15 @@ class HydroEmulator:
                                   normalize_y=True)
                         f_emulator_scores.write(
                             f'\t\tTraining GP for {name} and time {tau}\n')
-                        GPR.fit(design_points.reshape(-1,
-                                                      len(parameter_names)),
-                                data)
+                        try:
+                            GPR.fit(design_points.reshape(-1,
+                                                        len(parameter_names)),
+                                    data)
+                        except ValueError:
+                            print("NaN encountered for design point:\n{}\n{}".
+                                  format(design_points, data))
+                            print("Error occured in iteration ({},{},{})".
+                                  format(i, j, m))
 
                         f_emulator_scores.write(
                             f'''Runnig fit for {name} at time {tau} fm/c

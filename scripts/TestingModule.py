@@ -117,11 +117,11 @@ def PlotAnalyticPosteriors(Cs,
 
 default_params =  {
     'tau_0':        0.1,
-    'Lambda_0':     0.2 / 0.197,
+    'Lambda_0':     0.5 / 0.197,
     'xi_0':         -0.90, 
     'alpha_0':      0.655, #2 * pow(10, -3),
     'tau_f':        12.1,
-    'mass':         1.015228426,
+    'mass':         0.2 / 0.197,
     'C':            5 / (4 * np.pi),
     'hydro_type':   0
 }
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     #                         r'$\Lambda_0$', r'$\alpha_0$', r'$\xi_0$']
     # GP_parameter_ranges = np.array(
     #     [[1 / (4 * np.pi), 10 / (4 * np.pi)],
-    #      [0.05, 0.15], [0.0, 5.0], [0.0, 1.0], [-1.0, 10.0]])
+    #      [0.05, 0.15], [1.0, 5.0], [0.0, 1.0], [-1.0, 1.0]])
     GP_parameter_names = ['C']
     parameter_names_math = [r'$\mathcal C$']
     GP_parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     local_params = default_params
 
     exact_out = []
-    # true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 2 * pow(10, -3), -0.90]
+    # true_params = [5 / (4 * np.pi), 0.1, 0.5/.197, 0.655, -0.90]
     true_params = [5 / (4 * np.pi)]
     code_api = HCA(str(Path('./swap').absolute()))
 
@@ -190,6 +190,9 @@ if __name__ == '__main__':
                                                  b_fixed_error=False)
 
     pseudo_error = error_level * exact_out[:, 1:4]
+    print(exact_pseudo)
+    print(pseudo_error)
+    quit()
 
     # generate emulators
     emulator_class = HE(hca=code_api,
