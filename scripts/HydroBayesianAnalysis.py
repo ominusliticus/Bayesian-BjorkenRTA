@@ -25,8 +25,7 @@ import pickle
 # TODO: 1. Create function that inverts energy density, shear and bulk
 #          pressure to give energy density, transverse and longitudinal
 #          pressure
-#       2. Separate file I/O from class and make separate routines
-#       3. Add automated plotting routines for posteriors and MCMC chains
+#       2. Add automated plotting routines for posteriors and MCMC chains
 #       3. Updated ALL function descriptions to match current functions
 
 class HydroBayesianAnalysis(object):
@@ -179,7 +178,6 @@ class HydroBayesianAnalysis(object):
         else:
             nwalkers = 20 * self.num_params
 
-            # TO DO: print MCMC to pickle file
             for i, name in enumerate(self.hydro_names):
                 print(f"Computing for hydro theory: {name}")
                 starting_guess = np.array(
@@ -190,6 +188,7 @@ class HydroBayesianAnalysis(object):
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
                                           dim=self.num_params,
                                           ntemps=ntemps,
+                                          # Tmax=10,
                                           threads=4,
                                           logl=self.LogLikelihood,
                                           logp=self.LogPrior,

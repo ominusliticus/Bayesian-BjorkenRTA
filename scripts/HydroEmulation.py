@@ -21,7 +21,9 @@ import pickle
 # To interface with Hydro code
 from HydroCodeAPI import HydroCodeAPI
 
-
+# TOOD: Add workflow that systematically tests the emulator 
+#       preformance by having a training and testing set of hydro
+#       and quantifying how well the emulator reproduces the value
 class HydroEmulator:
     """
     Add description
