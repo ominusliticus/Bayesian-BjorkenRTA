@@ -44,6 +44,7 @@ class HydroEmulator:
         # TODO: If hydro output contains NaN, output the design point
         #       for which the NaN(s) were present
         self.GP_emulators = dict((key, None) for key in hydro_names)
+        self.b_use_existing_emulators = use_existing_emulators
         if use_existing_emulators:
             # Load GP data from pickle files
             with open(
@@ -66,12 +67,25 @@ class HydroEmulator:
             print("Running hydro")
             # Run hydro code and generate scalers and GP pickle files
             unit = lhs(n=len(parameter_names),
-                       samples=20 * len(parameter_names),
+                       # add 10 points for testing data
+                       samples=20 * len(parameter_names) + 10,
                        criterion='maximin')
             self.design_points = parameter_ranges[:, 0] + unit * \
                 (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
-            design_points = self.design_points
+            design_points = self.design_points[:-10]
+            self.test_points = self.design_poits[-10:]
+            with open('design_points/design_points_n={}.dat'.
+                      format(len(parameter_names)), 'w') as f:
+                _ = [[f.write(entry) for entry in line]
+                     for line in 
+                    deisgn_points.reshape(-1, len(parameter_names)]
+            with open('design_points/testsing_points_n={}'.
+                      format(len(parameter_names)), 'w') as f:
+                _ = [[f.write(entry) for entry in line]
+                     for line in 
+                     self.test_points.reshape(-1, len(parameter_names)]
+
             hca.RunHydro(params_dict=params_dict,
                          parameter_names=parameter_names,
                          design_points=design_points,
@@ -164,3 +178,74 @@ class HydroEmulator:
             f_emulator_scores.close()
 
             print("Done")
+    
+    def TestEmulator(self,
+                 hca: HydroCodeAPI,
+                 params_dict: Dict[str, float],
+                 parameter_names: List[str],
+                 parameter_ranges: np.ndarray,
+                 simulation_taus: np.ndarray,
+                 hydro_names: List[str],
+                 use_existing_emulators: bool,
+                 use_PT_PL: bool) -> None:
+        '''
+        This function takes a given set of emulators and tests
+        them for how accurately they run
+        Parameters:
+        ----------
+        type annotations are specific enough
+
+        Returns:
+        ----------
+        None
+        '''
+        if self.b_use_existing_emulators:
+            with open('design_points/testing_points_n={}.dat'.
+                      format(len(parameter_names)), 'r') as f:
+                self.testing_points = np.array(
+                    [[float(entry)
+                      for entry in line]
+                     for line in f.readlines()]
+                )
+            with open('pickle_files/emulator_testing_data.pkl', 'rb') as f:
+                hydro_simulations = pickle.load(f)
+        else:
+            hca.RunHydro(params_dict=params_dict,
+                         parameter_names=parameter_names,
+                         design_points=design_points,
+                         simulation_taus=simulation_taus,
+                         use_PT_PL=use_PT_PL)
+
+            hydro_simulations = dict((key, []) for key in hydro_names)
+            for k, name in enumerate(hydro_names):
+                for j, tau in enumerate(simulation_taus):
+                    with open(('hydro_simulation_points/{}_simulation_points'
+                               + '_n={}_tau={}.dat').
+                              format(name, len(parameter_names), tau),
+                              'r') as f_hydro_simulation_pts:
+                        hydro_simulations[name].append(
+                            [[float(entry)
+                              for entry in line.split()]
+                             for line in f_hydro_simulation_pts.readlines()
+                             ])
+            hydro_simulations = dict(
+                (key, np.array(hydro_simulations[key]))
+                for key in hydro_simulations)
+            
+            with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
+                pickle.dump(f, hydro_simulations)
+
+        print("Testing emulators")
+        with open('full_outputs/emulator_test_n={}.txt','wb') as f:
+            for name in hydro_names:
+                observable_residuals = []
+                normalized_observable_residuals = []
+                for i, tau in enumerate(simulation_taus):
+                    true_e = hydro_simulations[name][i, 1]
+                    true_p1 = hydro_simulations[name][i, 2]
+                    true_p2 = hhydro_simulations[name][i, 3]
+                    for test_point in self.testing_points:
+                             self.GP_emulator[name][i][j].predict(
+                                 np.array(test_point.reshape(1,-1),
+                                 return_std=False)
+                             for j in range(3)])
