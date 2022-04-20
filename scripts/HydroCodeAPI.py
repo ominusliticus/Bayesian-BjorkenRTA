@@ -213,7 +213,6 @@ class HydroCodeAPI:
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
 
-
         for k, name in enumerate(self.hydro_names):
             for j, tau in enumerate(simulation_taus):
                 with open(

@@ -115,7 +115,7 @@ def PlotAnalyticPosteriors(Cs,
 
     return fig, ax
 
-default_params =  {
+default_params = {
     'tau_0':        0.1,
     'Lambda_0':     0.5 / 0.197,
     'xi_0':         -0.90, 
