@@ -21,7 +21,16 @@ import pickle
 # To interface with Hydro code
 from HydroCodeAPI import HydroCodeAPI
 
-# TOOD: Add workflow that systematically tests the emulator 
+# For storing data
+import pandas as pd
+
+# For plotting residuals
+from matplotlib import rc
+rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
+rc('text', usetex=True)
+
+
+# TOOD: Add workflow that systematically tests the emulator
 #       preformance by having a training and testing set of hydro
 #       and quantifying how well the emulator reproduces the value
 class HydroEmulator:
@@ -74,17 +83,17 @@ class HydroEmulator:
                 (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
             design_points = self.design_points[:-10]
-            self.test_points = self.design_poits[-10:]
+            self.test_points = self.design_points[-10:]
             with open('design_points/design_points_n={}.dat'.
                       format(len(parameter_names)), 'w') as f:
-                _ = [[f.write(entry) for entry in line]
-                     for line in 
-                    deisgn_points.reshape(-1, len(parameter_names)]
-            with open('design_points/testsing_points_n={}'.
+                _ = [[f.write(str(entry)) for entry in line]
+                     for line in
+                     design_points.reshape(-1, len(parameter_names))]
+            with open('design_points/testing_points_n={}.dat'.
                       format(len(parameter_names)), 'w') as f:
-                _ = [[f.write(entry) for entry in line]
-                     for line in 
-                     self.test_points.reshape(-1, len(parameter_names)]
+                _ = [[f.write(str(entry)) for entry in line]
+                     for line in
+                     self.test_points.reshape(-1, len(parameter_names))]
 
             hca.RunHydro(params_dict=params_dict,
                          parameter_names=parameter_names,
@@ -142,9 +151,10 @@ class HydroEmulator:
                         f_emulator_scores.write(
                             f'\t\tTraining GP for {name} and time {tau}\n')
                         try:
-                            GPR.fit(design_points.reshape(-1,
-                                                        len(parameter_names)),
-                                    data)
+                            GPR.fit(
+                                design_points.reshape(-1,
+                                                      len(parameter_names)),
+                                data)
                         except ValueError:
                             print("NaN encountered for design point:\n{}\n{}".
                                   format(design_points, data))
@@ -178,16 +188,16 @@ class HydroEmulator:
             f_emulator_scores.close()
 
             print("Done")
-    
+
     def TestEmulator(self,
-                 hca: HydroCodeAPI,
-                 params_dict: Dict[str, float],
-                 parameter_names: List[str],
-                 parameter_ranges: np.ndarray,
-                 simulation_taus: np.ndarray,
-                 hydro_names: List[str],
-                 use_existing_emulators: bool,
-                 use_PT_PL: bool) -> None:
+                     hca: HydroCodeAPI,
+                     params_dict: Dict[str, float],
+                     parameter_names: List[str],
+                     parameter_ranges: np.ndarray,
+                     simulation_taus: np.ndarray,
+                     hydro_names: List[str],
+                     use_existing_emulators: bool,
+                     use_PT_PL: bool) -> None:
         '''
         This function takes a given set of emulators and tests
         them for how accurately they run
@@ -202,7 +212,7 @@ class HydroEmulator:
         if self.b_use_existing_emulators:
             with open('design_points/testing_points_n={}.dat'.
                       format(len(parameter_names)), 'r') as f:
-                self.testing_points = np.array(
+                self.test_points = np.array(
                     [[float(entry)
                       for entry in line]
                      for line in f.readlines()]
@@ -212,7 +222,7 @@ class HydroEmulator:
         else:
             hca.RunHydro(params_dict=params_dict,
                          parameter_names=parameter_names,
-                         design_points=design_points,
+                         design_points=self.design_points,
                          simulation_taus=simulation_taus,
                          use_PT_PL=use_PT_PL)
 
@@ -231,21 +241,105 @@ class HydroEmulator:
             hydro_simulations = dict(
                 (key, np.array(hydro_simulations[key]))
                 for key in hydro_simulations)
-            
+
             with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
-                pickle.dump(f, hydro_simulations)
+                pickle.dump(hydro_simulations, f)
 
         print("Testing emulators")
-        with open('full_outputs/emulator_test_n={}.txt','wb') as f:
+        with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
+            residuals_of_observables = {}
+            residuals_of_normalized_observablse = {}
             for name in hydro_names:
                 observable_residuals = []
                 normalized_observable_residuals = []
                 for i, tau in enumerate(simulation_taus):
+                    # Store and calculate observables from exact hydro
                     true_e = hydro_simulations[name][i, 1]
                     true_p1 = hydro_simulations[name][i, 2]
-                    true_p2 = hhydro_simulations[name][i, 3]
-                    for test_point in self.testing_points:
-                             self.GP_emulator[name][i][j].predict(
-                                 np.array(test_point.reshape(1,-1),
-                                 return_std=False)
-                             for j in range(3)])
+                    true_p2 = hydro_simulations[name][i, 3]
+                    true_p = hydro_simulations[name][i, 4]
+                    true_h = true_e + true_p
+
+                    true_e_bar = true_e / true_e[0]
+                    if use_PT_PL:
+                        true_pi = (2 / 3) * (true_p1 - true_p2)
+                        true_Pi = (2 * true_p1 + true_p2) / 3 - true_p
+                        true_pi_bar = true_pi / true_h
+                        true_Pi_bar = true_Pi / true_h
+                    else:
+                        true_pi_bar = true_p1 / true_h
+                        true_Pi_bar = true_p2 / true_h
+
+                    for test_point in self.test_points:
+                        # calculate and store observables from emulator run
+                        e = self.GP_emulators[name][i][j].predict(
+                            np.array(test_point.reshape(1, -1)))
+                        p1 = self.GP_emulators[name][i][j].predict(
+                             np.array(test_point.reshape(1, -1)))
+                        p2 = self.GP_emulators[name][i][j].predict(
+                             np.array(test_point.reshape(1, -1)))
+                        p = self.GP_emulators[name][i][j].predict(
+                            np.array(test_point.reshape(1, -1)))
+
+                        h = e + p
+                        e_bar = e / e[0]
+                        if use_PT_PL:
+                            pi = (2 / 3) * (p1 - p2)
+                            Pi = (2 * p1 + p2) / 3 - p
+                            pi_bar = pi / h
+                            Pi_bar = Pi / h
+                        else:
+                            pi_bar = p1 / h
+                            Pi_bar = p2 / h
+
+                        # calculate and store residuals
+                        observable_residuals.append(
+                            [e - true_e, p1 - true_p1, p2 - true_p2]
+                        )
+                        normalized_observable_residuals.append(
+                            [e_bar - true_e_bar,
+                             pi_bar - true_pi_bar,
+                             Pi_bar - true_Pi_bar]
+                        )
+
+                # store all residuals for hydro `name`
+                residuals_of_observables[name] = np.array(observable_residuals)
+                residuals_of_normalized_observablse[name] = \
+                    np.array(normalized_observable_residuals)
+
+            # store residuals in DataFrame
+            if use_PT_PL:
+                p1_name = r'$R_{\mathcal P_T}$'
+                p2_name = r'$R_{\mathcak P_L}$'
+            else:
+                p1_name = r'$R_\pi$'
+                p2_name = r'$R_\Pi$'
+
+            df = pd.DataFrame()
+            for name in hydro_names:
+                df = pd.concat([df, pd.DataFrame(
+                    {r'$R_\mathcal{E}$': residuals_of_observables[name][:, 0],
+                     p1_name: residuals_of_observables[name][: 1],
+                     p2_name: residuals_of_observables[name][: 2],
+                     r'$R_{\bar\mathcal E}$':
+                        residuals_of_normalized_observablse[name][:, 0],
+                     r'$R_{\bar\pi}$':
+                        residuals_of_normalized_observablse[name][:, 1],
+                     r'$R_{\bar\Pi}$':
+                        residuals_of_normalized_observablse[name][:, 2],
+                     'hydro': name
+                     }
+                )], ignore_index=True)
+
+            # TODO: 1. Calculate means and standard deviations of all hydros
+            #          and observables
+            #       2. Output statistics to currently open data file
+            #       3. Make plot of residuals and include means and mean
+            #          percent error (of absolute value of residual)
+
+        # output residuals to files
+        with open('pickle_files/emulator_residuals_dataframe_n={}'.
+                  format(len(parameter_names)), 'wb') as f:
+            pickle.dump(df, f)
+
+        print("Done")

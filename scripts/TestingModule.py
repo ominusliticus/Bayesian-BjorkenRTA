@@ -190,9 +190,6 @@ if __name__ == '__main__':
                                                  b_fixed_error=False)
 
     pseudo_error = error_level * exact_out[:, 1:4]
-    print(exact_pseudo)
-    print(pseudo_error)
-    quit()
 
     # generate emulators
     emulator_class = HE(hca=code_api,
@@ -203,7 +200,16 @@ if __name__ == '__main__':
                         hydro_names=code_api.hydro_names,
                         use_existing_emulators=b_use_existing_emulators,
                         use_PT_PL=b_use_PT_PL)
-
+    emulator_class.TestEmulator(
+        hca=code_api,
+        params_dict=local_params,
+        parameter_names=GP_parameter_names,
+        parameter_ranges=GP_parameter_ranges,
+        simulation_taus=simulation_taus,
+        hydro_names=code_api.hydro_names,
+        use_existing_emulators=b_use_existing_emulators,
+        use_PT_PL=b_use_PT_PL)
+    print("In between emulator function calls")
     ba_class.RunMCMC(nsteps=200,
                      nburn=50,
                      ntemps=10,
@@ -223,31 +229,36 @@ if __name__ == '__main__':
         ba_class.params['tau_f'] = 12.1
         for i, name in enumerate(ba_class.hydro_names):
             ba_class.params['hydro_type'] = i
-            n, b, p = plt.hist(mcmc_chains[name][0,:,:,:].flatten(), bins=1000)
-            map_values[name] = [b[np.argmax(n)]] 
-            map_outputs[name] = ba_class.ProcessHydro(GP_parameter_names, map_values[name], store_whole_file=True)
-
+            n, b, p = plt.hist(mcmc_chains[name][0, :, :, :].flatten(),
+                               bins=1000)
+            map_values[name] = [b[np.argmax(n)]]
+            map_outputs[name] = ba_class.ProcessHydro(GP_parameter_names,
+                                                      map_values[name],
+                                                      store_whole_file=True)
 
         print(f'error_level = {error_level}')
         # calculating error bars from pseudo-data
-        pseudo_e0 = np.random.normal(output[0,1], error_level * output[0,1])
-        pseudo_e = exact_out[:,1]
+        pseudo_e0 = np.random.normal(output[0, 1], error_level * output[0, 1])
+        pseudo_e = exact_out[:, 1]
         pseudo_e_err = error_level * pseudo_e
 
-        pseudo_pt = exact_out[:,2]
+        pseudo_pt = exact_out[:, 2]
         pseudo_pt_err = error_level * pseudo_pt
 
-        pseudo_pl = exact_out[:,3]
+        pseudo_pl = exact_out[:, 3]
         pseudo_pl_err = error_level * pseudo_pl
 
-        pseudo_p = exact_out[:,4]
+        pseudo_p = exact_out[:, 4]
         pseudo_p_err = error_level * pseudo_p
 
         pseudo_pi = (2 / 3) * (pseudo_pt - pseudo_pl)
-        pseudo_pi_err = (2 / 3) * np.sqrt(pseudo_pt_err ** 2 + pseudo_pl_err ** 2)
+        pseudo_pi_err = (2 / 3) * np.sqrt(pseudo_pt_err ** 2 +
+                                          pseudo_pl_err ** 2)
 
         pseudo_Pi = (2 * pseudo_pt + pseudo_pl) / 3 - pseudo_p
-        pseudo_Pi_err = np.sqrt(4 * pseudo_pt_err ** 2 + pseudo_pl_err ** 2 + 9 * pseudo_p_err ** 2) / 3
+        pseudo_Pi_err = np.sqrt(4 * pseudo_pt_err ** 2 +
+                                pseudo_pl_err ** 2 +
+                                9 * pseudo_p_err ** 2) / 3
 
         pseudo_h = pseudo_e + track_p
         pseudo_h_err = error_level * pseudo_h
@@ -256,50 +267,92 @@ if __name__ == '__main__':
         pseudo_e_e0_err = error_level * pseudo_e_e0 * np.sqrt(2)
 
         pseudo_pi_bar = pseudo_pi / pseudo_h
-        pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 / pseudo_pi ** 2 + pseudo_h_err ** 2 / pseudo_h ** 2)
+        pseudo_pi_bar_err = pseudo_pi_bar * np.sqrt(pseudo_pi_err ** 2 /
+                                                    pseudo_pi ** 2 +
+                                                    pseudo_h_err ** 2 /
+                                                    pseudo_h ** 2)
 
         pseudo_Pi_bar = pseudo_Pi / pseudo_h
-        pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 / pseudo_Pi ** 2 + pseudo_h_err / pseudo_h ** 2)
+        pseudo_Pi_bar_err = pseudo_Pi_bar * np.sqrt(pseudo_Pi_err ** 2 /
+                                                    pseudo_Pi ** 2 +
+                                                    pseudo_h_err /
+                                                    pseudo_h ** 2)
 
-        fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30,20))
+        fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(30, 20))
         fig.patch.set_facecolor('white')
-        costumize_axis(ax[0,0], r'$\tau$ [fm]', r'$\mathcal E / \mathcal E_0$'); ax[0,0].set_yscale('log')
-        costumize_axis(ax[0,1], r'$\tau$ [fm]', r'$\pi / (\mathcal E + \mathcal P)$')
-        costumize_axis(ax[0,2], r'$\tau$ [fm]', r'$\Pi / (\mathcal E + \mathcal P)$')
+        costumize_axis(ax[0, 0],
+                       r'$\tau$ [fm]',
+                       r'$\mathcal E / \mathcal E_0$')
+        ax[0, 0].set_yscale('log')
+        costumize_axis(ax[0, 1],
+                       r'$\tau$ [fm]',
+                       r'$\pi / (\mathcal E + \mathcal P)$')
+        costumize_axis(ax[0, 2],
+                       r'$\tau$ [fm]',
+                       r'$\Pi / (\mathcal E + \mathcal P)$')
 
-        costumize_axis(ax[1,0], r'$\tau$ [fm]', r'$\mathcal E $ [fm$^{-4}$]'); ax[1,0].set_yscale('log')
-        costumize_axis(ax[1,1], r'$\tau$ [fm]', r'$\pi $ [fm$^{-4}$]')
-        costumize_axis(ax[1,2], r'$\tau$ [fm]', r'$\Pi $ [fm$^{-4}$]')
+        costumize_axis(ax[1, 0],
+                       r'$\tau$ [fm]',
+                       r'$\mathcal E $ [fm$^{-4}$]')
+        ax[1, 0].set_yscale('log')
+        costumize_axis(ax[1, 1], r'$\tau$ [fm]', r'$\pi $ [fm$^{-4}$]')
+        costumize_axis(ax[1, 2], r'$\tau$ [fm]', r'$\Pi $ [fm$^{-4}$]')
 
-        ax[0,0].errorbar(simulation_taus, pseudo_e_e0, yerr=pseudo_e_e0_err, fmt='o', color='black', label='exact')
-        ax[0,1].errorbar(simulation_taus, pseudo_pi_bar, yerr=pseudo_pi_bar_err, fmt='o', color='black') 
-        ax[0,2].errorbar(simulation_taus, pseudo_Pi_bar, yerr=pseudo_Pi_bar_err, fmt='o', color='black')
+        ax[0, 0].errorbar(simulation_taus,
+                          pseudo_e_e0,
+                          yerr=pseudo_e_e0_err,
+                          fmt='o',
+                          color='black',
+                          label='exact')
+        ax[0, 1].errorbar(simulation_taus,
+                          pseudo_pi_bar,
+                          yerr=pseudo_pi_bar_err,
+                          fmt='o',
+                          color='black')
+        ax[0, 2].errorbar(simulation_taus,
+                          pseudo_Pi_bar,
+                          yerr=pseudo_Pi_bar_err,
+                          fmt='o',
+                          color='black')
 
-        ax[1,0].errorbar(simulation_taus, pseudo_e, yerr=pseudo_e_err, fmt='o', color='black', label='exact')
-        ax[1,1].errorbar(simulation_taus, pseudo_pi, yerr=pseudo_pi_err, fmt='o', color='black') 
-        ax[1,2].errorbar(simulation_taus, pseudo_Pi, yerr=pseudo_Pi_err, fmt='o', color='black')
+        ax[1, 0].errorbar(simulation_taus,
+                          pseudo_e,
+                          yerr=pseudo_e_err,
+                          fmt='o',
+                          color='black',
+                          label='exact')
+        ax[1, 1].errorbar(simulation_taus,
+                          pseudo_pi,
+                          yerr=pseudo_pi_err,
+                          fmt='o',
+                          color='black')
+        ax[1, 2].errorbar(simulation_taus,
+                          pseudo_Pi,
+                          yerr=pseudo_Pi_err,
+                          fmt='o',
+                          color='black')
 
-
+        cmap = get_cmap(10, 'tab10')
         for i, name in enumerate(ba_class.hydro_names):
             print(f'map parameters for {name}: {map_values[name]}')
             output = map_outputs[name]
-            t = output[:,0]
-            e = output[:,1]
-            p = output[:,4]
-            pt = output[:,2]
-            pl = output[:,3]
+            t = output[:, 0]
+            e = output[:, 1]
+            p = output[:, 4]
+            pt = output[:, 2]
+            pl = output[:, 3]
             pi = (2 / 3) * (pt - pl)
             Pi = (2 * pt + pl) / 3 - p
             pi_bar = pi / (e + p)
             Pi_bar = Pi / (e + p)
-            ax[0,0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
-            ax[0,1].plot(t, pi_bar, lw=2, color=cmap(i)); 
-            ax[0,2].plot(t, Pi_bar, lw=2, color=cmap(i)); 
+            ax[0, 0].plot(t, e / e[0], lw=2, color=cmap(i), label=name)
+            ax[0, 1].plot(t, pi_bar, lw=2, color=cmap(i))
+            ax[0, 2].plot(t, Pi_bar, lw=2, color=cmap(i))
 
-            ax[1,0].plot(t, e, lw=2, color=cmap(i), label=name)
-            ax[1,1].plot(t, pi, lw=2, color=cmap(i))
-            ax[1,2].plot(t, Pi, lw=2, color=cmap(i))
-        ax[0,0].legend(loc='upper right', fontsize=20)
+            ax[1, 0].plot(t, e, lw=2, color=cmap(i), label=name)
+            ax[1, 1].plot(t, pi, lw=2, color=cmap(i))
+            ax[1, 2].plot(t, Pi, lw=2, color=cmap(i))
+        ax[0, 0].legend(loc='upper right', fontsize=20)
         fig.tight_layout()
         fig.savefig(f'plots/map_value_runs_n={len(GP_parameter_names)}.pdf')
 
@@ -308,7 +361,7 @@ if __name__ == '__main__':
     # Cs = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), pts_analytic_post, endpoint=True)
     # for_analytic_hydro_output = dict((name, []) for name in hydro_names)
     # ba_class.params['tau_f'] = simulation_taus[-1]
-    
+
     # Multiprocessing doesn't work because each call needs to write to a configuration file, and this can cause collision
     # for_analytic_hydro_output = Manager.dict()
     # def for_multiprocessing(dict: Dict, key: str, itr: int):
@@ -373,5 +426,3 @@ if __name__ == '__main__':
     #                        dP2_exp=dPL_exp,
     #                        P2_sim=PL_sim,
     #                        output_suffix="PLPT")
-
-    
