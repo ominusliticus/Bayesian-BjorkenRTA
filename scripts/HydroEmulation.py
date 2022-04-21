@@ -63,7 +63,7 @@ class HydroEmulator:
                     ) as f:
                 self.design_points = np.array(
                     [[float(entry) for entry in line.split()]
-                        for line in f.readlines()])
+                     for line in f.readlines()])
 
             f_pickle_emulators = open(
                 'pickle_files/emulators_data_n={}.pkl'.
@@ -86,14 +86,16 @@ class HydroEmulator:
             self.test_points = self.design_points[-10:]
             with open('design_points/design_points_n={}.dat'.
                       format(len(parameter_names)), 'w') as f:
-                _ = [[f.write(str(entry)) for entry in line]
-                     for line in
-                     design_points.reshape(-1, len(parameter_names))]
+                for line in design_points.reshape(-1, len(parameter_names)):
+                    for entry in line:
+                        f.write(f'{entry} ')
+                    f.write('\n')
             with open('design_points/testing_points_n={}.dat'.
                       format(len(parameter_names)), 'w') as f:
-                _ = [[f.write(str(entry)) for entry in line]
-                     for line in
-                     self.test_points.reshape(-1, len(parameter_names))]
+                for line in self.test_points.reshape(-1, len(parameter_names)):
+                    for entry in line:
+                        f.write(f'{entry} ')
+                    f.write('\n')
 
             hca.RunHydro(params_dict=params_dict,
                          parameter_names=parameter_names,
@@ -248,64 +250,31 @@ class HydroEmulator:
         print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
-            residuals_of_normalized_observablse = {}
             for name in hydro_names:
                 observable_residuals = []
-                normalized_observable_residuals = []
                 for i, tau in enumerate(simulation_taus):
                     # Store and calculate observables from exact hydro
                     true_e = hydro_simulations[name][i, 1]
                     true_p1 = hydro_simulations[name][i, 2]
                     true_p2 = hydro_simulations[name][i, 3]
-                    true_p = hydro_simulations[name][i, 4]
-                    true_h = true_e + true_p
-
-                    true_e_bar = true_e / true_e[0]
-                    if use_PT_PL:
-                        true_pi = (2 / 3) * (true_p1 - true_p2)
-                        true_Pi = (2 * true_p1 + true_p2) / 3 - true_p
-                        true_pi_bar = true_pi / true_h
-                        true_Pi_bar = true_Pi / true_h
-                    else:
-                        true_pi_bar = true_p1 / true_h
-                        true_Pi_bar = true_p2 / true_h
 
                     for test_point in self.test_points:
                         # calculate and store observables from emulator run
-                        e = self.GP_emulators[name][i][j].predict(
+                        e = self.GP_emulators[name][i][0].predict(
                             np.array(test_point.reshape(1, -1)))
-                        p1 = self.GP_emulators[name][i][j].predict(
+                        p1 = self.GP_emulators[name][i][1].predict(
                              np.array(test_point.reshape(1, -1)))
-                        p2 = self.GP_emulators[name][i][j].predict(
+                        p2 = self.GP_emulators[name][i][2].predict(
                              np.array(test_point.reshape(1, -1)))
-                        p = self.GP_emulators[name][i][j].predict(
-                            np.array(test_point.reshape(1, -1)))
-
-                        h = e + p
-                        e_bar = e / e[0]
-                        if use_PT_PL:
-                            pi = (2 / 3) * (p1 - p2)
-                            Pi = (2 * p1 + p2) / 3 - p
-                            pi_bar = pi / h
-                            Pi_bar = Pi / h
-                        else:
-                            pi_bar = p1 / h
-                            Pi_bar = p2 / h
 
                         # calculate and store residuals
                         observable_residuals.append(
                             [e - true_e, p1 - true_p1, p2 - true_p2]
                         )
-                        normalized_observable_residuals.append(
-                            [e_bar - true_e_bar,
-                             pi_bar - true_pi_bar,
-                             Pi_bar - true_Pi_bar]
-                        )
 
                 # store all residuals for hydro `name`
                 residuals_of_observables[name] = np.array(observable_residuals)
-                residuals_of_normalized_observablse[name] = \
-                    np.array(normalized_observable_residuals)
+                print(np.array(observable_residuals).shape)
 
             # store residuals in DataFrame
             if use_PT_PL:
@@ -315,20 +284,18 @@ class HydroEmulator:
                 p1_name = r'$R_\pi$'
                 p2_name = r'$R_\Pi$'
 
-            df = pd.DataFrame()
+            df = pd.DataFrame(columns=[r'$R_\mathcal{E}$',
+                                       p1_name,
+                                       p2_name,
+                                       "hydro"])
             for name in hydro_names:
                 df = pd.concat([df, pd.DataFrame(
                     {r'$R_\mathcal{E}$': residuals_of_observables[name][:, 0],
-                     p1_name: residuals_of_observables[name][: 1],
-                     p2_name: residuals_of_observables[name][: 2],
-                     r'$R_{\bar\mathcal E}$':
-                        residuals_of_normalized_observablse[name][:, 0],
-                     r'$R_{\bar\pi}$':
-                        residuals_of_normalized_observablse[name][:, 1],
-                     r'$R_{\bar\Pi}$':
-                        residuals_of_normalized_observablse[name][:, 2],
-                     'hydro': name
-                     }
+                     p1_name: residuals_of_observables[name][:, 1],
+                     p2_name: residuals_of_observables[name][:, 2],
+                     "hydro": 
+                        np.full_like(residuals_of_observables[name][:, 0],
+                                      name)}
                 )], ignore_index=True)
 
             # TODO: 1. Calculate means and standard deviations of all hydros

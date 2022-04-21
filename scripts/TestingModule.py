@@ -200,6 +200,7 @@ if __name__ == '__main__':
                         hydro_names=code_api.hydro_names,
                         use_existing_emulators=b_use_existing_emulators,
                         use_PT_PL=b_use_PT_PL)
+    print("In between emulator function calls")
     emulator_class.TestEmulator(
         hca=code_api,
         params_dict=local_params,
@@ -209,7 +210,7 @@ if __name__ == '__main__':
         hydro_names=code_api.hydro_names,
         use_existing_emulators=b_use_existing_emulators,
         use_PT_PL=b_use_PT_PL)
-    print("In between emulator function calls")
+    quit()
     ba_class.RunMCMC(nsteps=200,
                      nburn=50,
                      ntemps=10,
