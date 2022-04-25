@@ -119,6 +119,8 @@ class HydroEmulator:
                 (key, np.array(hydro_simulations[key]))
                 for key in hydro_simulations)
 
+            print("From fitting emulators: ",
+                  hydro_simulations['ce'].shape)
             print("Fitting emulators")
             hydro_lists = np.array(
                 [hydro_simulations[key] for key in hydro_names])
@@ -224,7 +226,7 @@ class HydroEmulator:
         else:
             hca.RunHydro(params_dict=params_dict,
                          parameter_names=parameter_names,
-                         design_points=self.design_points,
+                         design_points=self.test_points,
                          simulation_taus=simulation_taus,
                          use_PT_PL=use_PT_PL)
 
@@ -247,25 +249,33 @@ class HydroEmulator:
             with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
+        print("From emulator validations: ",
+              hydro_simulations['ce'].shape)
         print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
             for name in hydro_names:
                 observable_residuals = []
                 for i, tau in enumerate(simulation_taus):
-                    # Store and calculate observables from exact hydro
-                    true_e = hydro_simulations[name][i, 1]
-                    true_p1 = hydro_simulations[name][i, 2]
-                    true_p2 = hydro_simulations[name][i, 3]
+                    for j, test_point in enumerate(self.test_points):
+                        # Store and calculate observables from exact hydro
+                        true_e = hydro_simulations[name][i, j, 1]
+                        true_p1 = hydro_simulations[name][i, j, 2]
+                        true_p2 = hydro_simulations[name][i, j, 3]
 
-                    for test_point in self.test_points:
                         # calculate and store observables from emulator run
                         e = self.GP_emulators[name][i][0].predict(
-                            np.array(test_point.reshape(1, -1)))
+                            np.array(test_point.
+                                     reshape(1, -1))).reshape(1,)[0]
                         p1 = self.GP_emulators[name][i][1].predict(
-                             np.array(test_point.reshape(1, -1)))
+                             np.array(test_point.
+                                      reshape(1, -1))).reshape(1,)[0]
                         p2 = self.GP_emulators[name][i][2].predict(
-                             np.array(test_point.reshape(1, -1)))
+                             np.array(test_point.
+                                      reshape(1, -1))).reshape(1,)[0]
+                        print(true_e, true_p1, true_p2)
+                        print(e, p1, p2)
+                        print(' ')
 
                         # calculate and store residuals
                         observable_residuals.append(
@@ -293,9 +303,8 @@ class HydroEmulator:
                     {r'$R_\mathcal{E}$': residuals_of_observables[name][:, 0],
                      p1_name: residuals_of_observables[name][:, 1],
                      p2_name: residuals_of_observables[name][:, 2],
-                     "hydro": 
-                        np.full_like(residuals_of_observables[name][:, 0],
-                                      name)}
+                     "hydro": [name] *
+                        residuals_of_observables[name].shape[0]}
                 )], ignore_index=True)
 
             # TODO: 1. Calculate means and standard deviations of all hydros
