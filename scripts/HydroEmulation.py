@@ -25,6 +25,7 @@ from HydroCodeAPI import HydroCodeAPI
 import pandas as pd
 
 # For plotting residuals
+import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
@@ -119,8 +120,6 @@ class HydroEmulator:
                 (key, np.array(hydro_simulations[key]))
                 for key in hydro_simulations)
 
-            print("From fitting emulators: ",
-                  hydro_simulations['ce'].shape)
             print("Fitting emulators")
             hydro_lists = np.array(
                 [hydro_simulations[key] for key in hydro_names])
@@ -218,7 +217,7 @@ class HydroEmulator:
                       format(len(parameter_names)), 'r') as f:
                 self.test_points = np.array(
                     [[float(entry)
-                      for entry in line]
+                      for entry in line.split()]
                      for line in f.readlines()]
                 )
             with open('pickle_files/emulator_testing_data.pkl', 'rb') as f:
@@ -249,14 +248,13 @@ class HydroEmulator:
             with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
-        print("From emulator validations: ",
-              hydro_simulations['ce'].shape)
         print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
             for name in hydro_names:
                 observable_residuals = []
                 for i, tau in enumerate(simulation_taus):
+                    local_list = []
                     for j, test_point in enumerate(self.test_points):
                         # Store and calculate observables from exact hydro
                         true_e = hydro_simulations[name][i, j, 1]
@@ -273,49 +271,62 @@ class HydroEmulator:
                         p2 = self.GP_emulators[name][i][2].predict(
                              np.array(test_point.
                                       reshape(1, -1))).reshape(1,)[0]
-                        print(true_e, true_p1, true_p2)
-                        print(e, p1, p2)
-                        print(' ')
 
                         # calculate and store residuals
-                        observable_residuals.append(
-                            [e - true_e, p1 - true_p1, p2 - true_p2]
+                        local_list.append(
+                            [(e - true_e) / true_e,
+                             (p1 - true_p1) / true_p1,
+                             (p2 - true_p2) / true_p2]
                         )
+                    observable_residuals.append(local_list)
 
                 # store all residuals for hydro `name`
                 residuals_of_observables[name] = np.array(observable_residuals)
-                print(np.array(observable_residuals).shape)
 
             # store residuals in DataFrame
             if use_PT_PL:
                 p1_name = r'$R_{\mathcal P_T}$'
-                p2_name = r'$R_{\mathcak P_L}$'
+                p2_name = r'$R_{\mathcal P_L}$'
             else:
                 p1_name = r'$R_\pi$'
                 p2_name = r'$R_\Pi$'
 
-            df = pd.DataFrame(columns=[r'$R_\mathcal{E}$',
-                                       p1_name,
-                                       p2_name,
-                                       "hydro"])
-            for name in hydro_names:
-                df = pd.concat([df, pd.DataFrame(
-                    {r'$R_\mathcal{E}$': residuals_of_observables[name][:, 0],
-                     p1_name: residuals_of_observables[name][:, 1],
-                     p2_name: residuals_of_observables[name][:, 2],
-                     "hydro": [name] *
-                        residuals_of_observables[name].shape[0]}
-                )], ignore_index=True)
+            col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
 
             # TODO: 1. Calculate means and standard deviations of all hydros
             #          and observables
             #       2. Output statistics to currently open data file
             #       3. Make plot of residuals and include means and mean
             #          percent error (of absolute value of residual)
+        fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
+        fig.patch.set_facecolor('white')
+        cmap = plt.get_cmap('tab10', 10)
+        markers = ['o', '^', 's', 'p', 'H', 'x', '8', '*']
+        for i in range(3):
+            ax[i].set_xlabel(r'$\mathcal C$', fontsize=20)
+            ax[i].set_ylabel(col_names[i], fontsize=20)
+            for k, tau in enumerate(simulation_taus):
+                for j, name in enumerate(hydro_names):
+                    if i == 0 and k == 0:
+                        ax[i].scatter(
+                            x=self.test_points,
+                            y=residuals_of_observables[name][k, :, i],
+                            marker=markers[k],
+                            color=cmap(j),
+                            label=name)
+                    else:
+                        ax[i].scatter(
+                            x=self.test_points,
+                            y=residuals_of_observables[name][k, :, i],
+                            marker=markers[k],
+                            color=cmap(j))
+        fig.legend(fontsize=18)
+        fig.tight_layout()
+        fig.savefig('plots/emulator_residuals.pdf')
 
         # output residuals to files
-        with open('pickle_files/emulator_residuals_dataframe_n={}'.
+        with open('pickle_files/emulator_residuals_dict_n={}'.
                   format(len(parameter_names)), 'wb') as f:
-            pickle.dump(df, f)
+            pickle.dump(residuals_of_observables, f)
 
         print("Done")
