@@ -26,9 +26,7 @@ import pandas as pd
 
 # For plotting residuals
 import matplotlib.pyplot as plt
-from matplotlib import rc
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
-rc('text', usetex=True)
+from my_plotting import get_cmap, costumize_axis
 
 
 # TOOD: Add workflow that systematically tests the emulator
@@ -76,15 +74,20 @@ class HydroEmulator:
         else:
             print("Running hydro")
             # Run hydro code and generate scalers and GP pickle files
+            # FIXME: I should sample testing points as well
             unit = lhs(n=len(parameter_names),
                        # add 10 points for testing data
-                       samples=20 * len(parameter_names) + 10,
+                       samples=20 * len(parameter_names), # + 10,
                        criterion='maximin')
             self.design_points = parameter_ranges[:, 0] + unit * \
                 (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
-            design_points = self.design_points[:-10]
-            self.test_points = self.design_points[-10:]
+            design_points = self.design_points
+            self.test_points = np.linspace(1 / (4 * np.pi), 
+                                           10 / (4 * np.pi),
+                                           10)
+            # design_points = self.design_points[:-10]
+            # self.test_points = self.design_points[-10:]
             with open('design_points/design_points_n={}.dat'.
                       format(len(parameter_names)), 'w') as f:
                 for line in design_points.reshape(-1, len(parameter_names)):
@@ -200,7 +203,9 @@ class HydroEmulator:
                      simulation_taus: np.ndarray,
                      hydro_names: List[str],
                      use_existing_emulators: bool,
-                     use_PT_PL: bool) -> None:
+                     use_PT_PL: bool,
+                     output_statistics: bool,
+                     plot_emulator_vs_test_points: bool) -> None:
         '''
         This function takes a given set of emulators and tests
         them for how accurately they run
@@ -248,6 +253,44 @@ class HydroEmulator:
             with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
+        if use_PT_PL:
+            p1_name = r'$R_{\mathcal P_T}$'
+            p2_name = r'$R_{\mathcal P_L}$'
+        else:
+            p1_name = r'$R_\pi$'
+            p2_name = r'$R_\Pi$'
+
+        col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
+        # Make plot of emulators and test points
+        if plot_emulator_vs_test_points:
+            C = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), 1000)
+            fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
+            fig.patch.set_facecolor('white')
+            cmap = get_cmap(10, 'tab10')
+            for i, name in enumerate(hydro_names):
+                for j, tau in enumerate(simulation_taus):
+                    for k in range(3):
+                        pred, err = \
+                            self.GP_emulators[name][j][k].predict(
+                                C.reshape((-1, 1)), return_std=True)
+                        if j == 0:
+                            ax[k].plot(C, pred[:, 0], 
+                                       lw=2, color=cmap(i), label=name)
+                            costumize_axis(ax[k],
+                                           r'$\mathcal C$', 
+                                           col_names[k])
+                        else:
+                            ax[k].plot(C, pred.reshape(-1,), 
+                                       lw=2, color=cmap(i))
+                        ax[k].fill_between(C,
+                                           pred[:, 0] + err,
+                                           pred[:, 0] - err,
+                                           color=cmap(i), alpha=.4)
+            fig.legend()
+            fig.tight_layout()
+            fig.savefig('plots/emulator_validation_plot_n={}.pdf'.
+                        format(len(parameter_names)))
+
         print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
@@ -283,46 +326,65 @@ class HydroEmulator:
                 # store all residuals for hydro `name`
                 residuals_of_observables[name] = np.array(observable_residuals)
 
-            # store residuals in DataFrame
-            if use_PT_PL:
-                p1_name = r'$R_{\mathcal P_T}$'
-                p2_name = r'$R_{\mathcal P_L}$'
-            else:
-                p1_name = r'$R_\pi$'
-                p2_name = r'$R_\Pi$'
+        if output_statistics:
+            for name in hydro_names:
+                print(f'Summary statistics for {name}')
+                print('    energy density:')
+                print('        mean abs % err:    {}'.
+                      format(np.array([np.mean(np.abs(
+                          residuals_of_observables[name][k, :, 0].
+                          reshape(-1,)))])))
+                print('        std abs % err:      {}'.
+                      format(np.array([np.std(np.abs(
+                          residuals_of_observables[name][k, :, 0].
+                          reshape(-1,)))])))
+                print(f'    {p1_name}:')
+                print('        mean abs % err:    {}'.
+                      format(np.array([np.mean(np.abs(
+                          residuals_of_observables[name][k, :, 1].
+                          reshape(-1,)))])))
+                print('        std abs % err:      {}'.
+                      format(np.array([np.std(np.abs(
+                          residuals_of_observables[name][k, :, 1].
+                          reshape(-1,)))])))
+                print(f'    {p2_name}:')
+                print('        mean abs % err:    {}'.
+                      format(np.array([np.mean(np.abs(
+                          residuals_of_observables[name][k, :, 2].
+                          reshape(-1,)))])))
+                print('        std abs % err:      {}'.
+                      format(np.array([np.std(np.abs(
+                          residuals_of_observables[name][k, :, 2].
+                          reshape(-1,)))])))
 
-            col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
-
-            # TODO: 1. Calculate means and standard deviations of all hydros
-            #          and observables
-            #       2. Output statistics to currently open data file
-            #       3. Make plot of residuals and include means and mean
-            #          percent error (of absolute value of residual)
-        fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
-        fig.patch.set_facecolor('white')
-        cmap = plt.get_cmap('tab10', 10)
-        markers = ['o', '^', 's', 'p', 'H', 'x', '8', '*']
-        for i in range(3):
-            ax[i].set_xlabel(r'$\mathcal C$', fontsize=20)
-            ax[i].set_ylabel(col_names[i], fontsize=20)
-            for k, tau in enumerate(simulation_taus):
-                for j, name in enumerate(hydro_names):
-                    if i == 0 and k == 0:
-                        ax[i].scatter(
-                            x=self.test_points,
-                            y=residuals_of_observables[name][k, :, i],
-                            marker=markers[k],
-                            color=cmap(j),
-                            label=name)
-                    else:
-                        ax[i].scatter(
-                            x=self.test_points,
-                            y=residuals_of_observables[name][k, :, i],
-                            marker=markers[k],
-                            color=cmap(j))
-        fig.legend(fontsize=18)
-        fig.tight_layout()
-        fig.savefig('plots/emulator_residuals.pdf')
+        # TODO: 1. Make plot of residuals and include means and mean
+        #          percent error (of absolute value of residual)
+        if output_statistics:
+            fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
+            fig.patch.set_facecolor('white')
+            cmap = plt.get_cmap('tab10', 10)
+            markers = ['o', '^', 's', 'p', 'H', 'x', '8', '*']
+            for i in range(3):
+                costumize_axis(ax[i], r'$\mathcal C$', col_names[i])
+                for k, tau in enumerate(simulation_taus):
+                    for j, name in enumerate(hydro_names):
+                        if i == 0 and k == 0:
+                            ax[i].scatter(
+                                x=self.test_points,
+                                y=residuals_of_observables[name][k, :, i],
+                                marker=markers[k],
+                                color=cmap(j),
+                                label=name)
+                        else:
+                            ax[i].scatter(
+                                x=self.test_points,
+                                y=residuals_of_observables[name][k, :, i],
+                                marker=markers[k],
+                                color=cmap(j))
+            ax[0].set_yscale('log')
+            fig.legend(fontsize=18)
+            fig.tight_layout()
+            fig.savefig('plots/emulator_residuals.pdf')
 
         # output residuals to files
         with open('pickle_files/emulator_residuals_dict_n={}'.

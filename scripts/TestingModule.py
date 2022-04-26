@@ -17,37 +17,12 @@ from HydroBayesianAnalysis import HydroBayesianAnalysis as HBA
 from HydroCodeAPI import HydroCodeAPI as HCA
 from HydroEmulation import HydroEmulator as HE
 
-# My costumizations for plots
-import matplotlib.ticker as tck
-from matplotlib import rc
-rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
-rc('text', usetex=True)
+from my_plotting import get_cmap, costumize_axis
 
 # If on WSL set temporary directory
 if 'microsoft' in uname().release:
     import os
     os.environ['MPLCONFIGDIR'] = '/tmp/'
-
-
-def get_cmap(n: int, name: str = 'hsv'):
-    '''
-    Returns a function that maps each index in 0, 1, ..., n-1 to a distinct
-    RGB color; the keyword argument name must be a standard mpl colormap name.
-    '''
-    return plt.cm.get_cmap(name, n)
-
-
-def costumize_axis(ax: plt.Axes, x_title: str, y_title: str):
-    ax.set_xlabel(x_title, fontsize=24)
-    ax.set_ylabel(y_title, fontsize=24)
-    ax.tick_params(axis='both', labelsize=18, top=True, right=True)
-    ax.tick_params(axis='both', which='major', direction='in', length=8)
-    ax.xaxis.set_minor_locator(tck.AutoMinorLocator())
-    ax.yaxis.set_minor_locator(tck.AutoMinorLocator())
-    ax.tick_params(axis='both', which='minor',
-                   direction='in', length=4, top=True, right=True)
-    return ax
-
 
 def SampleObservables(error_level: float,
                       exact_out: np.ndarray,
@@ -128,7 +103,9 @@ default_params = {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_use_existing_emulators = False
+    b_use_existing_emulators = True
+    b_output_emulator_validation_statistics = True
+    b_output_emulator_validation_plots = True
     b_read_mcmc = False
     b_use_PT_PL = True
 
@@ -209,7 +186,9 @@ if __name__ == '__main__':
         simulation_taus=simulation_taus,
         hydro_names=code_api.hydro_names,
         use_existing_emulators=b_use_existing_emulators,
-        use_PT_PL=b_use_PT_PL)
+        use_PT_PL=b_use_PT_PL,
+        output_statistics=b_output_emulator_validation_statistics,
+        plot_emulator_vs_test_points=b_output_emulator_validation_plots)
     quit()
     ba_class.RunMCMC(nsteps=200,
                      nburn=50,
