@@ -21,6 +21,7 @@ from multiprocessing import Manager, Process
 # TODO: Make GerExactSolution take the `use_PT_PL` keyword to hide thus
 #       complexity
 
+
 class HydroCodeAPI:
     """
     Add description
@@ -211,7 +212,6 @@ class HydroCodeAPI:
 
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
-
 
         for k, name in enumerate(self.hydro_names):
             for j, tau in enumerate(simulation_taus):
