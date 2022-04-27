@@ -52,7 +52,6 @@ class HydroEmulator:
         # TODO: If hydro output contains NaN, output the design point
         #       for which the NaN(s) were present
         self.GP_emulators = dict((key, None) for key in hydro_names)
-        self.b_use_existing_emulators = use_existing_emulators
         if use_existing_emulators:
             # Load GP data from pickle files
             with open(
@@ -208,7 +207,7 @@ class HydroEmulator:
                      plot_emulator_vs_test_points: bool) -> None:
         '''
         This function takes a given set of emulators and tests
-        them for how accurately they run
+        them for how accurately they run\n
         Parameters:
         ----------
         type annotations are specific enough
@@ -217,7 +216,7 @@ class HydroEmulator:
         ----------
         None
         '''
-        if self.b_use_existing_emulators:
+        if use_existing_emulators:
             with open('design_points/testing_points_n={}.dat'.
                       format(len(parameter_names)), 'r') as f:
                 self.test_points = np.array(
@@ -264,6 +263,8 @@ class HydroEmulator:
         # Make plot of emulators and test points
         if plot_emulator_vs_test_points:
             C = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), 1000)
+            feats = np.linspace(parameter_ranges[:, 0],
+                                parameter_ranges[:, 1], 1000)
             fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
             fig.patch.set_facecolor('white')
             cmap = get_cmap(10, 'tab10')
@@ -272,7 +273,7 @@ class HydroEmulator:
                     for k in range(3):
                         pred, err = \
                             self.GP_emulators[name][j][k].predict(
-                                C.reshape((-1, 1)), return_std=True)
+                                feats, return_std=True)
                         if j == 0:
                             ax[k].plot(C, pred[:, 0], 
                                        lw=2, color=cmap(i), label=name)
@@ -290,6 +291,7 @@ class HydroEmulator:
             fig.tight_layout()
             fig.savefig('plots/emulator_validation_plot_n={}.pdf'.
                         format(len(parameter_names)))
+            del fig, ax
 
         print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:

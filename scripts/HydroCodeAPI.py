@@ -5,6 +5,8 @@
 #              from the C++ routines defined in the C++ property
 #              one directory higher
 
+from platform import uname
+
 # For directory changing and running command line commands
 from os import chdir as cd, getcwd
 from subprocess import run as cmd
@@ -18,7 +20,7 @@ from typing import List, Dict
 # for running hydro in parallel
 from multiprocessing import Manager, Process
 
-# TODO: Make GerExactSolution take the `use_PT_PL` keyword to hide thus
+# TODO: Make GetExactSolution take the `use_PT_PL` keyword to hide this
 #       complexity
 
 
@@ -201,17 +203,27 @@ class HydroCodeAPI:
                   for j in observ_indices[i]]
                  for i, design_point in enumerate(design_points)])
             output_dict[key] = output
+        
+        # Having trouble getting multiprocessing to work on mac
+        if 'Darwin' in uname():
+            for i, name in enumerate(self.hydro_names):
+                for_multiprocessing(params_dict=params_dict,
+                                    parameter_names=parameter_names,
+                                    design_points=design_points,
+                                    output_dict=hydro_output,
+                                    key=name,
+                                    itr=i)
+        else:
+            jobs = [Process(target=for_multiprocessing,
+                            args=(params_dict,
+                                parameter_names,
+                                design_points,
+                                hydro_output,
+                                key,
+                                i)) for i, key in enumerate(self.hydro_names)]
 
-        jobs = [Process(target=for_multiprocessing,
-                        args=(params_dict,
-                              parameter_names,
-                              design_points,
-                              hydro_output,
-                              key,
-                              i)) for i, key in enumerate(self.hydro_names)]
-
-        _ = [proc.start() for proc in jobs]
-        _ = [proc.join() for proc in jobs]
+            _ = [proc.start() for proc in jobs]
+            _ = [proc.join() for proc in jobs]
 
         for k, name in enumerate(self.hydro_names):
             for j, tau in enumerate(simulation_taus):

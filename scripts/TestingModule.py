@@ -103,7 +103,7 @@ default_params = {
 
 if __name__ == '__main__':
     # Flags for flow control of analysis:
-    b_use_existing_emulators = True
+    b_use_existing_emulators = False
     b_output_emulator_validation_statistics = True
     b_output_emulator_validation_plots = True
     b_read_mcmc = False
