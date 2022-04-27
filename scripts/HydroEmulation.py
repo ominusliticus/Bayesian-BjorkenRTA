@@ -82,8 +82,8 @@ class HydroEmulator:
                 (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
             design_points = self.design_points
-            self.test_points = np.linspace(1 / (4 * np.pi), 
-                                           10 / (4 * np.pi),
+            self.test_points = np.linspace(parameter_ranges[:, 0],
+                                           parameter_ranges[:, 1],
                                            10)
             # design_points = self.design_points[:-10]
             # self.test_points = self.design_points[-10:]
@@ -359,9 +359,6 @@ class HydroEmulator:
                           residuals_of_observables[name][k, :, 2].
                           reshape(-1,)))])))
 
-        # TODO: 1. Make plot of residuals and include means and mean
-        #          percent error (of absolute value of residual)
-        if output_statistics:
             fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
             fig.patch.set_facecolor('white')
             cmap = plt.get_cmap('tab10', 10)
