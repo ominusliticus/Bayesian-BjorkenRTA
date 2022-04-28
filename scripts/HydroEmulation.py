@@ -5,6 +5,7 @@
 #              simulations for efficient code evaluation
 
 # For type identification
+from enum import auto
 from typing import List, Dict
 import numpy as np
 
@@ -26,7 +27,10 @@ import pandas as pd
 
 # For plotting residuals
 import matplotlib.pyplot as plt
-from my_plotting import get_cmap, costumize_axis
+from my_plotting import get_cmap, costumize_axis, autoscale_y
+
+# For progress bars
+from tqdm import tqdm
 
 
 # TOOD: Add workflow that systematically tests the emulator
@@ -64,7 +68,7 @@ class HydroEmulator:
                      for line in f.readlines()])
 
             f_pickle_emulators = open(
-                'pickle_files/emulators_data_n={}.pkl'.
+                'pickle_files/all_emulators_n={}.pkl'.
                 format(len(parameter_names)),
                 'rb')
 
@@ -133,12 +137,13 @@ class HydroEmulator:
                 f'full_outputs/emulator_scores_n={len(parameter_names)}.txt',
                 'w')
             f_pickle_emulators = open(
-                f'pickle_files/emulators_data_n={len(parameter_names)}.pkl',
+                f'pickle_files/all_emulators_n={len(parameter_names)}.pkl',
                 'wb')
 
             for i, name in enumerate(hydro_names):
                 global_emulators = []
-                for j, tau in enumerate(simulation_taus):
+                for j, tau in enumerate(tqdm(simulation_taus,
+                                             desc=f'{name}: ')):
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
@@ -191,6 +196,7 @@ class HydroEmulator:
 
             pickle.dump(self.GP_emulators, f_pickle_emulators)
             f_emulator_scores.close()
+            f_pickle_emulators.close()
 
             print("Done")
 
@@ -224,7 +230,8 @@ class HydroEmulator:
                       for entry in line.split()]
                      for line in f.readlines()]
                 )
-            with open('pickle_files/emulator_testing_data.pkl', 'rb') as f:
+            with open('pickle_files/emulator_testing_data_n={}.pkl'.
+                      format(len(parameter_names)), 'rb') as f:
                 hydro_simulations = pickle.load(f)
         else:
             hca.RunHydro(params_dict=params_dict,
@@ -274,12 +281,9 @@ class HydroEmulator:
                         pred, err = \
                             self.GP_emulators[name][j][k].predict(
                                 feats, return_std=True)
-                        if j == 0:
+                        if j == 0 and k == 0:
                             ax[k].plot(C, pred[:, 0], 
                                        lw=2, color=cmap(i), label=name)
-                            costumize_axis(ax[k],
-                                           r'$\mathcal C$', 
-                                           col_names[k])
                         else:
                             ax[k].plot(C, pred.reshape(-1,), 
                                        lw=2, color=cmap(i))
@@ -287,18 +291,22 @@ class HydroEmulator:
                                            pred[:, 0] + err,
                                            pred[:, 0] - err,
                                            color=cmap(i), alpha=.4)
+            for k in range(3):
+                autoscale_y(ax=ax[k], margin=0.1)         
+                costumize_axis(ax[k], r'$\mathcal C$', col_names[k])
             fig.legend()
             fig.tight_layout()
             fig.savefig('plots/emulator_validation_plot_n={}.pdf'.
                         format(len(parameter_names)))
             del fig, ax
 
-        print("Testing emulators")
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
+            print(f"Testing emulators")
             for name in hydro_names:
                 observable_residuals = []
-                for i, tau in enumerate(simulation_taus):
+                for i, tau in enumerate(tqdm(simulation_taus, 
+                                        desc=f'{name}: ')):
                     local_list = []
                     for j, test_point in enumerate(self.test_points):
                         # Store and calculate observables from exact hydro
@@ -368,21 +376,27 @@ class HydroEmulator:
                 for k, tau in enumerate(simulation_taus):
                     for j, name in enumerate(hydro_names):
                         if i == 0 and k == 0:
-                            ax[i].scatter(
-                                x=self.test_points,
-                                y=residuals_of_observables[name][k, :, i],
+                            ax[i].plot(
+                                self.test_points,
+                                residuals_of_observables[name][k, :, i],
+                                lw=2,
                                 marker=markers[k],
                                 color=cmap(j),
                                 label=name)
                         else:
-                            ax[i].scatter(
-                                x=self.test_points,
-                                y=residuals_of_observables[name][k, :, i],
+                            ax[i].plot(
+                                self.test_points,
+                                residuals_of_observables[name][k, :, i],
+                                lw=1,
                                 marker=markers[k],
                                 color=cmap(j))
+            autoscale_y(ax=ax[0], margin=0.1)
+            autoscale_y(ax=ax[1], margin=0.1)
+            autoscale_y(ax=ax[2], margin=0.1)
             fig.legend(fontsize=18)
             fig.tight_layout()
-            fig.savefig('plots/emulator_residuals.pdf')
+            fig.savefig('plots/emulator_residuals_n={}.pdf'.
+                        format(len(parameter_names)))
 
         # output residuals to files
         with open('pickle_files/emulator_residuals_dict_n={}'.

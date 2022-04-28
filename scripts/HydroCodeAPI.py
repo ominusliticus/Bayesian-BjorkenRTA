@@ -20,6 +20,9 @@ from typing import List, Dict
 # for running hydro in parallel
 from multiprocessing import Manager, Process
 
+# For progress bars 
+from tqdm import tqdm
+
 # TODO: Make GetExactSolution take the `use_PT_PL` keyword to hide this
 #       complexity
 
@@ -35,7 +38,8 @@ class HydroCodeAPI:
         # data slots for storing hydro runs
 
     def PrintCommandLineArgs(self,
-                             params_dict: Dict[str, float]) -> List[str]:
+                             params_dict: Dict[str, float]
+                             ) -> List[str]:
         '''
         Function ouputs file "params.txt" to the Code/util folder to
         be used by the Code/build/exact_solution.x program
@@ -180,6 +184,7 @@ class HydroCodeAPI:
                                 output_dict: Dict[str, np.ndarray],
                                 key: str,
                                 itr: int):
+            # Calculate indices for observation times
             if 'tau_0' in parameter_names:
                 j = parameter_names.index('tau_0')
                 observ_indices = np.array(
@@ -194,6 +199,7 @@ class HydroCodeAPI:
                      for design_point in design_points])
 
             params_dict['hydro_type'] = itr
+            names = ['ce', 'dnmr', 'vah', 'mvah']
             output = np.array(
                 [[self.ProcessHydro(
                         params_dict,
@@ -201,7 +207,10 @@ class HydroCodeAPI:
                         design_point,
                         use_PT_PL)[int(j)-1]
                   for j in observ_indices[i]]
-                 for i, design_point in enumerate(design_points)])
+                 for i, design_point in enumerate(
+                     tqdm(design_points, 
+                          desc=f'hydro {names[itr]}: ',
+                          position=itr))])
             output_dict[key] = output
         
         # Having trouble getting multiprocessing to work on mac

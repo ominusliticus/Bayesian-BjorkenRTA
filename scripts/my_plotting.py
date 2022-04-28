@@ -27,3 +27,45 @@ def costumize_axis(ax: plt.Axes, x_title: str, y_title: str):
     ax.tick_params(axis='both', which='minor',
                    direction='in', length=4, top=True, right=True)
     return ax
+
+def autoscale_y(ax,margin=0.1):
+    """
+    This function rescales the y-axis based on the data that is visible given 
+    the current xlim of the axis.\n
+    Parameters:
+    --------------
+    ax: a matplotlib axes object
+    margin:  the fraction of the total height of the y-data to pad the upper and lower ylims
+    
+    Returns:
+    --------------
+    None
+    """
+
+    import numpy as np
+
+    def get_bottom_top(line):
+        xd = line.get_xdata()
+        yd = line.get_ydata()
+        lo,hi = ax.get_xlim()
+        y_displayed = yd[((xd>lo) & (xd<hi))]
+        h = np.max(y_displayed) - np.min(y_displayed)
+        bot = np.min(y_displayed)-margin*h
+        top = np.max(y_displayed)+margin*h
+        return bot,top
+
+    lines = ax.get_lines()
+    if len(lines) == 0:
+        print('No lines in plot, leaving plot unchanged')
+        return
+    bot,top = np.inf, -np.inf
+
+    for line in lines:
+        new_bot, new_top = get_bottom_top(line)
+        if new_bot < bot: bot = new_bot
+        if new_top > top: top = new_top
+
+    if np.isinf(bot) or np.isinf(top):
+        print("inf encoutner, leaving y-axis unchanged: check for error")
+        return
+    ax.set_ylim(bot,top)
