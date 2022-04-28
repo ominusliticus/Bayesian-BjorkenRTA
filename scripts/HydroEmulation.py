@@ -256,7 +256,8 @@ class HydroEmulator:
                 (key, np.array(hydro_simulations[key]))
                 for key in hydro_simulations)
 
-            with open('pickle_files/emulator_testing_data.pkl', 'wb') as f:
+            with open('pickle_files/emulator_testing_data_n={}.pkl'.
+                      format(len(parameter_names)), 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
         if use_PT_PL:
@@ -399,7 +400,7 @@ class HydroEmulator:
                         format(len(parameter_names)))
 
         # output residuals to files
-        with open('pickle_files/emulator_residuals_dict_n={}'.
+        with open('pickle_files/emulator_residuals_dict_n={}.pkl'.
                   format(len(parameter_names)), 'wb') as f:
             pickle.dump(residuals_of_observables, f)
 

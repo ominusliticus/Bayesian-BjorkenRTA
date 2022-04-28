@@ -40,10 +40,10 @@ def RunManyEmulators(code_api: HCA,
             output_statistics=True,
             plot_emulator_vs_test_points=True)
         
-        run(['mv', 'plots/emulator_residuals_n=1.dat',
-             f'plots/emulator_runs/emulator_residulas_n=1_{n}.dat'])
-        run(['mv', 'plots/emulator_validation_plot_n=1.dat',
-             f'plots/emulator_runs/emulator_validation_plot_n=1_{n}.dat'])
+        run(['mv', 'plots/emulator_residuals_n=1.pdf',
+             f'plots/emulator_runs/emulator_residulas_n=1_{n}.pdf'])
+        run(['mv', 'plots/emulator_validation_plot_n=1.pdf',
+             f'plots/emulator_runs/emulator_validation_plot_n=1_{n}.pdf'])
         run(['mv', 'pickle_files/emulator_testing_data_n=1.pkl',
              f'pickle_files/emulator_runs/emualor_testing_data_n=1_{n}.pkl'])
         run(['mv', 'pickle_files/emulator_residuals_dict_n=1.pkl',
