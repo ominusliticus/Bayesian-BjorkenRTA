@@ -380,7 +380,6 @@ class HydroEmulator:
                                 y=residuals_of_observables[name][k, :, i],
                                 marker=markers[k],
                                 color=cmap(j))
-            ax[0].set_yscale('log')
             fig.legend(fontsize=18)
             fig.tight_layout()
             fig.savefig('plots/emulator_residuals.pdf')
