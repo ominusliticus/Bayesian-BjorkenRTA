@@ -166,6 +166,7 @@ class HydroEmulator:
                                                       len(parameter_names)),
                                 data)
                         except ValueError:
+                            print(f"ValueError encounter for {name}")
                             print("NaN encountered for design point:\n{}\n{}".
                                   format(design_points, data))
                             print("Error occured in iteration ({},{},{})".
@@ -295,7 +296,7 @@ class HydroEmulator:
             for k in range(3):
                 autoscale_y(ax=ax[k], margin=0.1)         
                 costumize_axis(ax[k], r'$\mathcal C$', col_names[k])
-            fig.legend()
+            fig.legend(fontsize=18)
             fig.tight_layout()
             fig.savefig('plots/emulator_validation_plot_n={}.pdf'.
                         format(len(parameter_names)))

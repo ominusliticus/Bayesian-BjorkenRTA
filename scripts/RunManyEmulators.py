@@ -1,6 +1,5 @@
 #!/bin/python3
 # My code
-import code
 from HydroCodeAPI import HydroCodeAPI as HCA
 from HydroEmulation import HydroEmulator as HE
 
@@ -9,7 +8,6 @@ from typing import Dict, List
 from pathlib import Path
 from subprocess import run
 
-from tqdm import tqdm, trange
 
 def RunManyEmulators(code_api: HCA,
                      local_params: Dict[str, float],
@@ -17,7 +15,7 @@ def RunManyEmulators(code_api: HCA,
                      parameter_ranges: List[List[float]],
                      simulation_taus: np.ndarray
                      ) -> None:
-    for n in range(100):
+    for n in range(9, 100):
         print(f'\r{n}')
         emulator_class = HE(hca=code_api,
                             params_dict=local_params,
@@ -27,7 +25,7 @@ def RunManyEmulators(code_api: HCA,
                             hydro_names=code_api.hydro_names,
                             use_existing_emulators=False,
                             use_PT_PL=True)
-        
+
         emulator_class.TestEmulator(
             hca=code_api,
             params_dict=local_params,
@@ -39,7 +37,7 @@ def RunManyEmulators(code_api: HCA,
             use_PT_PL=True,
             output_statistics=True,
             plot_emulator_vs_test_points=True)
-        
+
         run(['mv', 'plots/emulator_residuals_n=1.pdf',
              f'plots/emulator_runs/emulator_residulas_n=1_{n}.pdf'])
         run(['mv', 'plots/emulator_validation_plot_n=1.pdf',
@@ -51,11 +49,12 @@ def RunManyEmulators(code_api: HCA,
         run(['mv', 'pickle_files/all_emulators_n=1.pkl',
              f'pickle_files/emulator_runs/all_emualors_n=1_{n}.pkl'])
 
+
 if __name__ == '__main__':
     default_params = {
         'tau_0':        0.1,
         'Lambda_0':     0.5 / 0.197,
-        'xi_0':         -0.90, 
+        'xi_0':         -0.90,
         'alpha_0':      0.655, #2 * pow(10, -3),
         'tau_f':        12.1,
         'mass':         0.2 / 0.197,
