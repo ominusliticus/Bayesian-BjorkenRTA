@@ -188,7 +188,7 @@ class HydroBayesianAnalysis(object):
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
                                           dim=self.num_params,
                                           ntemps=ntemps,
-                                          # Tmax=10,
+                                          Tmax=10,
                                           threads=4,
                                           logl=self.LogLikelihood,
                                           logp=self.LogPrior,

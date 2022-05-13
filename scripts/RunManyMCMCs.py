@@ -73,9 +73,7 @@ def RunManyMCMCRuns(output_dir: str,
         true_params=local_params,
         parameter_names=parameter_names,
         simulation_taus=simulation_taus)
-    print(exact_pseudo)
-    print(pseudo_error)
-    quit()
+
     for i in np.arange(start, n):
         emulator_class = HE(hca=code_api,
                             params_dict=local_params,
@@ -129,19 +127,18 @@ if __name__ == "__main__":
     local_params = {
         'tau_0':        0.1,
         'Lambda_0':     0.5 / 0.197,
-        'xi_0':         -0.90, 
+        'xi_0': -0.90,
         'alpha_0':      0.655,  # 2 * pow(10, -3),
         'tau_f':        12.1,
         'mass':         0.2 / 0.197,
         'C':            5 / (4 * np.pi),
         'hydro_type':   0
     }
-    total_runs = 100
 
-    # RunManyMCMCRuns(output_dir='./pickle_files',
-    #                 local_params=local_params,
-    #                 n=5,
-    #                 start=total_runs)
+    RunManyMCMCRuns(output_dir='./pickle_files/Mass_run_1',
+                    local_params=local_params,
+                    n=50,
+                    start=26)
 
-    AverageManyRuns(output_dir='./pickle_files/Mass_run_0',
-                    runs=total_runs)
+    AverageManyRuns(output_dir='./pickle_files/Mass_run_1',
+                    runs=50)
