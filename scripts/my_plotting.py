@@ -74,3 +74,19 @@ def autoscale_y(ax, margin=0.1):
         print("inf encoutner, leaving y-axis unchanged: check for error")
         return
     ax.set_ylim(bot, top)
+
+
+def smooth_histogram(counts: np.ndarray,
+                     window_size: int) -> np.ndarray:
+    new_counts = np.zeros_like(counts)
+    mid = int(window_size / 2)
+    for i in range(counts.size):
+        if i < mid or i > counts.size - mid - 1:
+            new_counts[i] = counts[i]
+        else:
+            mean = 0
+            for j in range(-mid, mid):
+                mean += counts[i + j]
+            mean = mean / window_size
+            new_counts[i] = mean
+    return new_counts
