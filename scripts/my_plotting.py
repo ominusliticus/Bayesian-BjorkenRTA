@@ -78,6 +78,7 @@ def autoscale_y(ax, margin=0.1):
 
 def smooth_histogram(counts: np.ndarray,
                      window_size: int) -> np.ndarray:
+    # Convert to cubic splice
     new_counts = np.zeros_like(counts)
     mid = int(window_size / 2)
     for i in range(counts.size):
