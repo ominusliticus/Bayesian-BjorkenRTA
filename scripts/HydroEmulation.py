@@ -23,7 +23,7 @@ import pickle
 from HydroCodeAPI import HydroCodeAPI
 
 # For storing data
-import pandas as pd
+# import pandas as pd
 
 # For plotting residuals
 import matplotlib.pyplot as plt
@@ -33,9 +33,12 @@ from my_plotting import get_cmap, costumize_axis, autoscale_y
 from tqdm import tqdm
 
 
-# TOOD: Add workflow that systematically tests the emulator
-#       preformance by having a training and testing set of hydro
-#       and quantifying how well the emulator reproduces the value
+# TOOD: 1. Add workflow that systematically tests the emulator
+#          preformance by having a training and testing set of hydro
+#          and quantifying how well the emulator reproduces the value
+#       2. Include option to change the number of points per parameter
+#          used to in Latin Hypercube Sampler
+
 class HydroEmulator:
     """
     Add description
@@ -49,7 +52,9 @@ class HydroEmulator:
                  simulation_taus: np.ndarray,
                  hydro_names: List[str],
                  use_existing_emulators: bool,
-                 use_PT_PL: bool):
+                 use_PT_PL: bool,
+                 samples_per_feature: int = 20
+                 ):
         '''
         Add description
         '''
@@ -76,55 +81,69 @@ class HydroEmulator:
             f_pickle_emulators.close()
         else:
             print("Running hydro")
-            # Run hydro code and generate scalers and GP pickle files
-            # FIXME: I should sample testing points as well
-            unit = lhs(n=len(parameter_names),
-                       # add 10 points for testing data
-                       samples=20 * len(parameter_names), # + 10,
-                       criterion='maximin')
-            self.design_points = parameter_ranges[:, 0] + unit * \
-                (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
-            design_points = self.design_points
-            self.test_points = np.linspace(parameter_ranges[:, 0],
-                                           parameter_ranges[:, 1],
-                                           10)
-            # design_points = self.design_points[:-10]
-            # self.test_points = self.design_points[-10:]
-            with open('design_points/design_points_n={}.dat'.
-                      format(len(parameter_names)), 'w') as f:
-                for line in design_points.reshape(-1, len(parameter_names)):
-                    for entry in line:
-                        f.write(f'{entry} ')
-                    f.write('\n')
-            with open('design_points/testing_points_n={}.dat'.
-                      format(len(parameter_names)), 'w') as f:
-                for line in self.test_points.reshape(-1, len(parameter_names)):
-                    for entry in line:
-                        f.write(f'{entry} ')
-                    f.write('\n')
+            try_until_no_nan = True
+            while try_until_no_nan:
+                # Run hydro code and generate scalers and GP pickle files
+                # FIXME: I should sample testing points as well
+                unit = lhs(n=len(parameter_names),
+                           # add 10 points for testing data
+                           samples=samples_per_feature * len(parameter_names),
+                           criterion='maximin')
+                self.design_points = parameter_ranges[:, 0] + unit * \
+                    (parameter_ranges[:, 1] - parameter_ranges[:, 0])
 
-            hca.RunHydro(params_dict=params_dict,
-                         parameter_names=parameter_names,
-                         design_points=design_points,
-                         simulation_taus=simulation_taus,
-                         use_PT_PL=use_PT_PL)
+                design_points = self.design_points
+                self.test_points = np.linspace(parameter_ranges[:, 0],
+                                               parameter_ranges[:, 1],
+                                               10)
+                # design_points = self.design_points[:-10]
+                # self.test_points = self.design_points[-10:]
+                with open('design_points/design_points_n={}.dat'.
+                          format(len(parameter_names)), 'w') as f:
+                    for line in design_points.reshape(-1,
+                                                      len(parameter_names)):
+                        for entry in line:
+                            f.write(f'{entry} ')
+                        f.write('\n')
+                with open('design_points/testing_points_n={}.dat'.
+                          format(len(parameter_names)), 'w') as f:
+                    for line in self.test_points.reshape(-1,
+                                                         len(parameter_names)):
+                        for entry in line:
+                            f.write(f'{entry} ')
+                        f.write('\n')
 
-            hydro_simulations = dict((key, []) for key in hydro_names)
-            for k, name in enumerate(hydro_names):
-                for j, tau in enumerate(simulation_taus):
-                    with open(('hydro_simulation_points/{}_simulation_points'
-                               + '_n={}_tau={}.dat').
-                              format(name, len(parameter_names), tau),
-                              'r') as f_hydro_simulation_pts:
-                        hydro_simulations[name].append(
-                            [[float(entry)
-                              for entry in line.split()]
-                             for line in f_hydro_simulation_pts.readlines()
-                             ])
-            hydro_simulations = dict(
-                (key, np.array(hydro_simulations[key]))
-                for key in hydro_simulations)
+                hca.RunHydro(params_dict=params_dict,
+                             parameter_names=parameter_names,
+                             design_points=design_points,
+                             simulation_taus=simulation_taus,
+                             use_PT_PL=use_PT_PL)
+
+                hydro_simulations = dict((key, []) for key in hydro_names)
+                for k, name in enumerate(hydro_names):
+                    for j, tau in enumerate(simulation_taus):
+                        with open(('hydro_simulation_points/'
+                                   + '{}_simulation_points'
+                                   + '_n={}_tau={}.dat').
+                                  format(name, len(parameter_names), tau),
+                                  'r') as f_hydro_simulation_pts:
+                            hydro_simulations[name].append(
+                                [[float(entry)
+                                  for entry in line.split()]
+                                 for line in f_hydro_simulation_pts.readlines()
+                                 ])
+                hydro_simulations = dict(
+                    (key, np.array(hydro_simulations[key]))
+                    for key in hydro_simulations)
+
+                nan_detected = np.array([0, 0, 0, 0], dtype=bool)
+                for m, key in enumerate(hydro_names):
+                    if np.any(np.isnan(hydro_simulations[key])):
+                        nan_detected[m] = True
+                    else:
+                        nan_detected[m] = False
+                try_until_no_nan = np.any(nan_detected)
 
             print("Fitting emulators")
             hydro_lists = np.array(
@@ -261,12 +280,8 @@ class HydroEmulator:
                       format(len(parameter_names)), 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
-        if use_PT_PL:
-            p1_name = r'$R_{\mathcal P_T}$'
-            p2_name = r'$R_{\mathcal P_L}$'
-        else:
-            p1_name = r'$R_\pi$'
-            p2_name = r'$R_\Pi$'
+        p1_name = r'$R_{\mathcal P_T}$' if use_PT_PL else r'$R_\pi$'
+        p2_name = r'$R_{\mathcal P_L}$' if use_PT_PL else r'$R_\Pi$'
 
         col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
         # Make plot of emulators and test points
@@ -284,17 +299,17 @@ class HydroEmulator:
                             self.GP_emulators[name][j][k].predict(
                                 feats, return_std=True)
                         if j == 0 and k == 0:
-                            ax[k].plot(C, pred[:, 0], 
+                            ax[k].plot(C, pred[:, 0],
                                        lw=2, color=cmap(i), label=name)
                         else:
-                            ax[k].plot(C, pred.reshape(-1,), 
+                            ax[k].plot(C, pred.reshape(-1,),
                                        lw=2, color=cmap(i))
                         ax[k].fill_between(C,
                                            pred[:, 0] + err,
                                            pred[:, 0] - err,
                                            color=cmap(i), alpha=.4)
             for k in range(3):
-                autoscale_y(ax=ax[k], margin=0.1)         
+                autoscale_y(ax=ax[k], margin=0.1)
                 costumize_axis(ax[k], r'$\mathcal C$', col_names[k])
             fig.legend(fontsize=18)
             fig.tight_layout()
@@ -304,10 +319,10 @@ class HydroEmulator:
 
         with open('full_outputs/emulator_test_n={}.txt', 'wb') as f:
             residuals_of_observables = {}
-            print(f"Testing emulators")
+            print("Testing emulators")
             for name in hydro_names:
                 observable_residuals = []
-                for i, tau in enumerate(tqdm(simulation_taus, 
+                for i, tau in enumerate(tqdm(simulation_taus,
                                         desc=f'{name}: ')):
                     local_list = []
                     for j, test_point in enumerate(self.test_points):
