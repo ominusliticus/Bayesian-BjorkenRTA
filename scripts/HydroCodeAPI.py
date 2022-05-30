@@ -67,7 +67,7 @@ class HydroCodeAPI:
         try:
             cmd(cmd_list).check_returncode()
         except (CalledProcessError):
-            print("Execution off hydro code faile.\nExiting. . .\n")
+            print("Execution off hydro code failed.\nExiting. . .\n")
         cd('scripts/')
         return None
 
@@ -208,11 +208,11 @@ class HydroCodeAPI:
                         use_PT_PL)[int(j)-1]
                   for j in observ_indices[i]]
                  for i, design_point in enumerate(
-                     tqdm(design_points, 
+                     tqdm(design_points,
                           desc=f'hydro {names[itr]}: ',
                           position=itr))])
             output_dict[key] = output
-        
+
         # Having trouble getting multiprocessing to work on mac
         if 'Darwin' in uname():
             for i, name in enumerate(self.hydro_names):
@@ -225,11 +225,12 @@ class HydroCodeAPI:
         else:
             jobs = [Process(target=for_multiprocessing,
                             args=(params_dict,
-                                parameter_names,
-                                design_points,
-                                hydro_output,
-                                key,
-                                i)) for i, key in enumerate(self.hydro_names)]
+                                  parameter_names,
+                                  design_points,
+                                  hydro_output,
+                                  key,
+                                  i))
+                    for i, key in enumerate(self.hydro_names)]
 
             _ = [proc.start() for proc in jobs]
             _ = [proc.join() for proc in jobs]
