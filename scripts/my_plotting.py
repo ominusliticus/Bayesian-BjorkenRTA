@@ -3,6 +3,8 @@
 # File: my_plotting.py
 # Description: User defined functions to facilitate plotting routines
 
+from typing import Tuple
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tck
@@ -45,8 +47,6 @@ def autoscale_y(ax, margin=0.1):
     None
     """
 
-    import numpy as np
-
     def get_bottom_top(line):
         xd = line.get_xdata()
         yd = line.get_ydata()
@@ -76,18 +76,28 @@ def autoscale_y(ax, margin=0.1):
     ax.set_ylim(bot, top)
 
 
-def smooth_histogram(counts: np.ndarray,
-                     window_size: int) -> np.ndarray:
-    # Convert to cubic splice
-    new_counts = np.zeros_like(counts)
-    mid = int(window_size / 2)
-    for i in range(counts.size):
-        if i < mid or i > counts.size - mid - 1:
-            new_counts[i] = counts[i]
-        else:
-            mean = 0
-            for j in range(-mid, mid):
-                mean += counts[i + j]
-            mean = mean / window_size
-            new_counts[i] = mean
-    return new_counts
+# def smooth_histogram(counts: np.ndarray,
+#                      window_size: int) -> np.ndarray:
+#     # Convert to cubic splice
+#     new_counts = np.zeros_like(counts)
+#     mid = int(window_size / 2)
+#     for i in range(counts.size):
+#         if i < mid or i > counts.size - mid - 1:
+#             new_counts[i] = counts[i]
+#         else:
+#             mean = 0
+#             for j in range(-mid, mid):
+#                 mean += counts[i + j]
+#             mean = mean / window_size
+#             new_counts[i] = mean
+#     return new_counts
+
+def smooth_histogram(x: np.ndarray,
+                     y: np.ndarray
+                     ) -> Tuple[np.ndarray, np.ndarray]:
+    from scipy.interpolate import CubicSpline
+
+    low, high = x[0], x[-1]
+    xs = np.linspace(low, high, x.size * 2)
+    cs = CubicSpline(x, y)
+    return xs, cs(xs)
