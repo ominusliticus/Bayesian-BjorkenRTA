@@ -239,7 +239,7 @@ class HydroCodeAPI:
         for k, name in enumerate(self.hydro_names):
             for j, tau in enumerate(simulation_taus):
                 with open(
-                        ('{}/swap/{}_simulation_points_n='
+                        ('{}/{}_simulation_points_n='
                          + '{}_tau={}.dat').
                         format(self.path_to_output,
                                name,

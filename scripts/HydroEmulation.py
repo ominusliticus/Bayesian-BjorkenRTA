@@ -124,7 +124,7 @@ class HydroEmulator:
                 hydro_simulations = dict((key, []) for key in hydro_names)
                 for k, name in enumerate(hydro_names):
                     for j, tau in enumerate(simulation_taus):
-                        with open(('{}/{}_simulation_points'
+                        with open(('{}/swap/{}_simulation_points'
                                    + '_n={}_tau={}.dat').
                                   format(output_dir,
                                          name,
