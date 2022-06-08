@@ -26,6 +26,11 @@ import pickle
 #          pressure
 #       2. Add automated plotting routines for posteriors and MCMC chains
 #       3. Updated ALL function descriptions to match current functions
+#       4. Add option and code to plot posteriors using plotting routines
+#          written by me (this ensures that I know how the plots are
+#          normalized, as it currently isn't clear to me using sns.kdeplot
+#       5. Write a setup script that creates a directory and its necessary
+#          subdirectories to let the Hydro bayes analysis python code work
 
 
 class HydroBayesianAnalysis(object):
@@ -239,7 +244,7 @@ class HydroBayesianAnalysis(object):
         """
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
-    def PlotPosteriors(self, axis_names: List[str]):
+    def PlotPosteriors(self, output_dir: str, axis_names: List[str]):
         # TODO: Add true and MAP values to plot
         dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
         # pallette = sns.color_palette('Colorblind')
@@ -255,7 +260,8 @@ class HydroBayesianAnalysis(object):
                               kind='hist')
             g1.map_lower(sns.kdeplot, levels=4, color='black')
             g1.tight_layout()
-            g1.savefig(f'plots/{name}_corner_plot_n={self.num_params}.pdf')
+            g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
+                       format(output_dir, name, self.num_params))
 
             df['hydro'] = name
             dfs = pd.concat([dfs, df], ignore_index=True)
@@ -267,4 +273,5 @@ class HydroBayesianAnalysis(object):
                          hue='hydro')
         g.map_lower(sns.kdeplot, levels=4, color='black')
         g.tight_layout()
-        g.savefig(f'plots/all_corner_plot_n={self.num_params}.pdf')
+        g.savefig(
+            f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')

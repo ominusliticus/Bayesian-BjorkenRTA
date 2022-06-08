@@ -67,6 +67,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                     pseudo_error: np.ndarray,
                     output_dir: str,
                     local_params: Dict[str, float],
+                    points_per_feat: int,
                     n: int,
                     start: int = 0) -> None:
     '''
@@ -87,7 +88,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                             hydro_names=code_api.hydro_names,
                             use_existing_emulators=False,
                             use_PT_PL=True,
-                            samples_per_feature=20)
+                            samples_per_feature=points_per_feat)
         ba_class = HBA(default_params=local_params,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
@@ -103,30 +104,64 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
             pickle.dump(ba_class.MCMC_chains, f)
 
 
-def AverageManyRuns(output_dir: str,
-                    runs: int) -> None:
-    # TODO: generalize to a script that can read MAP from multi-dim
-    #       parameter space
-    out_dict = dict((key, np.zeros(runs))
-                    for key in ['ce', 'dnmr', 'vah', 'mvah'])
-    for i in np.arange(runs):
-        with open(output_dir + f'/mass_MCMC_run_{i}.pkl', 'rb') as f:
-            mcmc_chains = pickle.load(f)
-            for key in out_dict.keys():
-                n, b = np.histogram(mcmc_chains[key][0, ...].flatten(),
-                                    bins=1000,
-                                    density=True)
-                out_dict[key][i] = b[np.argmax(n)]
+def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
+                     pseudo_error: np.ndarray,
+                     output_dir: str,
+                     local_params: Dict[str, float],
+                     points_per_feat: int,
+                     number_steps: int) -> None:
+    '''
+    Runs the entire analysis suite, including the emulator fitting
+    and saves MCMC chains and outputs plots
+    '''
+    code_api = HCA(str(Path(output_dir + '/swap').absolute()))
+    parameter_names = ['C']
+    parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
+    simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
 
-    avg = dict((key,
-                np.sum(out_dict[key]) / runs)
-               for key in out_dict.keys())
-    std = dict((key,
-                np.sqrt(np.sum(
-                    np.power(out_dict[key] - avg[key], 2)) / (runs - 1)))
-               for key in avg.keys())
-    for key in avg.keys():
-        print(f'{key}: {avg[key]} +/- {std[key]}')
+    emulator_class = HE(hca=code_api,
+                        params_dict=local_params,
+                        parameter_names=parameter_names,
+                        parameter_ranges=parameter_ranges,
+                        simulation_taus=simulation_taus,
+                        hydro_names=code_api.hydro_names,
+                        use_existing_emulators=False,
+                        use_PT_PL=True,
+                        output_dir=output_dir,
+                        samples_per_feature=points_per_feat)
+    emulator_class.TestEmulator(
+        hca=code_api,
+        params_dict=local_params,
+        parameter_names=parameter_names,
+        parameter_ranges=parameter_ranges,
+        simulation_taus=simulation_taus,
+        hydro_names=code_api.hydro_names,
+        use_existing_emulators=False,
+        use_PT_PL=True,
+        output_statistics=True,
+        plot_emulator_vs_test_points=True,
+        output_dir=output_dir)
+    ba_class = HBA(default_params=local_params,
+                   parameter_names=parameter_names,
+                   parameter_ranges=parameter_ranges,
+                   simulation_taus=simulation_taus)
+    ba_class.RunMCMC(nsteps=number_steps,
+                     nburn=50,
+                     ntemps=20,
+                     exact_observables=exact_pseudo,
+                     exact_error=pseudo_error,
+                     GP_emulators=emulator_class.GP_emulators,
+                     read_from_file=False)
+    with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
+        pickle.dump(ba_class.MCMC_chains, f)
+
+    # fig, ax = PlotAnalyticPosteriors(local_params=local_params,
+    #                                  parameter_names=parameter_names,
+    #                                  parameter_ranges=parameter_ranges,
+    #                                  simulation_taus=simulation_taus,
+    #                                  pseudo_data=exact_pseudo)
+    ba_class.PlotPosteriors(output_dir=output_dir,
+                            axis_names=[r'$\mathcal C$'])
 
 
 def PlotAnalyticPosteriors(local_params: Dict[str, float],
@@ -241,16 +276,41 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
             [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2 / dPL_exp[i] ** 2)
              for i in range(size)])
 
-        post = np.exp(- E_contrib - PT_contrib - PL_contrib) * (Cs[-1] - Cs[0])
+        post = np.exp(- E_contrib - PT_contrib - PL_contrib) / (Cs[-1] - Cs[0])
 
         norm = np.sum(post) * (Cs[1] - Cs[0])
         ax.plot(Cs, post / norm, lw=2, ls=lines[j], color=cmap(j), label=name)
     ax.legend(fontsize=20)
     costumize_axis(ax, r'$\mathcal C$', r'Posterior')
     fig.tight_layout()
-    fig.savefig("./plots/analytic_posteriors_n=1.pdf")
 
     return fig, ax
+
+
+def AverageManyRuns(output_dir: str,
+                    runs: int) -> None:
+    # TODO: generalize to a script that can read MAP from multi-dim
+    #       parameter space
+    out_dict = dict((key, np.zeros(runs))
+                    for key in ['ce', 'dnmr', 'vah', 'mvah'])
+    for i in np.arange(runs):
+        with open(output_dir + f'/mass_MCMC_run_{i}.pkl', 'rb') as f:
+            mcmc_chains = pickle.load(f)
+            for key in out_dict.keys():
+                n, b = np.histogram(mcmc_chains[key][0, ...].flatten(),
+                                    bins=1000,
+                                    density=True)
+                out_dict[key][i] = b[np.argmax(n)]
+
+    avg = dict((key,
+                np.sum(out_dict[key]) / runs)
+               for key in out_dict.keys())
+    std = dict((key,
+                np.sqrt(np.sum(
+                    np.power(out_dict[key] - avg[key], 2)) / (runs - 1)))
+               for key in avg.keys())
+    for key in avg.keys():
+        print(f'{key}: {avg[key]} +/- {std[key]}')
 
 
 def analyze_saved_runs(path_to_output: str,
@@ -317,6 +377,20 @@ def analyze_saved_runs(path_to_output: str,
     num_lines_already = len(posterior_ax.get_lines())
     x_axis_col = r'$\mathcal C$'
     for name in col_names:
+        # Doesn't work because we are just storing counts data
+        # if name == r'$\mu':
+        #     for hydro in all_counts.keys():
+        #         sns.kdeplot(
+        #             x=df_spread[df_spread['hydro'] == hydro][name],
+        #             ax=posterior_ax,
+        #             label=hydro)
+        # else:
+        #     for hydro in all_counts.keys():
+        #         sns.kdeplot(
+        #             x=df_spread[df_spread['hydro'] == hydro][name],
+        #             ax=posterior_ax,
+        #             linestyle='dashed'
+        #         )
         if name == r'$\mu$':
             sns.kdeplot(
                 data=df_spread,
@@ -348,7 +422,7 @@ def analyze_saved_runs(path_to_output: str,
             alpha=0.4)
     posterior_ax.set_xlim(*hist_range)
     posterior_fig.tight_layout()
-    posterior_fig.savefig(f'{path_to_output}/upper-lower.pdf')
+    posterior_fig.savefig(f'{path_to_output}/plots/upper-lower.pdf')
 
     g2 = sns.pairplot(data=dfs,
                       corner=True,
@@ -357,7 +431,7 @@ def analyze_saved_runs(path_to_output: str,
                       hue='hydro')
     g2.map_lower(sns.kdeplot, levels=4)
     g2.tight_layout()
-    g2.savefig(f'{path_to_output}/full-posterior.pdf')
+    g2.savefig(f'{path_to_output}/plots/full-posterior.pdf')
     del g2
 
     # compare one to all
@@ -519,7 +593,7 @@ def analyze_saved_runs_hist(path_to_output: str,
     posterior_ax.set_xlim(*hist_range)
     posterior_ax.legend(fontsize=18)
     posterior_fig.tight_layout()
-    posterior_fig.savefig(f'{path_to_output}/upper-lower_hist.pdf')
+    posterior_fig.savefig(f'{path_to_output}/plots/upper-lower_hist.pdf')
 
     fig2, ax2 = plt.subplots(figsize=(7, 7))
     fig2.patch.set_facecolor('white')
@@ -543,7 +617,7 @@ def analyze_saved_runs_hist(path_to_output: str,
         # )
     ax2.set_xlim(*hist_range)
     fig2.tight_layout()
-    fig2.savefig(f'{path_to_output}/full-posterior_hist.pdf')
+    fig2.savefig(f'{path_to_output}/plots/full-posterior_hist.pdf')
     del fig2, ax2
 
     # compare one to all
@@ -590,7 +664,7 @@ def analyze_saved_runs_hist(path_to_output: str,
         #     alpha=0.5)
     ax3.set_xlim(*hist_range)
     fig3.tight_layout()
-    fig3.savefig(f'{path_to_output}/compare-one-to-many_hist.pdf')
+    fig3.savefig(f'{path_to_output}/plots/compare-one-to-many_hist.pdf')
     del fig3, ax3
 
 
@@ -607,36 +681,65 @@ if __name__ == "__main__":
     }
 
     total_runs = 30
-    output_folder = 'Mass_run_2'
+    output_folder = 'very_large_mcmc_run_1'
 
-    exact_pseudo, pseudo_error = SampleObservables(
-        error_level=0.05,
-        true_params=local_params,
-        parameter_names=['C'],
-        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True))
+    # exact_pseudo, pseudo_error = SampleObservables(
+    #     error_level=0.05,
+    #     true_params=local_params,
+    #     parameter_names=['C'],
+    #     simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True))
+    exact_pseudo = np.array(
+        [[5.1,  0.75470255, 0.27463283, 0.1588341],
+         [6.1,  0.6216813,  0.21947875, 0.14180029],
+         [7.1,  0.51281854, 0.17400683, 0.11073481],
+         [8.1,  0.39545993, 0.14676481, 0.10393984],
+         [9.1,  0.40051311, 0.13026088, 0.09105533],
+         [10.1, 0.30190729, 0.12180956, 0.07787765],
+         [11.1, 0.30734799, 0.08858191, 0.07306867],
+         [12.1, 0.25883392, 0.08667172, 0.06143159]]
+    )
+    pseudo_error = np.array(
+        [[0.0383127,  0.013715,   0.00803337],
+         [0.03082207, 0.01079027, 0.00672129],
+         [0.02560243, 0.00879639, 0.00574629],
+         [0.02177809, 0.00736298, 0.00499578],
+         [0.01886813, 0.00629024, 0.00440209],
+         [0.01658759, 0.00546173, 0.00392206],
+         [0.0147574,  0.00480543, 0.00352685],
+         [0.01325973, 0.00427459, 0.00319652]]
+    )
 
-    RunManyMCMCRuns(exact_pseudo=exact_pseudo,
-                    pseudo_error=pseudo_error,
-                    output_dir=f'./pickle_files/{output_folder}',
-                    local_params=local_params,
-                    n=total_runs,
-                    start=0)
+    if False:
+        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+                        pseudo_error=pseudo_error,
+                        output_dir=f'./pickle_files/{output_folder}',
+                        local_params=local_params,
+                        points_per_feat=5,
+                        n=total_runs,
+                        start=0)
 
-    AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
-                    runs=total_runs)
+        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+                        runs=total_runs)
 
-    fig, ax = PlotAnalyticPosteriors(
-        local_params=local_params,
-        parameter_names=['C'],
-        parameter_ranges=np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]]),
-        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True),
-        pseudo_data=exact_pseudo)
+        fig, ax = PlotAnalyticPosteriors(
+            local_params=local_params,
+            parameter_names=['C'],
+            parameter_ranges=np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]]),
+            simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True),
+            pseudo_data=exact_pseudo)
 
-    fig_copy, ax_copy = fig, ax
-    analyze_saved_runs(path_to_output=f'./pickle_files/{output_folder}',
-                       number_of_runs=total_runs,
-                       posterior_fig=fig,
-                       posterior_ax=ax)
+        fig_copy, ax_copy = fig, ax
+        analyze_saved_runs(path_to_output=f'./pickle_files/{output_folder}',
+                           number_of_runs=total_runs,
+                           posterior_fig=fig,
+                           posterior_ax=ax)
+    else:
+        RunVeryLargeMCMC(exact_pseudo=exact_pseudo,
+                         pseudo_error=pseudo_error,
+                         output_dir=f'./pickle_files/{output_folder}',
+                         local_params=local_params,
+                         points_per_feat=5,
+                         number_steps=2000)
 
     # analyze_saved_runs_hist(path_to_output=f'./pickle_files/{output_folder}',
     #                         number_of_runs=total_runs,

@@ -232,15 +232,17 @@ class HydroCodeAPI:
                                   i))
                     for i, key in enumerate(self.hydro_names)]
 
+            print("We are using linux!")
             _ = [proc.start() for proc in jobs]
             _ = [proc.join() for proc in jobs]
 
         for k, name in enumerate(self.hydro_names):
             for j, tau in enumerate(simulation_taus):
                 with open(
-                        ('hydro_simulation_points/{}_simulation_points_n='
+                        ('{}/swap/{}_simulation_points_n='
                          + '{}_tau={}.dat').
-                        format(name,
+                        format(self.path_to_output,
+                               name,
                                len(parameter_names),
                                tau),
                         'w') as f_hydro_simulation_taus:
