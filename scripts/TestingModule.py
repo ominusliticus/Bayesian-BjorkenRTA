@@ -48,7 +48,7 @@ def SampleObservables(error_level: float,
         ptx = np.random.normal(pt, np.fabs(pt_err))
         plx = np.random.normal(pl, np.fabs(pl_err))
 
-        return np.array([Ex, ptx, plx]) 
+        return np.array([Ex, ptx, plx])
 
 
 def PlotAnalyticPosteriors(Cs,

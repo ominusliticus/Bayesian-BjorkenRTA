@@ -232,7 +232,6 @@ class HydroCodeAPI:
                                   i))
                     for i, key in enumerate(self.hydro_names)]
 
-            print("We are using linux!")
             _ = [proc.start() for proc in jobs]
             _ = [proc.join() for proc in jobs]
 

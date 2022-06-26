@@ -74,7 +74,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
     Runs the entire analysis suite, including the emulator fiiting `n` times
     and saves MCMC chains in file indexed by the iteration number
     '''
-    code_api = HCA(str(Path('./swap').absolute()))
+    code_api = HCA(str(Path(output_dir + '/swap').absolute()))
     parameter_names = ['C']
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
@@ -88,14 +88,15 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                             hydro_names=code_api.hydro_names,
                             use_existing_emulators=False,
                             use_PT_PL=True,
+                            output_dir=output_dir,
                             samples_per_feature=points_per_feat)
         ba_class = HBA(default_params=local_params,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.RunMCMC(nsteps=200,
-                         nburn=50,
-                         ntemps=10,
+        ba_class.RunMCMC(nsteps=400,
+                         nburn=100,
+                         ntemps=20,
                          exact_observables=exact_pseudo,
                          exact_error=pseudo_error,
                          GP_emulators=emulator_class.GP_emulators,
@@ -168,7 +169,10 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                            parameter_names: List[str],
                            parameter_ranges: Dict[str, np.ndarray],
                            simulation_taus: np.ndarray,
-                           pseudo_data: np.ndarray
+                           pseudo_data: np.ndarray,
+                           pseudo_error: np.ndarray,
+                           path_to_output: str,
+                           use_existing_run: bool
                            ) -> Tuple[plt.Figure, plt.Axes]:
     '''
     We can write the analytic form of the posterior distributions and want to
@@ -184,105 +188,136 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
     code_api = HCA(str(Path('./swap').absolute()))
 
     # Generate experimental data
-    error_level = 0.05
-    exact_out = pseudo_data
+    pseudo_e = pseudo_data[:, 1]
+    pseudo_e_err = pseudo_error[:, 0]
 
-    pseudo_e = exact_out[:, 1]
-    pseudo_e_err = error_level * pseudo_e
+    pseudo_pt = pseudo_data[:, 2]
+    pseudo_pt_err = pseudo_error[:, 1]
 
-    pseudo_pt = exact_out[:, 2]
-    pseudo_pt_err = error_level * pseudo_pt
+    pseudo_pl = pseudo_data[:, 3]
+    pseudo_pl_err = pseudo_error[:, 2]
 
-    pseudo_pl = exact_out[:, 3]
-    pseudo_pl_err = error_level * pseudo_pl
+    if use_existing_run:
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
+        fig.patch.set_facecolor('white')
 
-    # Scan parameter space for hydro models
-    manager = Manager()
-    for_analytic_hydro_output = manager.dict()
-    tau_start, delta_tau = 0.1, 0.005
-    observ_indices = (simulation_taus
-                      - np.full_like(simulation_taus, tau_start)) / delta_tau
+        size = Cs.size
+        cmap = get_cmap(10, 'tab10')
+        lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
+        with open(path_to_output + '/swap/stored_posteriors.pkl', 'rb') as f:
+            stored_posteriors = pickle.load(f)
+        for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
+            post = stored_posteriors[name]
+            norm = np.sum(post) * (Cs[4] - Cs[0])
+            ax.plot(Cs,
+                    post / norm,
+                    lw=2,
+                    ls=lines[j],
+                    color=cmap(j),
+                    label=name)
+        ax.legend(fontsize=20)
+        costumize_axis(ax, r'$\mathcal C$', r'Posterior')
+        fig.tight_layout()
+    else:
+        # Scan parameter space for hydro models
+        manager = Manager()
+        for_analytic_hydro_output = manager.dict()
+        tau_start, delta_tau = 0.1, 0.005
+        observ_indices = (simulation_taus
+                          - np.full_like(simulation_taus,
+                                         tau_start)) / delta_tau
 
-    def for_multiprocessing(dict: Dict, key: str, itr: int):
-        local_params['hydro_type'] = itr
-        output = np.array([[code_api.ProcessHydro(
-                                params_dict=local_params,
-                                parameter_names=parameter_names,
-                                design_point=[C],
-                                use_PT_PL=True)[int(i)-1]
-                            for i in observ_indices]
-                           for C in Cs])
-        dict[key] = output
+        def for_multiprocessing(dict: Dict, key: str, itr: int):
+            local_params['hydro_type'] = itr
+            output = np.array([[code_api.ProcessHydro(
+                                    params_dict=local_params,
+                                    parameter_names=parameter_names,
+                                    design_point=[C],
+                                    use_PT_PL=True)[int(i)-1]
+                                for i in observ_indices]
+                               for C in Cs])
+            dict[key] = output
 
-    jobs = [Process(target=for_multiprocessing,
-                    args=(for_analytic_hydro_output, key, i))
-            for i, key in enumerate(hydro_names)]
-    _ = [proc.start() for proc in jobs]
-    _ = [proc.join() for proc in jobs]
+        jobs = [Process(target=for_multiprocessing,
+                        args=(for_analytic_hydro_output, key, i))
+                for i, key in enumerate(hydro_names)]
+        _ = [proc.start() for proc in jobs]
+        _ = [proc.join() for proc in jobs]
 
-    for i, name in enumerate(hydro_names):
-        local_params['hydro_type'] = i
-        output = np.array(
-            [[code_api.ProcessHydro(
-                  params_dict=local_params,
-                  parameter_names=parameter_names,
-                  design_point=[C],
-                  use_PT_PL=True)[int(i)-1]
-              for i in observ_indices]
-             for C in Cs])
-        for_analytic_hydro_output[name] = output
+        for i, name in enumerate(hydro_names):
+            local_params['hydro_type'] = i
+            output = np.array(
+                [[code_api.ProcessHydro(
+                      params_dict=local_params,
+                      parameter_names=parameter_names,
+                      design_point=[C],
+                      use_PT_PL=True)[int(i)-1]
+                  for i in observ_indices]
+                 for C in Cs])
+            for_analytic_hydro_output[name] = output
 
-    for_analytic_hydro_output = dict(
-        (key, np.array(for_analytic_hydro_output[key]))
-        for key in hydro_names)
+        for_analytic_hydro_output = dict(
+            (key, np.array(for_analytic_hydro_output[key]))
+            for key in hydro_names)
 
-    # prepare to make plots
-    E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
-    dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
+        # prepare to make plots
+        E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
+        dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
 
-    PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
-    dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
+        PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
+        dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
 
-    PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
-    dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
+        PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
+        dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
 
-    E_sim = dict(
-        (key, for_analytic_hydro_output[key][:, :, 1])
-        for key in hydro_names)
-    PT_sim = dict(
-        (key, for_analytic_hydro_output[key][:, :, 2])
-        for key in hydro_names)
-    PL_sim = dict(
-        (key, for_analytic_hydro_output[key][:, :, 3])
-        for key in hydro_names)
-    print(E_sim['ce'].shape, E_exp.shape)
+        E_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 1])
+            for key in hydro_names)
+        PT_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 2])
+            for key in hydro_names)
+        PL_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 3])
+            for key in hydro_names)
+        print(E_sim['ce'].shape, E_exp.shape)
 
-    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
-    fig.patch.set_facecolor('white')
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
+        fig.patch.set_facecolor('white')
 
-    size = Cs.size
-    cmap = get_cmap(10, 'tab10')
-    lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
-    for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
-        E_contrib = np.array(
-            [np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2)
-             for i in range(size)])
+        size = Cs.size
+        cmap = get_cmap(10, 'tab10')
+        lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
+        store_posteriors = dict((key, None)
+                                for key in ['ce', 'dnmr', 'vah', 'mvah'])
+        for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
+            E_contrib = np.array(
+                [np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2)
+                 for i in range(size)])
 
-        PT_contrib = np.array(
-            [np.sum((PT_exp[i] - PT_sim[name][i]) ** 2 / dPT_exp[i] ** 2)
-             for i in range(size)])
+            PT_contrib = np.array(
+                [np.sum((PT_exp[i] - PT_sim[name][i]) ** 2 / dPT_exp[i] ** 2)
+                 for i in range(size)])
 
-        PL_contrib = np.array(
-            [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2 / dPL_exp[i] ** 2)
-             for i in range(size)])
+            PL_contrib = np.array(
+                [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2 / dPL_exp[i] ** 2)
+                 for i in range(size)])
 
-        post = np.exp(- E_contrib - PT_contrib - PL_contrib) / (Cs[-1] - Cs[0])
+            post = np.exp(- E_contrib - PT_contrib - PL_contrib) \
+                / (Cs[-1] - Cs[0])
+            store_posteriors[name] = post
+            norm = np.sum(post) * (Cs[8] - Cs[0])
+            ax.plot(Cs,
+                    post / norm,
+                    lw=2,
+                    ls=lines[j],
+                    color=cmap(j),
+                    label=name)
+        ax.legend(fontsize=20)
+        costumize_axis(ax, r'$\mathcal C$', r'Posterior')
+        fig.tight_layout()
 
-        norm = np.sum(post) * (Cs[1] - Cs[0])
-        ax.plot(Cs, post / norm, lw=2, ls=lines[j], color=cmap(j), label=name)
-    ax.legend(fontsize=20)
-    costumize_axis(ax, r'$\mathcal C$', r'Posterior')
-    fig.tight_layout()
+        with open(path_to_output + '/swap/stored_posteriors.pkl', 'wb') as f:
+            pickle.dump(store_posteriors, f)
 
     return fig, ax
 
@@ -681,7 +716,8 @@ if __name__ == "__main__":
     }
 
     total_runs = 30
-    output_folder = 'very_large_mcmc_run_1'
+    # output_folder = 'very_large_mcmc_run_1'
+    output_folder = 'Mass_run_3'
 
     # exact_pseudo, pseudo_error = SampleObservables(
     #     error_level=0.05,
@@ -709,26 +745,28 @@ if __name__ == "__main__":
          [0.01325973, 0.00427459, 0.00319652]]
     )
 
-    if False:
-        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
-                        pseudo_error=pseudo_error,
-                        output_dir=f'./pickle_files/{output_folder}',
-                        local_params=local_params,
-                        points_per_feat=5,
-                        n=total_runs,
-                        start=0)
+    if True:
+        # RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+        # pseudo_error=pseudo_error,
+        # output_dir=f'./pickle_files/{output_folder}',
+        # local_params=local_params,
+        #                 points_per_feat=20,
+        #                 n=total_runs,
+        #                 start=0)
 
-        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
-                        runs=total_runs)
+        # AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+        #                 runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
             local_params=local_params,
             parameter_names=['C'],
             parameter_ranges=np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]]),
             simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True),
-            pseudo_data=exact_pseudo)
+            pseudo_data=exact_pseudo,
+            pseudo_error=pseudo_error,
+            path_to_output=f'./pickle_files/{output_folder}',
+            use_existing_run=True)
 
-        fig_copy, ax_copy = fig, ax
         analyze_saved_runs(path_to_output=f'./pickle_files/{output_folder}',
                            number_of_runs=total_runs,
                            posterior_fig=fig,
@@ -738,8 +776,8 @@ if __name__ == "__main__":
                          pseudo_error=pseudo_error,
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
-                         points_per_feat=5,
-                         number_steps=2000)
+                         points_per_feat=40,
+                         number_steps=20)
 
     # analyze_saved_runs_hist(path_to_output=f'./pickle_files/{output_folder}',
     #                         number_of_runs=total_runs,
