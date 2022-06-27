@@ -289,26 +289,32 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
         store_posteriors = dict((key, None)
                                 for key in ['ce', 'dnmr', 'vah', 'mvah'])
+
+        def calculate_gaussian(e: float,
+                               pt: float,
+                               pl: float,
+                               de: float,
+                               dpt: float,
+                               dpl: float) -> float:
+            val = np.exp(-(e ** 2) / 2 / de ** 2)
+            val *= np.exp(-(pt ** 2) / 2 / dpt ** 2)
+            val *= np.exp(-(pl ** 2) / 2 / dpl ** 2)
+            norm = np.sqrt((2 * np.pi) ** 3
+                           * (de ** 2 * dpt ** 2 * dpl ** 2))
+            return val / norm
+
+        post = 1
         for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
-            E_contrib = np.array(
-                [np.sum((E_exp[i] - E_sim[name][i]) ** 2 
-                        / 2 / dE_exp[i] ** 2)
-                 for i in range(size)])
+            for i in range(size):
+                post *= calculate_gaussian(
+                        e=(E_exp[i] - E_sim[name][i]),
+                        pt=(PT_exp[i] - PT_sim[name][i]),
+                        pl=(PL_exp[i] - PL_sim[name][i]),
+                        de=dE_exp[i],
+                        dpt=dPT_exp[i],
+                        dpl=dPL_exp[i])
 
-            PT_contrib = np.array(
-                [np.sum((PT_exp[i] - PT_sim[name][i]) ** 2
-                        / 2 / dPT_exp[i] ** 2)
-                 for i in range(size)])
-
-            PL_contrib = np.array(
-                [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2
-                        / 2 / dPL_exp[i] ** 2)
-                 for i in range(size)])
-
-            post = np.exp(- E_contrib - PT_contrib - PL_contrib) \
-                / (Cs[-1] - Cs[0])
             store_posteriors[name] = post
-            norm = np.sum(post) * (Cs[8] - Cs[0])
             ax.plot(Cs,
                     post / norm,
                     lw=2,
@@ -753,7 +759,7 @@ if __name__ == "__main__":
                         pseudo_error=pseudo_error,
                         output_dir=f'./pickle_files/{output_folder}',
                         local_params=local_params,
-                        points_per_feat=40,
+                        points_per_feat=20,
                         n=total_runs,
                         start=0)
 
