@@ -94,8 +94,8 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.RunMCMC(nsteps=400,
-                         nburn=100,
+        ba_class.RunMCMC(nsteps=1000000,
+                         nburn=1000,
                          ntemps=20,
                          exact_observables=exact_pseudo,
                          exact_error=pseudo_error,
@@ -208,7 +208,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
             stored_posteriors = pickle.load(f)
         for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
             post = stored_posteriors[name]
-            norm = np.sum(post) * (Cs[4] - Cs[0])
+            norm = np.sum(post) * (Cs[5] - Cs[0])
             ax.plot(Cs,
                     post / norm,
                     lw=2,
@@ -746,16 +746,16 @@ if __name__ == "__main__":
     )
 
     if True:
-        # RunManyMCMCRuns(exact_pseudo=exact_pseudo,
-        # pseudo_error=pseudo_error,
-        # output_dir=f'./pickle_files/{output_folder}',
-        # local_params=local_params,
-        #                 points_per_feat=20,
-        #                 n=total_runs,
-        #                 start=0)
+        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+                        pseudo_error=pseudo_error,
+                        output_dir=f'./pickle_files/{output_folder}',
+                        local_params=local_params,
+                        points_per_feat=40,
+                        n=total_runs,
+                        start=0)
 
-        # AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
-        #                 runs=total_runs)
+        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+                        runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
             local_params=local_params,
