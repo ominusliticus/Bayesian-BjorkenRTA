@@ -291,15 +291,18 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                                 for key in ['ce', 'dnmr', 'vah', 'mvah'])
         for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
             E_contrib = np.array(
-                [np.sum((E_exp[i] - E_sim[name][i]) ** 2 / dE_exp[i] ** 2)
+                [np.sum((E_exp[i] - E_sim[name][i]) ** 2 
+                        / 2 / dE_exp[i] ** 2)
                  for i in range(size)])
 
             PT_contrib = np.array(
-                [np.sum((PT_exp[i] - PT_sim[name][i]) ** 2 / dPT_exp[i] ** 2)
+                [np.sum((PT_exp[i] - PT_sim[name][i]) ** 2
+                        / 2 / dPT_exp[i] ** 2)
                  for i in range(size)])
 
             PL_contrib = np.array(
-                [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2 / dPL_exp[i] ** 2)
+                [np.sum((PL_exp[i] - PL_sim[name][i]) ** 2
+                        / 2 / dPL_exp[i] ** 2)
                  for i in range(size)])
 
             post = np.exp(- E_contrib - PT_contrib - PL_contrib) \
