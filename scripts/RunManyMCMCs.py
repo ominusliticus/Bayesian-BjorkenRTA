@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from scipy.optimize import curve_fit
 
 from multiprocessing import Process, Manager
 from typing import Dict, List, Tuple
@@ -18,6 +19,32 @@ from pathlib import Path
 from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
+
+
+def fit_and_plot_posterior(xdata: np.ndarray,
+                           ydata: np.ndarray,
+                           points: np.ndarray,
+                           name: str,
+                           plot_name: str,
+                           fig: plt.Figure,
+                           ax: plt.Axes) -> None:
+    def gauss(x: np.ndarray,
+              loc: float,
+              scale: float,
+              norm: float) -> np.ndarray:
+        return norm * np.exp(-(x - loc) ** 2 / (2 * scale ** 2))
+    params, cov = curve_fit(gauss, xdata, ydata)
+    print("fit params for analytic distribution {}: ({:.5e}, {:.5e})".
+          format(name, params[0], params[1]))
+    ax.plot(points,
+            gauss(points,
+                  loc=params[0],
+                  scale=params[1],
+                  norm=params[2]),
+            lw=0.5,
+            ls='solid',
+            color='black')
+    fig.savefig(plot_name)
 
 
 def SampleObservables(error_level: float,
@@ -94,8 +121,8 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.RunMCMC(nsteps=1000000,
-                         nburn=1000,
+        ba_class.RunMCMC(nsteps=400,
+                         nburn=100,
                          ntemps=20,
                          exact_observables=exact_pseudo,
                          exact_error=pseudo_error,
@@ -197,27 +224,95 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
     pseudo_pl = pseudo_data[:, 3]
     pseudo_pl_err = pseudo_error[:, 2]
 
-    if use_existing_run:
+    def make_plot(for_analytic_hydro_output: np.ndarray
+                  ) -> Tuple[plt.Figure, plt.Axes]:
+        # prepare to make plots
+        E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
+        dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
+
+        PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
+        dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
+
+        PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
+        dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
+
+        E_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 1])
+            for key in hydro_names)
+        PT_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 2])
+            for key in hydro_names)
+        PL_sim = dict(
+            (key, for_analytic_hydro_output[key][:, :, 3])
+            for key in hydro_names)
+        print(E_sim['ce'].shape, E_exp.shape)
+
         fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
         fig.patch.set_facecolor('white')
 
         size = Cs.size
         cmap = get_cmap(10, 'tab10')
-        lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
-        with open(path_to_output + '/swap/stored_posteriors.pkl', 'rb') as f:
-            stored_posteriors = pickle.load(f)
+        store_posteriors = dict((key, None)
+                                for key in ['ce', 'dnmr', 'vah', 'mvah'])
+
+        def calculate_gaussian(e: float,
+                               pt: float,
+                               pl: float,
+                               de: float,
+                               dpt: float,
+                               dpl: float) -> float:
+            val = np.exp(-(e ** 2) / 2 / de ** 2)
+            val *= np.exp(-(pt ** 2) / 2 / dpt ** 2)
+            val *= np.exp(-(pl ** 2) / 2 / dpl ** 2)
+            norm = np.sqrt((2 * np.pi) ** 3
+                           * (de ** 2 * dpt ** 2 * dpl ** 2))
+            return val / norm
+
+        post = np.zeros_like(Cs)
         for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
-            post = stored_posteriors[name]
-            norm = np.sum(post) * (Cs[5] - Cs[0])
+            for i in range(size):
+                temp = 1
+                for k in range(simulation_taus.size):
+                    temp *= calculate_gaussian(
+                            e=(E_exp[i, k] - E_sim[name][i, k]),
+                            pt=(PT_exp[i, k] - PT_sim[name][i, k]),
+                            pl=(PL_exp[i, k] - PL_sim[name][i, k]),
+                            de=dE_exp[i, k],
+                            dpt=dPT_exp[i, k],
+                            dpl=dPL_exp[i, k])
+                post[i] = temp
+
+            store_posteriors[name] = post
+            post_max = np.max(post)
+            norms = np.array([5.1, 5.2, 4.35, 4.45])
             ax.plot(Cs,
-                    post / norm,
-                    lw=2,
-                    ls=lines[j],
+                    post * norms[j] / post_max,
+                    lw=2.5,
+                    ls='solid',
                     color=cmap(j),
                     label=name)
         ax.legend(fontsize=20)
         costumize_axis(ax, r'$\mathcal C$', r'Posterior')
         fig.tight_layout()
+
+        return fig, ax
+
+    if use_existing_run:
+        with open(path_to_output
+                  + 'for_analytic_hydro_output.pkl', 'rb') as f:
+            for_analytic_hydro_output = pickle.load(f)
+
+        fig, ax = make_plot(for_analytic_hydro_output)
+        lines = ax.get_lines()
+        for k, line in enumerate(lines):
+            fit_and_plot_posterior(
+                xdata=line.get_xdata(),
+                ydata=line.get_ydata(),
+                points=Cs,
+                name=list(for_analytic_hydro_output.keys())[k],
+                plot_name=path_to_output + '/plots/debug_posterior1.pdf',
+                fig=fig,
+                ax=ax)
     else:
         # Scan parameter space for hydro models
         manager = Manager()
@@ -259,74 +354,11 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         for_analytic_hydro_output = dict(
             (key, np.array(for_analytic_hydro_output[key]))
             for key in hydro_names)
+        with open(path_to_output
+                  + 'for_analytic_hydro_output.pkl', 'wb') as f:
+            pickle.dump(for_analytic_hydro_output, f)
 
-        # prepare to make plots
-        E_exp = np.array([pseudo_e for _ in range(pts_analytic_post)])
-        dE_exp = np.array([pseudo_e_err for _ in range(pts_analytic_post)])
-
-        PT_exp = np.array([pseudo_pt for _ in range(pts_analytic_post)])
-        dPT_exp = np.array([pseudo_pt_err for _ in range(pts_analytic_post)])
-
-        PL_exp = np.array([pseudo_pl for _ in range(pts_analytic_post)])
-        dPL_exp = np.array([pseudo_pl_err for _ in range(pts_analytic_post)])
-
-        E_sim = dict(
-            (key, for_analytic_hydro_output[key][:, :, 1])
-            for key in hydro_names)
-        PT_sim = dict(
-            (key, for_analytic_hydro_output[key][:, :, 2])
-            for key in hydro_names)
-        PL_sim = dict(
-            (key, for_analytic_hydro_output[key][:, :, 3])
-            for key in hydro_names)
-        print(E_sim['ce'].shape, E_exp.shape)
-
-        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
-        fig.patch.set_facecolor('white')
-
-        size = Cs.size
-        cmap = get_cmap(10, 'tab10')
-        lines = [(0, (5, 10)), (0, (5, 5)), 'dashed', 'solid']
-        store_posteriors = dict((key, None)
-                                for key in ['ce', 'dnmr', 'vah', 'mvah'])
-
-        def calculate_gaussian(e: float,
-                               pt: float,
-                               pl: float,
-                               de: float,
-                               dpt: float,
-                               dpl: float) -> float:
-            val = np.exp(-(e ** 2) / 2 / de ** 2)
-            val *= np.exp(-(pt ** 2) / 2 / dpt ** 2)
-            val *= np.exp(-(pl ** 2) / 2 / dpl ** 2)
-            norm = np.sqrt((2 * np.pi) ** 3
-                           * (de ** 2 * dpt ** 2 * dpl ** 2))
-            return val / norm
-
-        post = 1
-        for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
-            for i in range(size):
-                post *= calculate_gaussian(
-                        e=(E_exp[i] - E_sim[name][i]),
-                        pt=(PT_exp[i] - PT_sim[name][i]),
-                        pl=(PL_exp[i] - PL_sim[name][i]),
-                        de=dE_exp[i],
-                        dpt=dPT_exp[i],
-                        dpl=dPL_exp[i])
-
-            store_posteriors[name] = post
-            ax.plot(Cs,
-                    post / norm,
-                    lw=2,
-                    ls=lines[j],
-                    color=cmap(j),
-                    label=name)
-        ax.legend(fontsize=20)
-        costumize_axis(ax, r'$\mathcal C$', r'Posterior')
-        fig.tight_layout()
-
-        with open(path_to_output + '/swap/stored_posteriors.pkl', 'wb') as f:
-            pickle.dump(store_posteriors, f)
+        fig, ax = make_plot(for_analytic_hydro_output)
 
     return fig, ax
 
@@ -441,7 +473,8 @@ def analyze_saved_runs(path_to_output: str,
                 x=x_axis_col,
                 weights=df_spread[name],
                 hue='hydro',
-                ax=posterior_ax)
+                ax=posterior_ax,
+                linewidth=1)
         else:
             sns.kdeplot(
                 data=df_spread,
@@ -449,7 +482,9 @@ def analyze_saved_runs(path_to_output: str,
                 weights=df_spread[name],
                 hue='hydro',
                 linestyle='dashed',
-                ax=posterior_ax)
+                ax=posterior_ax,
+                linewidth=1)
+
     lines_index = np.array([[0, 8],      # ce 1st std lines plotted
                             [1, 9],      # dmnr
                             [2, 10],     # vah
@@ -464,6 +499,15 @@ def analyze_saved_runs(path_to_output: str,
             y2=plotted_lines[pairs[1]].get_ydata(),
             color=cmap(3-k),    # Lines seem to be fed like a queue
             alpha=0.4)
+
+        fit_and_plot_posterior(
+            xdata=plotted_lines[pairs[0]].get_xdata(),
+            ydata=plotted_lines[pairs[0] + 4].get_ydata(),
+            points=plotted_lines[pairs[0]].get_xdata(),
+            name=list(all_counts.keys())[3 - k],
+            plot_name=path_to_output + '/plots/debug_posterior2.pdf',
+            fig=posterior_fig,
+            ax=posterior_ax)
     posterior_ax.set_xlim(*hist_range)
     posterior_fig.tight_layout()
     posterior_fig.savefig(f'{path_to_output}/plots/upper-lower.pdf')
@@ -494,7 +538,7 @@ def analyze_saved_runs(path_to_output: str,
                 ax=ax)
     ax.set_xlim(*hist_range)
     fig.tight_layout()
-    fig.savefig(f'{path_to_output}compare-one-to-many.pdf')
+    fig.savefig(f'{path_to_output}/plots/compare-one-to-many.pdf')
     del fig, ax
 
 
@@ -786,7 +830,7 @@ if __name__ == "__main__":
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
                          points_per_feat=40,
-                         number_steps=100000)
+                         number_steps=400)
 
     # analyze_saved_runs_hist(path_to_output=f'./pickle_files/{output_folder}',
     #                         number_of_runs=total_runs,
