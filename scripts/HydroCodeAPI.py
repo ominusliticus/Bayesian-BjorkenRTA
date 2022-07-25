@@ -8,7 +8,7 @@
 from platform import uname
 
 # For directory changing and running command line commands
-from os import chdir as cd, getcwd
+from os import chdir as cd
 from subprocess import run as cmd
 from subprocess import CalledProcessError
 
@@ -20,7 +20,7 @@ from typing import List, Dict
 # for running hydro in parallel
 from multiprocessing import Manager, Process
 
-# For progress bars 
+# For progress bars
 from tqdm import tqdm
 
 # TODO: Make GetExactSolution take the `use_PT_PL` keyword to hide this
@@ -187,6 +187,7 @@ class HydroCodeAPI:
             # Calculate indices for observation times
             if 'tau_0' in parameter_names:
                 j = parameter_names.index('tau_0')
+                # delta_tau = tau_0 / 20 = design_point[j] / 20
                 observ_indices = np.array(
                     [[(tau_f / design_point[j] - 1.0) * 20.0
                       for tau_f in simulation_taus]
@@ -209,7 +210,7 @@ class HydroCodeAPI:
                   for j in observ_indices[i]]
                  for i, design_point in enumerate(
                      tqdm(design_points,
-                          desc=f'hydro {names[itr]}: ',
+                          desc=f'{names[itr]}: ',
                           position=itr))])
             output_dict[key] = output
 

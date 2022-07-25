@@ -12,6 +12,9 @@ import pandas as pd
 import seaborn as sns
 from scipy.optimize import curve_fit
 
+# For progress bars
+from tqdm import tqdm
+
 from multiprocessing import Process, Manager
 from typing import Dict, List, Tuple
 from pathlib import Path
@@ -106,7 +109,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
 
-    for i in np.arange(start, n):
+    for i in tqdm(np.arange(start, n)):
         emulator_class = HE(hca=code_api,
                             params_dict=local_params,
                             parameter_names=parameter_names,
@@ -211,6 +214,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
     Cs = np.linspace(0.2,
                      0.5,
                      pts_analytic_post, endpoint=True)
+    # TODO: Store calculated analytic result in pkl file...
     for_analytic_hydro_output = dict((name, []) for name in hydro_names)
     code_api = HCA(str(Path('./swap').absolute()))
 
@@ -261,9 +265,9 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                                de: float,
                                dpt: float,
                                dpl: float) -> float:
-            val = np.exp(-(e ** 2) / 2 / de ** 2)
-            val *= np.exp(-(pt ** 2) / 2 / dpt ** 2)
-            val *= np.exp(-(pl ** 2) / 2 / dpl ** 2)
+            val = np.exp(-e ** 2 / 2 / de ** 2)
+            val *= np.exp(-pt ** 2 / 2 / dpt ** 2)
+            val *= np.exp(-pl ** 2 / 2 / dpl ** 2)
             norm = np.sqrt((2 * np.pi) ** 3
                            * (de ** 2 * dpt ** 2 * dpl ** 2))
             return val / norm
@@ -284,7 +288,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
 
             store_posteriors[name] = post
             post_max = np.max(post)
-            norms = np.array([5.1, 5.2, 4.35, 4.45])
+            norms = np.array([5.6, 5.6, 4.78, 4.80])
             ax.plot(Cs,
                     post * norms[j] / post_max,
                     lw=2.5,
@@ -299,7 +303,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
 
     if use_existing_run:
         with open(path_to_output
-                  + 'for_analytic_hydro_output.pkl', 'rb') as f:
+                  + '/for_analytic_hydro_output.pkl', 'rb') as f:
             for_analytic_hydro_output = pickle.load(f)
 
         fig, ax = make_plot(for_analytic_hydro_output)
@@ -313,6 +317,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
                 fig=fig,
                 ax=ax)
+            print(np.sum(np.diff(Cs)[0] * line.get_ydata()))
     else:
         # Scan parameter space for hydro models
         manager = Manager()
@@ -322,7 +327,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                           - np.full_like(simulation_taus,
                                          tau_start)) / delta_tau
 
-        def for_multiprocessing(dict: Dict, key: str, itr: int):
+        def for_multiprocessing(dic: Dict, key: str, itr: int):
             local_params['hydro_type'] = itr
             output = np.array([[code_api.ProcessHydro(
                                     params_dict=local_params,
@@ -330,8 +335,10 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                                     design_point=[C],
                                     use_PT_PL=True)[int(i)-1]
                                 for i in observ_indices]
-                               for C in Cs])
-            dict[key] = output
+                               for C in tqdm(Cs,
+                                             desc=f'{key}: ',
+                                             position=itr)])
+            dic[key] = output
 
         jobs = [Process(target=for_multiprocessing,
                         args=(for_analytic_hydro_output, key, i))
@@ -339,26 +346,37 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
 
-        for i, name in enumerate(hydro_names):
-            local_params['hydro_type'] = i
-            output = np.array(
-                [[code_api.ProcessHydro(
-                      params_dict=local_params,
-                      parameter_names=parameter_names,
-                      design_point=[C],
-                      use_PT_PL=True)[int(i)-1]
-                  for i in observ_indices]
-                 for C in Cs])
-            for_analytic_hydro_output[name] = output
+        # for i, name in enumerate(hydro_names):
+        #     local_params['hydro_type'] = i
+        #     output = np.array(
+        #         [[code_api.ProcessHydro(
+        #               params_dict=local_params,
+        #               parameter_names=parameter_names,
+        #               design_point=[C],
+        #               use_PT_PL=True)[int(i)-1]
+        #           for i in observ_indices]
+        #          for C in tqdm(Cs)])
+        #     for_analytic_hydro_output[name] = output
 
         for_analytic_hydro_output = dict(
             (key, np.array(for_analytic_hydro_output[key]))
             for key in hydro_names)
         with open(path_to_output
-                  + 'for_analytic_hydro_output.pkl', 'wb') as f:
+                  + '/for_analytic_hydro_output.pkl', 'wb') as f:
             pickle.dump(for_analytic_hydro_output, f)
 
         fig, ax = make_plot(for_analytic_hydro_output)
+        lines = ax.get_lines()
+        for k, line in enumerate(lines):
+            fit_and_plot_posterior(
+                xdata=line.get_xdata(),
+                ydata=line.get_ydata(),
+                points=Cs,
+                name=list(for_analytic_hydro_output.keys())[k],
+                plot_name=path_to_output + '/plots/debug_posterior1.pdf',
+                fig=fig,
+                ax=ax)
+            print(np.sum(np.diff(Cs) * line.get_ydata()))
 
     return fig, ax
 
@@ -405,11 +423,12 @@ def analyze_saved_runs(path_to_output: str,
             mcmc_chains = pickle.load(f)
             for key in mcmc_chains.keys():
                 data = mcmc_chains[key][0].reshape(-1, 1)
+                num_bins = 50 * int(np.sqrt(data.flatten().size))
                 counts, bins = np.histogram(data.flatten(),
-                                            bins=200,
+                                            bins=num_bins,
                                             range=hist_range,
-                                            density=False)
-                all_counts[key].append(counts)  # / np.sum(counts * np.diff(bins)))
+                                            density=True)
+                all_counts[key].append(counts)
                 df = pd.DataFrame({r'$\mathcal C$': data[:, 0]})
                 df['hydro'] = key
                 dfs = pd.concat([dfs, df], ignore_index=True)
@@ -419,7 +438,7 @@ def analyze_saved_runs(path_to_output: str,
                 if x == i:
                     counts_special, bins_special = np.histogram(
                         data,
-                        bins=200,
+                        bins=num_bins,
                         range=hist_range,
                         density=False)
                     df_special = pd.concat([
@@ -437,12 +456,13 @@ def analyze_saved_runs(path_to_output: str,
                                       r'$+\sigma$',
                                       'hydro'])
 
+    bin_shift = np.diff(bins)[0]
     col_names = [r'$-\sigma$', r'$\mu$', r'$+\sigma$']
     for key in all_counts.keys():
         data = np.array(all_counts[key])
         high_low = np.quantile(data, [0.16, 0.50, 0.84], axis=0)
         df = pd.DataFrame({
-            r'$\mathcal C$': bins[:-1],
+            r'$\mathcal C$': bins[:-1] + 0.5 * bin_shift,
             r'$-\sigma$': high_low[0],
             r'$\mu$': high_low[1],
             r'$+\sigma$': high_low[2],
@@ -499,6 +519,9 @@ def analyze_saved_runs(path_to_output: str,
             y2=plotted_lines[pairs[1]].get_ydata(),
             color=cmap(3-k),    # Lines seem to be fed like a queue
             alpha=0.4)
+
+        print(np.sum(np.diff(bins) * plotted_lines[pairs[0]].get_ydata()))
+        print(np.sum(np.diff(bins) * plotted_lines[pairs[1]].get_ydata()))
 
         fit_and_plot_posterior(
             xdata=plotted_lines[pairs[0]].get_xdata(),
@@ -770,7 +793,7 @@ if __name__ == "__main__":
 
     total_runs = 30
     # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'Mass_run_3'
+    output_folder = 'Mass_run_5'
 
     # exact_pseudo, pseudo_error = SampleObservables(
     #     error_level=0.05,
@@ -799,16 +822,16 @@ if __name__ == "__main__":
     )
 
     if True:
-        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
-                        pseudo_error=pseudo_error,
-                        output_dir=f'./pickle_files/{output_folder}',
-                        local_params=local_params,
-                        points_per_feat=20,
-                        n=total_runs,
-                        start=0)
+        # RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+        #                 pseudo_error=pseudo_error,
+        #                 output_dir=f'./pickle_files/{output_folder}',
+        #                 local_params=local_params,
+        #                 points_per_feat=20,
+        #                 n=total_runs,
+        #                 start=0)
 
-        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
-                        runs=total_runs)
+        # AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+        #                 runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
             local_params=local_params,

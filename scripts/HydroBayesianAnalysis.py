@@ -24,11 +24,7 @@ import pickle
 # TODO: 1. Create function that inverts energy density, shear and bulk
 #          pressure to give energy density, transverse and longitudinal
 #          pressure
-#       2. Add automated plotting routines for posteriors and MCMC chains
 #       3. Updated ALL function descriptions to match current functions
-#       4. Add option and code to plot posteriors using plotting routines
-#          written by me (this ensures that I know how the plots are
-#          normalized, as it currently isn't clear to me using sns.kdeplot
 #       5. Write a setup script that creates a directory and its necessary
 #          subdirectories to let the Hydro bayes analysis python code work
 
@@ -121,9 +117,9 @@ class HydroBayesianAnalysis(object):
         running_log_likelihood = 0
         for k in range(true_observables.shape[0]):
             emulation_values, emulation_variance = \
-             PredictObservable(evaluation_point,
-                               hydro_name,
-                               k, GP_emulator)
+                 PredictObservable(evaluation_point,
+                                   hydro_name,
+                                   k, GP_emulator)
 
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
