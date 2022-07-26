@@ -16,7 +16,7 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from multiprocessing import Process, Manager
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 
 from matplotlib import rc
@@ -30,7 +30,7 @@ def fit_and_plot_posterior(xdata: np.ndarray,
                            name: str,
                            plot_name: str,
                            fig: plt.Figure,
-                           ax: plt.Axes) -> None:
+                           ax: plt.Axes) -> np.ndarray:
     def gauss(x: np.ndarray,
               loc: float,
               scale: float,
@@ -39,15 +39,28 @@ def fit_and_plot_posterior(xdata: np.ndarray,
     params, cov = curve_fit(gauss, xdata, ydata)
     print("fit params for analytic distribution {}: ({:.5e}, {:.5e})".
           format(name, params[0], params[1]))
-    ax.plot(points,
-            gauss(points,
-                  loc=params[0],
-                  scale=params[1],
-                  norm=params[2]),
-            lw=0.5,
-            ls='solid',
-            color='black')
-    fig.savefig(plot_name)
+    return params
+    # ax.plot(points,
+    #         gauss(points,
+    #               loc=params[0],
+    #               scale=params[1],
+    #               norm=params[2]),
+    #         lw=0.5,
+    #         ls='solid',
+    #         color='black')
+    # fig.savefig(plot_name)
+
+
+def normalize_for_C(xdata: np.ndarray,
+                    ydata: np.ndarray,
+                    scale: Optional[float] = None) -> np.ndarray:
+    area = np.sum(np.diff(xdata)[0] * ydata)
+    fit_params = fit_and_plot_posterior(xdata, ydata, None, None, None, None, None)
+    norm = np.sqrt(2 * np.pi * fit_params[1] ** 2)
+    if not scale:
+        return ydata / (area * norm)
+    else:
+        return ydata * scale / np.max(ydata)
 
 
 def SampleObservables(error_level: float,
@@ -311,7 +324,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         for k, line in enumerate(lines):
             fit_and_plot_posterior(
                 xdata=line.get_xdata(),
-                ydata=line.get_ydata(),
+                ydata=normalize_for_C(line.get_xdata(), line.get_ydata()),
                 points=Cs,
                 name=list(for_analytic_hydro_output.keys())[k],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
@@ -370,7 +383,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         for k, line in enumerate(lines):
             fit_and_plot_posterior(
                 xdata=line.get_xdata(),
-                ydata=line.get_ydata(),
+                ydata=normalize_for_C(line.get_xdata(), line.get_ydata()),
                 points=Cs,
                 name=list(for_analytic_hydro_output.keys())[k],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
@@ -461,6 +474,7 @@ def analyze_saved_runs(path_to_output: str,
     for key in all_counts.keys():
         data = np.array(all_counts[key])
         high_low = np.quantile(data, [0.16, 0.50, 0.84], axis=0)
+        print(high_low.shape)
         df = pd.DataFrame({
             r'$\mathcal C$': bins[:-1] + 0.5 * bin_shift,
             r'$-\sigma$': high_low[0],
@@ -494,7 +508,9 @@ def analyze_saved_runs(path_to_output: str,
                 weights=df_spread[name],
                 hue='hydro',
                 ax=posterior_ax,
-                linewidth=1)
+                linewidth=1,
+                common_norm=True,
+                common_grid=True)
         else:
             sns.kdeplot(
                 data=df_spread,
@@ -503,7 +519,9 @@ def analyze_saved_runs(path_to_output: str,
                 hue='hydro',
                 linestyle='dashed',
                 ax=posterior_ax,
-                linewidth=1)
+                linewidth=1,
+                common_norm=True,
+                common_grid=True)
 
     lines_index = np.array([[0, 8],      # ce 1st std lines plotted
                             [1, 9],      # dmnr
@@ -511,29 +529,63 @@ def analyze_saved_runs(path_to_output: str,
                             [3, 11]])    # mvah
     lines_index = lines_index + num_lines_already
     plotted_lines = posterior_ax.get_lines()
+
+    fig_debug, ax_debug = plt.subplots(figsize=(7, 7))
+    fig_debug.patch.set_facecolor('white')
     cmap = plt.get_cmap('tab10', 10)
+    peaks = np.zeros(4)
+    for k in range(num_lines_already):
+        line = plotted_lines[k]
+        x = line.get_xdata()
+        y = line.get_ydata()
+        peaks[k] = np.max(normalize_for_C(x, y))
+        ax_debug.plot(x, normalize_for_C(x, y), lw=2, color=cmap(k))
+
     for k, pairs in enumerate(lines_index):
+        x1 = plotted_lines[pairs[0]].get_xdata()
+        y1 = plotted_lines[pairs[0]].get_ydata()
+        x2 = plotted_lines[pairs[1]].get_xdata()
+        y2 = plotted_lines[pairs[1]].get_ydata()
+
         posterior_ax.fill_between(
-            x=plotted_lines[pairs[0]].get_xdata(),
-            y1=plotted_lines[pairs[0]].get_ydata(),
-            y2=plotted_lines[pairs[1]].get_ydata(),
+            x=x1,
+            y1=y1,
+            y2=y2,
             color=cmap(3-k),    # Lines seem to be fed like a queue
             alpha=0.4)
 
-        print(np.sum(np.diff(bins) * plotted_lines[pairs[0]].get_ydata()))
-        print(np.sum(np.diff(bins) * plotted_lines[pairs[1]].get_ydata()))
+        print(np.sum(plotted_lines[pairs[0]].get_xdata() *
+                     plotted_lines[pairs[0]].get_ydata()))
+        print(np.sum(plotted_lines[pairs[1]].get_xdata() *
+                     plotted_lines[pairs[1]].get_ydata()))
 
+        x_mean = plotted_lines[pairs[0] + 4].get_xdata()
+        y_mean = plotted_lines[pairs[0] + 4].get_ydata()
         fit_and_plot_posterior(
-            xdata=plotted_lines[pairs[0]].get_xdata(),
-            ydata=plotted_lines[pairs[0] + 4].get_ydata(),
-            points=plotted_lines[pairs[0]].get_xdata(),
+            xdata=x_mean,
+            ydata=y_mean,
+            points=x_mean,
             name=list(all_counts.keys())[3 - k],
             plot_name=path_to_output + '/plots/debug_posterior2.pdf',
             fig=posterior_fig,
             ax=posterior_ax)
+
+        y1_new = normalize_for_C(x1, y1, peaks[3 - k])
+        y2_new = normalize_for_C(x2, y2, peaks[3 - k])
+        y_mean_new = normalize_for_C(x_mean, y_mean, peaks[3 - k])
+        ax_debug.plot(x1, y1_new, lw=1, ls='dashed', color=cmap(3 - k))
+        ax_debug.plot(x2, y2_new, lw=1, ls='dashed', color=cmap(3 - k))
+        ax_debug.fill_between(x1, y1_new, y2_new, color=cmap(3 - k), alpha=0.5)
+        ax_debug.plot(x_mean, y_mean_new, lw=1, ls='solid', color='black')
+
     posterior_ax.set_xlim(*hist_range)
     posterior_fig.tight_layout()
     posterior_fig.savefig(f'{path_to_output}/plots/upper-lower.pdf')
+
+    ax_debug.set_xlim(*hist_range)
+    costumize_axis(ax_debug, r'$\mathcal C$', 'Posterior')
+    fig_debug.tight_layout()
+    fig_debug.savefig(path_to_output + '/plots/same-norms-debug.pdf')
 
     g2 = sns.pairplot(data=dfs,
                       corner=True,
@@ -563,220 +615,6 @@ def analyze_saved_runs(path_to_output: str,
     fig.tight_layout()
     fig.savefig(f'{path_to_output}/plots/compare-one-to-many.pdf')
     del fig, ax
-
-
-def analyze_saved_runs_hist(path_to_output: str,
-                            number_of_runs: int,
-                            posterior_fig: plt.Figure,
-                            posterior_ax: plt.Axes) -> None:
-    # range for hist binning
-    hist_range = (0.2, 0.5)
-    # data frames to be used by seaborn and draw posteriors
-    dfs = pd.DataFrame(columns=[r'$\mathcal C$', 'weight', 'hydro'])
-    df_cumul = pd.DataFrame(columns=[r'$\mathcal C$', 'weight', 'hydro'])
-    # dfs = pd.DataFrame(columns=[r'$\mathcal C$', 'hydro'])
-    df_special = pd.DataFrame(columns=[r'$\mathcal C$', 'weight', 'hydro'])
-    all_counts = dict((key, []) for key in ['ce', 'dnmr', 'vah', 'mvah'])
-    cumul_counts = dict((key, []) for key in all_counts.keys())
-    rand_obvs = np.random.randint(number_of_runs)
-    for i in range(number_of_runs):
-        with open(f'{path_to_output}/mass_MCMC_run_{i}.pkl', 'rb') as f:
-            mcmc_chains = pickle.load(f)
-            for key in mcmc_chains.keys():
-                data = mcmc_chains[key][0].reshape(-1, 1)
-                counts, bins = np.histogram(data.flatten(),
-                                            bins=200,
-                                            range=hist_range)
-                if i == 0:
-                    cumul_counts[key] = counts
-                else:
-                    cumul_counts[key] += counts
-                counts, bins = np.histogram(data.flatten(),
-                                            bins=200,
-                                            range=hist_range,
-                                            density=True)
-                x, y = smooth_histogram(x=bins[:-1], y=counts)
-                all_counts[key].append(y)
-                # all_counts[key].append(smooth_histogram(
-                #     counts=counts,  # / np.sum(counts * np.diff(bins)),
-                #     window_size=int(np.sqrt(counts.size))))
-                df = pd.DataFrame({r'$\mathcal C$': x,
-                                   'weight': y,
-                                   'hydro': key})
-                # all_counts[key].append(smooth_histogram(
-                #     counts=counts,  # / np.sum(counts * np.diff(bins)),
-                #     window_size=int(np.sqrt(counts.size))))
-                # df = pd.DataFrame({r'$\mathcal C$': data[:, 0]})
-                # df['hydro'] = key
-                dfs = pd.concat([dfs, df], ignore_index=True)
-
-                # need to create a histogram, and keep track of the bins
-                # then plot the normalizes hist for the comparison
-                if rand_obvs == i:
-                    counts_special, bins_special = np.histogram(
-                        data,
-                        bins=200,
-                        range=hist_range,
-                        density=True)
-                    df_special = pd.concat([
-                        df_special,
-                        pd.DataFrame(
-                            {r'$\mathcal C$': bins_special[:-1],
-                             'weight': counts_special,
-                             # / np.sum(counts_special * np.diff(bins)),
-                             'hydro': key})],
-                        ignore_index=True)
-
-    for key in cumul_counts.keys():
-        x, y = smooth_histogram(x=bins[:-1], y=cumul_counts[key])
-        y = y / (np.sum(y) * np.diff(x)[0])
-        df = pd.DataFrame({r'$\mathcal C$': x,
-                           'weight': y,
-                           'hydro': key})
-        df_cumul = pd.concat([df_cumul, df], ignore_index=True)
-    print(df_cumul)
-
-    df_spread = pd.DataFrame(columns=[r'$\mathcal C$',
-                                      r'$-\sigma$',
-                                      r'$\mu$',
-                                      r'$+\sigma$',
-                                      'hydro'])
-
-    col_names = [r'$-\sigma$', r'$\mu$', r'$+\sigma$']
-    for key in all_counts.keys():
-        data = np.array(all_counts[key])
-        high_low = np.quantile(data, [0.16, 0.50, 0.84], axis=0)
-        df = pd.DataFrame({
-            # r'$\mathcal C$': bins[:-1],
-            r'$\mathcal C$': x,
-            r'$-\sigma$': np.array(high_low[0], dtype=float),
-            r'$\mu$': np.array(high_low[1], dtype=float),
-            r'$+\sigma$': np.array(high_low[2], dtype=float),
-            'hydro': key
-        })
-        df_spread = pd.concat([df_spread, df], ignore_index=True)
-
-    cmap = plt.get_cmap('tab10', 10)
-    costumize_axis(ax, r'$\mathcal C$', 'Density')
-    x_axis_col = r'$\mathcal C$'
-    for i, hydro in enumerate(all_counts.keys()):
-        posterior_ax.plot(
-            *smooth_histogram(
-                x=df_spread.loc[df_spread['hydro'] == hydro][x_axis_col]
-                .to_numpy(),
-                y=df_spread.
-                loc[df_spread['hydro'] == hydro][col_names[1]].to_numpy()),
-            color=cmap(i),
-            lw=2,
-            label=hydro)
-        # posterior_ax.plot(
-        #     df_spread.loc[df_spread['hydro'] == hydro][x_axis_col],
-        #     smooth_histogram(
-        #         counts=df_spread.
-        #         loc[df_spread['hydro'] == hydro][col_names[1]].to_numpy(),
-        #         window_size=int(np.sqrt(
-        #             df_spread.
-        #             loc[df_spread['hydro'] == hydro][col_names[1]].size
-        #         ))),
-        #     color=cmap(i),
-        #     lw=2,
-        #     label=hydro)
-
-        x = np.array(df_spread.loc[df_spread['hydro'] == hydro][x_axis_col]
-                     .to_numpy(), dtype=np.float32)
-        y1 = np.array(df_spread.loc[df_spread['hydro'] == hydro][col_names[0]]
-                      .to_numpy(), dtype=np.float32)
-        y2 = np.array(df_spread.loc[df_spread['hydro'] == hydro][col_names[2]]
-                      .to_numpy(), dtype=np.float32)
-
-        # x = smooth_histogram(counts=x, window_size=int(np.sqrt(x.size)))
-        # y1 = smooth_histogram(counts=y1,
-        #                       window_size=int(np.sqrt(y1.size)))
-        # y2 = smooth_histogram(counts=y2,
-        #                       window_size=int(np.sqrt(y2.size)))
-        x1, y1 = smooth_histogram(x=x, y=y1)
-        x2, y2 = smooth_histogram(x=x, y=y2)
-        posterior_ax.fill_between(x=x1,
-                                  y1=y1,
-                                  y2=y2,
-                                  color=cmap(i),
-                                  alpha=0.4)
-    posterior_ax.set_xlim(*hist_range)
-    posterior_ax.legend(fontsize=18)
-    posterior_fig.tight_layout()
-    posterior_fig.savefig(f'{path_to_output}/plots/upper-lower_hist.pdf')
-
-    fig2, ax2 = plt.subplots(figsize=(7, 7))
-    fig2.patch.set_facecolor('white')
-    costumize_axis(ax2, x_axis_col, 'Density')
-    for i, hydro in enumerate(all_counts.keys()):
-        # counts, bins = np.histogram(
-        #     a=dfs.loc[dfs['hydro'] == hydro][x_axis_col],
-        #     bins=200,
-        #     density=True)
-        ax2.plot(df_cumul.loc[dfs['hydro'] == hydro][x_axis_col].to_numpy(),
-                 df_cumul.loc[dfs['hydro'] == hydro]['weight'].to_numpy(),
-                 color=cmap(i), lw=2)
-        # ax2.hist(
-        #     x=bins[:-1],
-        #     bins=bins,
-        #     weights=smooth_histogram(counts=counts,
-        #                              window_size=int(np.sqrt(counts.size))),
-        #     color=cmap(i),
-        #     histtype=u'step',
-        #     lw=2
-        # )
-    ax2.set_xlim(*hist_range)
-    fig2.tight_layout()
-    fig2.savefig(f'{path_to_output}/plots/full-posterior_hist.pdf')
-    del fig2, ax2
-
-    # compare one to all
-    fig3, ax3 = plt.subplots(figsize=(7, 7))
-    fig3.patch.set_facecolor('white')
-    costumize_axis(ax3, x_axis_col, 'Density')
-    print(df_special)
-    for i, hydro in enumerate(all_counts.keys()):
-        # counts, bins = np.histogram(
-        #     a=dfs.loc[dfs['hydro'] == hydro][x_axis_col],
-        #     bins=200,
-        #     density=True)
-        # ax3.plot(df_cumul.loc[dfs['hydro'] == hydro][x_axis_col].to_numpy(),
-        #          df_cumul.loc[dfs['hydro'] == hydro]['weight'].to_numpy(),
-        #          color=cmap(i), lw=2)
-        # ax3.hist(
-        #     x=bins[:-1],
-        #     bins=bins,
-        #     weights=smooth_histogram(counts=counts,
-        #                              window_size=int(np.sqrt(counts.size))),
-        #     color=cmap(i),
-        #     histtype=u'step',
-        #     lw=2)
-
-        counts = np.array(
-            df_special.loc[df_special['hydro'] == hydro]['weight']
-            .to_numpy(),
-            dtype=float)
-        x, y = smooth_histogram(
-            x=df_special.loc[df_special['hydro'] == hydro][r'$\mathcal C$']
-            .to_numpy(),
-            y=counts)
-        ax.plot(x, y, color=cmap(i), ls='dashed', lw=2, alpha=0.5)
-        # ax3.hist(
-        #     x=bins_special[:-1],
-        #     bins=bins_special,
-        #     weights=smooth_histogram(
-        #         counts=counts,
-        #         window_size=int(np.sqrt(counts.size))),
-        #     color=cmap(i),
-        #     histtype=u'step',
-        #     ls='dashed',
-        #     lw=2,
-        #     alpha=0.5)
-    ax3.set_xlim(*hist_range)
-    fig3.tight_layout()
-    fig3.savefig(f'{path_to_output}/plots/compare-one-to-many_hist.pdf')
-    del fig3, ax3
 
 
 if __name__ == "__main__":

@@ -41,6 +41,7 @@ scripts/full_outputs/nan_files.txt
 scripts/plots/1param-posterior-compare-errors1.pdf
 scripts/plots/MCMC-posteriors_n=1.pdf
 scripts/__pycache__/HydroBayesianAnaylsis.cpython-39.pyc
+scripts/toy_problem.py
 full_outputs
 old_notebooks
 output/test
