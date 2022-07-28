@@ -48,9 +48,6 @@ from subprocess import CalledProcessError
 # TODO: 1. Create function that inverts energy density, shear and bulk
 #          pressure to give energy density, transverse and longitudinal
 #          pressure
-#       3. Updated ALL function descriptions to match current functions
-#       5. Write a setup script that creates a directory and its necessary
-#          subdirectories to let the Hydro bayes analysis python code work
 
 
 class HydroBayesianAnalysis(object):
