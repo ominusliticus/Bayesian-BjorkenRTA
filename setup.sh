@@ -2,6 +2,7 @@
 
 echo "Checking for 3rd party libraries, and installing if needed"
 echo pwd
+mkdir -p 3rd_party
 cd 3rd_party
 
 if [[ -d aramadillo ]]

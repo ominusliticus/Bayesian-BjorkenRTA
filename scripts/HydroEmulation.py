@@ -1,3 +1,23 @@
+#  Copyright 2021-2022 Kevin Ingles
+#
+#  Permission is hereby granted, free of charge, to any person obtaining
+#  a copy of this software and associated documentation files (the
+#  "Software"), to deal in the Software without restriction, including
+#  without limitation the right to use, copy, modify, merge, publish,
+#  distribute, sublicense, and/or sell copies of the Software, and to
+#  permit persons to whom the Sofware is furnished to do so, subject to
+#  the following conditions:
+#
+#  The above copyright notice and this permission notice shall be
+#  included in all copies or substantial poritions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+#  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+#  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+#  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 #
 # Author: Kevin Ingles
 # File: HydroEmulation.py
@@ -22,9 +42,6 @@ import pickle
 # To interface with Hydro code
 from HydroCodeAPI import HydroCodeAPI
 
-# For storing data
-# import pandas as pd
-
 # For plotting residuals
 import matplotlib.pyplot as plt
 from my_plotting import get_cmap, costumize_axis, autoscale_y
@@ -32,16 +49,39 @@ from my_plotting import get_cmap, costumize_axis, autoscale_y
 # For progress bars
 from tqdm import tqdm
 
+# for creating output directorie
+from subprocess import run as cmd
+from subprocess import CalledProcessError
 
-# TOOD: 1. Add workflow that systematically tests the emulator
-#          preformance by having a training and testing set of hydro
-#          and quantifying how well the emulator reproduces the value
-#       2. Include option to change the number of points per parameter
-#          used to in Latin Hypercube Sampler
 
 class HydroEmulator:
     """
-    Add description
+    This class trains the emulators for the various hydrodynamic models
+    Per request, it also outputs diagnostic plots to evaluate the perfromance
+    of the emulators
+
+    Constructor parameters:
+    ----------
+    hca              - in instance of the HydroCodeAPI class
+    params_dist      - dictionary with parameter names for hydro code
+    parameter_names  - the named parameters which will be inferred upon
+    parameter_ranges - ranges of value for which each parameter is defined
+                     - assumes that the order is the same as for
+                       parameter_names
+    simulation_taus  - the times which to evaluate the emulators for
+    hydro_name       - the hydro dynamic codes which to construct emulators for
+                       possible values: 'ce', 'dnmr', 'vah', 'mvah'
+    use_existing_emulators - bool to read in already trained emulators
+    use_PL_PT        - flag for HydroCodeAPI that tells it whether to store
+                     bulk and shear pressure, or longitudinal and transverse
+                     pressure
+    output_path      - path to output emulators to
+    samples_per_feature - given n parameters in Bayesian inference, we will
+                          generate samples_per_feature * n training points
+
+    Returns
+    ---------
+    Dictionary of emulator for each hydro theory and simulation_tau
     """
 
     def __init__(self,
@@ -53,20 +93,21 @@ class HydroEmulator:
                  hydro_names: List[str],
                  use_existing_emulators: bool,
                  use_PT_PL: bool,
-                 output_dir: str,
+                 output_path: str,
                  samples_per_feature: int = 20
                  ):
-        '''
-        Add description
-        '''
-        # TODO: If hydro output contains NaN, output the design point
-        #       for which the NaN(s) were present
+        # creat directory for emualtors if it doesn't already exist
+        try:
+            cmd(['mkdir', '-p', output_path]).check_returncode()
+        except (CalledProcessError):
+            print(f'Failed to creat dir {output_path}')
+
         self.GP_emulators = dict((key, None) for key in hydro_names)
         if use_existing_emulators:
             # Load GP data from pickle files
             with open(
                     '{}/design_points_n={}.dat'.
-                    format(output_dir, len(parameter_names)),
+                    format(output_path, len(parameter_names)),
                     'r'
                     ) as f:
                 self.design_points = np.array(
@@ -75,7 +116,7 @@ class HydroEmulator:
 
             f_pickle_emulators = open(
                 '{}/all_emulators_n={}.pkl'.
-                format(output_dir, len(parameter_names)),
+                format(output_path, len(parameter_names)),
                 'rb')
 
             self.GP_emulators = pickle.load(f_pickle_emulators)
@@ -101,14 +142,14 @@ class HydroEmulator:
                 # design_points = self.design_points[:-10]
                 # self.test_points = self.design_points[-10:]
                 with open('{}/design_points_n={}.dat'.
-                          format(output_dir, len(parameter_names)), 'w') as f:
+                          format(output_path, len(parameter_names)), 'w') as f:
                     for line in design_points.reshape(-1,
                                                       len(parameter_names)):
                         for entry in line:
                             f.write(f'{entry} ')
                         f.write('\n')
                 with open('{}/testing_points_n={}.dat'.
-                          format(output_dir, len(parameter_names)), 'w') as f:
+                          format(output_path, len(parameter_names)), 'w') as f:
                     for line in self.test_points.reshape(-1,
                                                          len(parameter_names)):
                         for entry in line:
@@ -126,7 +167,7 @@ class HydroEmulator:
                     for j, tau in enumerate(simulation_taus):
                         with open(('{}/swap/{}_simulation_points'
                                    + '_n={}_tau={}.dat').
-                                  format(output_dir,
+                                  format(output_path,
                                          name,
                                          len(parameter_names),
                                          tau),
@@ -159,7 +200,7 @@ class HydroEmulator:
                 f'full_outputs/emulator_scores_n={len(parameter_names)}.txt',
                 'w')
             f_pickle_emulators = open(
-                f'{output_dir}/all_emulators_n={len(parameter_names)}.pkl',
+                f'{output_path}/all_emulators_n={len(parameter_names)}.pkl',
                 'wb')
 
             for i, name in enumerate(hydro_names):
@@ -234,7 +275,7 @@ class HydroEmulator:
                      use_PT_PL: bool,
                      output_statistics: bool,
                      plot_emulator_vs_test_points: bool,
-                     output_dir: str) -> None:
+                     output_path: str) -> None:
         '''
         This function takes a given set of emulators and tests
         them for how accurately they run\n
@@ -248,14 +289,14 @@ class HydroEmulator:
         '''
         if use_existing_emulators:
             with open('{}/testing_points_n={}.dat'.
-                      format(output_dir, len(parameter_names)), 'r') as f:
+                      format(output_path, len(parameter_names)), 'r') as f:
                 self.test_points = np.array(
                     [[float(entry)
                       for entry in line.split()]
                      for line in f.readlines()]
                 )
             with open('{}/emulator_testing_data_n={}.pkl'.
-                      format(output_dir, len(parameter_names)), 'rb') as f:
+                      format(output_path, len(parameter_names)), 'rb') as f:
                 hydro_simulations = pickle.load(f)
         else:
             hca.RunHydro(params_dict=params_dict,
@@ -269,7 +310,7 @@ class HydroEmulator:
                 for j, tau in enumerate(simulation_taus):
                     with open(('{}/swap/{}_simulation_points'
                                + '_n={}_tau={}.dat').
-                              format(output_dir,
+                              format(output_path,
                                      name,
                                      len(parameter_names),
                                      tau),
@@ -284,7 +325,7 @@ class HydroEmulator:
                 for key in hydro_simulations)
 
             with open('{}/emulator_testing_data_n={}.pkl'.
-                      format(output_dir, len(parameter_names)), 'wb') as f:
+                      format(output_path, len(parameter_names)), 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
         p1_name = r'$R_{\mathcal P_T}$' if use_PT_PL else r'$R_\pi$'
@@ -321,11 +362,11 @@ class HydroEmulator:
             fig.legend(fontsize=18)
             fig.tight_layout()
             fig.savefig('{}/plots/emulator_validation_plot_n={}.pdf'.
-                        format(output_dir, len(parameter_names)))
+                        format(output_path, len(parameter_names)))
             del fig, ax
 
         with open('{}/emulator_test_n={}.txt'.
-                  format(output_dir, len(parameter_names)), 'wb') as f:
+                  format(output_path, len(parameter_names)), 'wb') as f:
             residuals_of_observables = {}
             print("Testing emulators")
             for name in hydro_names:
@@ -422,11 +463,11 @@ class HydroEmulator:
             fig.legend(fontsize=18)
             fig.tight_layout()
             fig.savefig('{}/plots/emulator_residuals_n={}.pdf'.
-                        format(output_dir, len(parameter_names)))
+                        format(output_path, len(parameter_names)))
 
         # output residuals to files
         with open('{}/emulator_residuals_dict_n={}.pkl'.
-                  format(output_dir, len(parameter_names)), 'wb') as f:
+                  format(output_path, len(parameter_names)), 'wb') as f:
             pickle.dump(residuals_of_observables, f)
 
         print("Done")

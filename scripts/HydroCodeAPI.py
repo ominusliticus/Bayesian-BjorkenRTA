@@ -1,3 +1,23 @@
+#  Copyright 2021-2022 Kevin Ingles
+#
+#  Permission is hereby granted, free of charge, to any person obtaining
+#  a copy of this software and associated documentation files (the
+#  "Software"), to deal in the Software without restriction, including
+#  without limitation the right to use, copy, modify, merge, publish,
+#  distribute, sublicense, and/or sell copies of the Software, and to
+#  permit persons to whom the Sofware is furnished to do so, subject to
+#  the following conditions:
+#
+#  The above copyright notice and this permission notice shall be
+#  included in all copies or substantial poritions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+#  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+#  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+#  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 #
 # Author: Kevin Ingles
 # File: HydroCodeAPI.py
@@ -29,12 +49,24 @@ from tqdm import tqdm
 
 class HydroCodeAPI:
     """
-    Add description
+    This class calls the C++ program, via command line, and extracts the
+    desired information from each outputted file
+
+    Constructor parameters
+    ---------
+    output_path - str, path that determines where to output files generated 
+                  from running the C++ code. Also tells python where to read
+                  output from
     """
 
-    def __init__(self, path_to_output: str) -> None:
+    def __init__(self, output_path: str) -> None:
         self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
-        self.path_to_output = path_to_output
+        self.output_path = output_path
+
+        try:
+            cmd(['mkdir', '-p', output_path]).check_returncode()
+        except (CalledProcessError):
+            print(f'Failed to create dir {output_path}')
         # data slots for storing hydro runs
 
     def PrintCommandLineArgs(self,
@@ -63,7 +95,7 @@ class HydroCodeAPI:
         cmd_list = ['./build/exact_solution.x',
                     *self.PrintCommandLineArgs(params_dict),
                     f'{which_hydro}',
-                    self.path_to_output]
+                    self.output_path]
         try:
             cmd(cmd_list).check_returncode()
         except (CalledProcessError):
@@ -83,7 +115,7 @@ class HydroCodeAPI:
                            params_dict: Dict[str, float],
                            use_PT_PL: bool) -> np.ndarray:
         '''
-        Add description
+        Opens outputted files from C++ programs and extracts relevant points
         '''
         hydro_type = params_dict['hydro_type']
         mass = 0.197 * params_dict['mass']  # in MeV
@@ -98,15 +130,15 @@ class HydroCodeAPI:
             prefix = '/mvah_'
 
         f_e = open(
-            self.path_to_output + prefix + 'e' + f'_m={mass:.3f}GeV.dat',
+            self.output_path + prefix + 'e' + f'_m={mass:.3f}GeV.dat',
             'r'
             ).readlines()
         f_pi = open(
-            self.path_to_output + prefix + 'shear' + f'_m={mass:.3f}GeV.dat',
+            self.output_path + prefix + 'shear' + f'_m={mass:.3f}GeV.dat',
             'r'
             ).readlines()
         f_Pi = open(
-            self.path_to_output + prefix + 'bulk' + f'_m={mass:.3f}GeV.dat',
+            self.output_path + prefix + 'bulk' + f'_m={mass:.3f}GeV.dat',
             'r'
             ).readlines()
 
@@ -131,10 +163,10 @@ class HydroCodeAPI:
     def GetExactResults(self,
                         params_dict: Dict[str, float]) -> np.ndarray:
         '''
-        Add description
+        Open output file from running Boltzmann RTA solution 
         '''
         with open(
-                self.path_to_output
+                self.output_path
                 + f'/exact_m={0.197 * params_dict["mass"]:.3f}GeV.dat',
                 'r'
                 ) as f_exact:
@@ -150,7 +182,7 @@ class HydroCodeAPI:
                      design_point: np.ndarray,
                      use_PT_PL: bool = True) -> np.ndarray:
         '''
-        Add description
+        Helper function to facilitate code running and file reading step
         '''
         for i, name in enumerate(parameter_names):
             params_dict[name] = design_point[i]
@@ -167,9 +199,9 @@ class HydroCodeAPI:
                  design_points: np.ndarray,
                  simulation_taus: np.ndarray,
                  use_PT_PL: bool = True) -> None:
-        # TODO: Enable using PL, PT, Pi and pi from same trainging set
         '''
-        Add description
+        Run multiple hydro code for multiple design points
+        Executes in each hydro theory in parallel
         '''
 
         # Multi-processing to run different hydros in sequence
@@ -187,7 +219,7 @@ class HydroCodeAPI:
             # Calculate indices for observation times
             if 'tau_0' in parameter_names:
                 j = parameter_names.index('tau_0')
-                # delta_tau = tau_0 / 20 = design_point[j] / 20
+                # note that delta_tau = tau_0 / 20 = design_point[j] / 20
                 observ_indices = np.array(
                     [[(tau_f / design_point[j] - 1.0) * 20.0
                       for tau_f in simulation_taus]
@@ -241,7 +273,7 @@ class HydroCodeAPI:
                 with open(
                         ('{}/{}_simulation_points_n='
                          + '{}_tau={}.dat').
-                        format(self.path_to_output,
+                        format(self.output_path,
                                name,
                                len(parameter_names),
                                tau),

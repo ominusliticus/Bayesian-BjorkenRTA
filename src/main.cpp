@@ -1,5 +1,27 @@
+//  Copyright 2021-2022 Kevin Ingles
+//  
+//  Permission is hereby granted, free of charge, to any person obtaining
+//  a copy of this software and associated documentation files (the
+//  "Software"), to deal in the Software without restriction, including
+//  without limitation the right to use, copy, modify, merge, publish,
+//  distribute, sublicense, and/or sell copies of the Software, and to
+//  permit persons to whom the Sofware is furnished to do so, subject to
+//  the following conditions:
+//  
+//  The above copyright notice and this permission notice shall be
+//  included in all copies or substantial poritions of the Software.
+//  
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+//  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+//  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+//  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 //
 // Author: Kevin Ingles
+// File: main.cpp
+// Description: Translation unit that contains the int main program and 
 
 #include "../include/config.hpp"
 #include "../include/Errors.hpp"
@@ -13,23 +35,9 @@
 
 int main(int argc, char** argv)
 {
-	// SimulationParameters params("utils/params.txt");
-	// Add logic for runing exact solution: should check if the soluiton with a give parameter set has already run
-	// SimulationParameters exact_params("utils/exact_params.txt");
-	// if (params != exact_params)
-	// {
-	//     std::fstream fout("utils/exact_params.txt", std::fstream::out);
-	//     fout << exact_params;
-	//     fout.close();
-
-	//     exact::ExactSolution hydro_exact;
-	//     hydro_exact.Run("output/exact/MCMC_calculation_for_exact.dat", params);
-	//     hydro_exact.OutputMoments("output/exact/MCMC_calculation_moments.dat", params);
-	// }
-
 	SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
 
-	switch (std::atoi(argv[argc - 2]))
+	switch (params.type)
 	{
 		case 0 :	// Chapman-Enskog hydro
 		{
@@ -59,7 +67,7 @@ int main(int argc, char** argv)
 			hydro_altaniso.~AltAnisoHydroEvolution();
 			break;
 		}
-		case 4 :
+		case 4 :    // Boltzmann RTA exact solution
 		{
 			exact::ExactSolution hydro_exact;
 			hydro_exact.Run(params);

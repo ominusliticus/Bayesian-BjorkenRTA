@@ -1,6 +1,30 @@
+//  Copyright 2021-2022 Kevin Ingles
+//  
+//  Permission is hereby granted, free of charge, to any person obtaining
+//  a copy of this software and associated documentation files (the
+//  "Software"), to deal in the Software without restriction, including
+//  without limitation the right to use, copy, modify, merge, publish,
+//  distribute, sublicense, and/or sell copies of the Software, and to
+//  permit persons to whom the Sofware is furnished to do so, subject to
+//  the following conditions:
+//  
+//  The above copyright notice and this permission notice shall be
+//  included in all copies or substantial poritions of the Software.
+//  
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+//  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+//  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+//  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 // 
 // Author: Kevin Ingles
 // Credit: Chandrodoy Chattopadhyay for original code
+// File: ExactSolution.hpp
+// Description: Header file which defines the routines and data structures to 
+//              facilitate the calculation of the Boltzmann RTA exact solution 
+//              for Bjorken expansion
 
 #ifndef EXACT_SOLUTION_HPP
 #define EXACT_SOLUTION_HPP
@@ -47,8 +71,6 @@ namespace exact{
         double DecayFactor(double tau1, double tau2, SP& params);
 
 
-
-
         ////////////////////////////////////////////////////////////
         ///        Code for evaluating moments analytically      ///
         ////////////////////////////////////////////////////////////
@@ -72,8 +94,6 @@ namespace exact{
         double GetMoments(double tau, SP& params, Moment flag);
 
 
-
-
         ////////////////////////////////////////////////////////////
         ///        Code for evaluating moments numerically       ///
         ////////////////////////////////////////////////////////////
@@ -93,8 +113,6 @@ namespace exact{
         // Only necessary for debuggin to be deleted
         std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params);
         std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params);
-
-
 
 
         ////////////////////////////////////////////////////////////

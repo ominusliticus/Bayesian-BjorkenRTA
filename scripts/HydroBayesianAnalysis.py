@@ -1,3 +1,23 @@
+#  Copyright 2021-2022 Kevin Ingles
+#
+#  Permission is hereby granted, free of charge, to any person obtaining
+#  a copy of this software and associated documentation files (the
+#  "Software"), to deal in the Software without restriction, including
+#  without limitation the right to use, copy, modify, merge, publish,
+#  distribute, sublicense, and/or sell copies of the Software, and to
+#  permit persons to whom the Sofware is furnished to do so, subject to
+#  the following conditions:
+#
+#  The above copyright notice and this permission notice shall be
+#  included in all copies or substantial poritions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+#  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+#  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+#  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 #
 # Author: Kevin Ingles
 # File: HydroBayesianAnalysis.py
@@ -21,6 +41,10 @@ from scipy.linalg import lapack
 # data storage
 import pickle
 
+# To create output directories if they don't already exist
+from subprocess import run as cmd
+from subprocess import CalledProcessError
+
 # TODO: 1. Create function that inverts energy density, shear and bulk
 #          pressure to give energy density, transverse and longitudinal
 #          pressure
@@ -31,7 +55,17 @@ import pickle
 
 class HydroBayesianAnalysis(object):
     """
-    Add description
+    This class is the API for all Bayesian Analysis methods, including
+    parameter inference, model selection and model averaging.
+    ----
+    Constructor parameters:
+    default_params   - parameter dictionary which stores the params we
+                               wish to infer upon
+    parameter_names  - the keys to the above dictionary (seems
+                               redundant)
+    parameter_ranges - the ranges to which each parameter is limited
+    simulation_taus  - list of times to output the observable from
+                               hydro codes
     """
 
     def __init__(
@@ -92,13 +126,34 @@ class HydroBayesianAnalysis(object):
                                 emulator_list[0] - energery density \n
                                 emulator_list[1] - shear stress  \n
                                 emulator_list[2] - bulk stress
+
+
+        Returns:
+        -----------
+        Float - log-likelihood
         '''
         def PredictObservable(evaluation_points: np.ndarray,
                               hydro_name: str,
                               tau_index: int,
                               GP_emulator: Dict) -> np.ndarray:
             """
-            Add description
+            Function takes in the emulators list, and tau_index corresponding
+            to the observation to be evaluated at and returns the predicted
+            observables.
+
+            Parameters:
+            ------------
+            evaluation_points - array of points from parameter space on which
+                                to evaluate he likelihood (generally supplied
+                                by an Monte Carlo Sampler)
+            hydro_name        - name of hydro theory for which to run emulator
+            tau_index         - index specifying the entry in 
+                                self.simulation_taus array to evaluate
+                                emulator for
+
+            Returns:
+            -----------
+            Tuple[emulator prediction, emulation error]
             """
             means = []
             variances = []
@@ -153,16 +208,23 @@ class HydroBayesianAnalysis(object):
                 exact_observables: np.ndarray,
                 exact_error: np.ndarray,
                 GP_emulators: Dict,
+                output_path: str,
                 read_from_file: bool = False) -> Dict:
         """
         Parameters:
         --------------
         nsteps : Number of steps for MCMC chain to take\n
         nburn : Number of burn-in steps to take\n
+        ntemps : number of temperature for ptemcee sampler
         exact_observables : (n,4) np.ndarray where n is the number of\n
                             simulation_taus passed at initialization\n
         exact_error : (n,3) np.ndarray where n is the number of\n
                       simulation_taus passed at initialization
+        GP_emulators : Dictionary of list of emulators 
+        output_path : Define path where to output mcmc chains to load previous
+                      runs
+        read_from_file : Boolean, read last run only works if existing run 
+                         exists.
 
         Returns:
         ----------
@@ -172,9 +234,10 @@ class HydroBayesianAnalysis(object):
         """
         if read_from_file:
             print("Reading mcmc_chain from file")
-            with open('pickle_files/mcmc_chains.pkl', 'rb') as f:
+            with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
+                      'rb') as f:
                 self.MCMC_chains = pickle.load(f)
-            with open('pickle_files/evidence.pkl', 'rb') as f:
+            with open(f'{output_path}/pickle_files/evidence.pkl', 'rb') as f:
                 self.evidence = pickle.load(f)
         else:
             nwalkers = 20 * self.num_params
@@ -222,9 +285,16 @@ class HydroBayesianAnalysis(object):
                 self.MCMC_chains[name] = np.array(sampler.chain)
                 self.evidence[name] = sampler.log_evidence_estimate()
 
-            with open('pickle_files/mcmc_chains.pkl', 'wb') as f:
+            try:
+                cmd(['mkdir', '-p', f'{output_path}/pickle_files'])
+                .check_returncode()
+            except (CalledProcessError):
+                print(f"Could not create dir {output_path}/pickle_files")
+
+            with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
+                      'wb') as f:
                 pickle.dump(self.MCMC_chains, f)
-            with open('pickle_files/evidence.pkl', 'wb') as f:
+            with open(f'{output_path}/pickle_files/evidence.pkl', 'wb') as f:
                 pickle.dump(self.evidence, f)
 
     def CalculateBayesFactor(self, hydro1: str, hydro2: str) -> float:

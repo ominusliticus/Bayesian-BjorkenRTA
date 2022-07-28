@@ -1,5 +1,29 @@
+//  Copyright 2021-2022 Kevin Ingles
+//  
+//  Permission is hereby granted, free of charge, to any person obtaining
+//  a copy of this software and associated documentation files (the
+//  "Software"), to deal in the Software without restriction, including
+//  without limitation the right to use, copy, modify, merge, publish,
+//  distribute, sublicense, and/or sell copies of the Software, and to
+//  permit persons to whom the Sofware is furnished to do so, subject to
+//  the following conditions:
+//  
+//  The above copyright notice and this permission notice shall be
+//  included in all copies or substantial poritions of the Software.
+//  
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+//  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+//  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+//  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+//  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+//  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+//  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 //
 // Author: Kevin Ingles
+// File: HydroTheories.hpp
+// Description: Defines the interface which implement the various hydrodynamic models
+//              These inlcude: Chapman-Enskog, DNMR, VAH and or modification of VAH
+//              called modified VAH
 
 #ifndef HYDRO_THEORIES_HPP
 #define HYDRO_THEORIES_HPP
@@ -11,11 +35,7 @@
 #include "Integration.hpp"
 
 #include <vector>
-
 #include <armadillo>
-
-// TO DO: Make explicit copy and copy assignment constructors for the structs belows...
-// TO DO: Destructors for all the structs below
 
 using vec = arma::vec;
 using mat = arma::mat;
