@@ -1,8 +1,10 @@
-others/
-output/plots/*
+others
+output/plots
 output/bayes
-Archive/
-scripts/plots/*
+Archive
+scripts/plots
+scripts/design_points
+scripts/pickle_files
 swap
 
 *.dat
@@ -27,7 +29,7 @@ Debug_Plots.ipynb
 useful_for_calculations.ipynb
 plots_and_debug.ipynb
 Storring_Old_Plots.ipynb
-# Logbook.ipynb
+Logbook.ipynb
 TestingModule.ipynb
 plotting.ipynb
 
@@ -37,9 +39,6 @@ comparison_e.pdf
 cmdln_out.txt
 emulator_scores.txt
 HydroBayesianAnalysis_DebugOutput.txt
-scripts/full_outputs/nan_files.txt
-scripts/plots/1param-posterior-compare-errors1.pdf
-scripts/plots/MCMC-posteriors_n=1.pdf
 scripts/__pycache__/HydroBayesianAnaylsis.cpython-39.pyc
 scripts/toy_problem.py
 full_outputs
@@ -47,6 +46,7 @@ old_notebooks
 output/test
 
 .clangd/
+.cache
 3rd_party/armadillo-code/
 compile_commands.json
 fmt/
