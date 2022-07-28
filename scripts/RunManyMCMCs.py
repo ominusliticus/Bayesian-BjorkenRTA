@@ -269,8 +269,6 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
 
         size = Cs.size
         cmap = get_cmap(10, 'tab10')
-        store_posteriors = dict((key, None)
-                                for key in ['ce', 'dnmr', 'vah', 'mvah'])
 
         def calculate_gaussian(e: float,
                                pt: float,
@@ -281,9 +279,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
             val = np.exp(-e ** 2 / 2 / de ** 2)
             val *= np.exp(-pt ** 2 / 2 / dpt ** 2)
             val *= np.exp(-pl ** 2 / 2 / dpl ** 2)
-            norm = np.sqrt((2 * np.pi) ** 3
-                           * (de ** 2 * dpt ** 2 * dpl ** 2))
-            return val / norm
+            return val
 
         post = np.zeros_like(Cs)
         for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
@@ -299,11 +295,9 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                             dpl=dPL_exp[i, k])
                 post[i] = temp
 
-            store_posteriors[name] = post
-            post_max = np.max(post)
-            norms = np.array([5.6, 5.6, 4.78, 4.80])
+            post_norm = np.sum(np.diff(Cs)[0] * post)
             ax.plot(Cs,
-                    post * norms[j] / post_max,
+                    post / post_norm,
                     lw=2.5,
                     ls='solid',
                     color=cmap(j),
@@ -436,11 +430,11 @@ def analyze_saved_runs(path_to_output: str,
             mcmc_chains = pickle.load(f)
             for key in mcmc_chains.keys():
                 data = mcmc_chains[key][0].reshape(-1, 1)
-                num_bins = 50 * int(np.sqrt(data.flatten().size))
+                num_bins = 1 * int(np.sqrt(data.flatten().size))
                 counts, bins = np.histogram(data.flatten(),
                                             bins=num_bins,
                                             range=hist_range,
-                                            density=True)
+                                            density=False)
                 all_counts[key].append(counts)
                 df = pd.DataFrame({r'$\mathcal C$': data[:, 0]})
                 df['hydro'] = key
@@ -463,158 +457,44 @@ def analyze_saved_runs(path_to_output: str,
                              'hydro': key})],
                         ignore_index=True)
 
-    df_spread = pd.DataFrame(columns=[r'$\mathcal C$',
-                                      r'$-\sigma$',
-                                      r'$\mu$',
-                                      r'$+\sigma$',
-                                      'hydro'])
-
     bin_shift = np.diff(bins)[0]
-    col_names = [r'$-\sigma$', r'$\mu$', r'$+\sigma$']
-    for key in all_counts.keys():
+    print(all_counts.keys())
+    norms = dict(
+        (key,
+         np.sum(
+             bin_shift * np.quantile(
+                 np.array(all_counts[key]), [0.5], axis=0)
+         )) for key in all_counts.keys())
+
+    print(norms.keys())
+    cmap = get_cmap(10, 'tab10')
+    x_bins = bins[:-1] + 0.5 * bin_shift
+    for j, key in enumerate(norms.keys()):
         data = np.array(all_counts[key])
         high_low = np.quantile(data, [0.16, 0.50, 0.84], axis=0)
-        print(high_low.shape)
-        df = pd.DataFrame({
-            r'$\mathcal C$': bins[:-1] + 0.5 * bin_shift,
-            r'$-\sigma$': high_low[0],
-            r'$\mu$': high_low[1],
-            r'$+\sigma$': high_low[2],
-            'hydro': key
-        })
-        df_spread = pd.concat([df_spread, df], ignore_index=True)
-
-    num_lines_already = len(posterior_ax.get_lines())
-    x_axis_col = r'$\mathcal C$'
-    for name in col_names:
-        # Doesn't work because we are just storing counts data
-        # if name == r'$\mu':
-        #     for hydro in all_counts.keys():
-        #         sns.kdeplot(
-        #             x=df_spread[df_spread['hydro'] == hydro][name],
-        #             ax=posterior_ax,
-        #             label=hydro)
-        # else:
-        #     for hydro in all_counts.keys():
-        #         sns.kdeplot(
-        #             x=df_spread[df_spread['hydro'] == hydro][name],
-        #             ax=posterior_ax,
-        #             linestyle='dashed'
-        #         )
-        if name == r'$\mu$':
-            sns.kdeplot(
-                data=df_spread,
-                x=x_axis_col,
-                weights=df_spread[name],
-                hue='hydro',
-                ax=posterior_ax,
-                linewidth=1,
-                common_norm=True,
-                common_grid=True)
-        else:
-            sns.kdeplot(
-                data=df_spread,
-                x=x_axis_col,
-                weights=df_spread[name],
-                hue='hydro',
-                linestyle='dashed',
-                ax=posterior_ax,
-                linewidth=1,
-                common_norm=True,
-                common_grid=True)
-
-    lines_index = np.array([[0, 8],      # ce 1st std lines plotted
-                            [1, 9],      # dmnr
-                            [2, 10],     # vah
-                            [3, 11]])    # mvah
-    lines_index = lines_index + num_lines_already
-    plotted_lines = posterior_ax.get_lines()
-
-    fig_debug, ax_debug = plt.subplots(figsize=(7, 7))
-    fig_debug.patch.set_facecolor('white')
-    cmap = plt.get_cmap('tab10', 10)
-    peaks = np.zeros(4)
-    for k in range(num_lines_already):
-        line = plotted_lines[k]
-        x = line.get_xdata()
-        y = line.get_ydata()
-        peaks[k] = np.max(normalize_for_C(x, y))
-        ax_debug.plot(x, normalize_for_C(x, y), lw=2, color=cmap(k))
-
-    for k, pairs in enumerate(lines_index):
-        x1 = plotted_lines[pairs[0]].get_xdata()
-        y1 = plotted_lines[pairs[0]].get_ydata()
-        x2 = plotted_lines[pairs[1]].get_xdata()
-        y2 = plotted_lines[pairs[1]].get_ydata()
-
+        for i in range(3):
+            posterior_ax.scatter(x_bins,
+                                 high_low[i] / norms[key],
+                                 3.0,
+                                 color=cmap(j)
+                                 )
         posterior_ax.fill_between(
-            x=x1,
-            y1=y1,
-            y2=y2,
-            color=cmap(3-k),    # Lines seem to be fed like a queue
-            alpha=0.4)
-
-        print(np.sum(plotted_lines[pairs[0]].get_xdata() *
-                     plotted_lines[pairs[0]].get_ydata()))
-        print(np.sum(plotted_lines[pairs[1]].get_xdata() *
-                     plotted_lines[pairs[1]].get_ydata()))
-
-        x_mean = plotted_lines[pairs[0] + 4].get_xdata()
-        y_mean = plotted_lines[pairs[0] + 4].get_ydata()
-        fit_and_plot_posterior(
-            xdata=x_mean,
-            ydata=y_mean,
-            points=x_mean,
-            name=list(all_counts.keys())[3 - k],
-            plot_name=path_to_output + '/plots/debug_posterior2.pdf',
-            fig=posterior_fig,
-            ax=posterior_ax)
-
-        y1_new = normalize_for_C(x1, y1, peaks[3 - k])
-        y2_new = normalize_for_C(x2, y2, peaks[3 - k])
-        y_mean_new = normalize_for_C(x_mean, y_mean, peaks[3 - k])
-        ax_debug.plot(x1, y1_new, lw=1, ls='dashed', color=cmap(3 - k))
-        ax_debug.plot(x2, y2_new, lw=1, ls='dashed', color=cmap(3 - k))
-        ax_debug.fill_between(x1, y1_new, y2_new, color=cmap(3 - k), alpha=0.5)
-        ax_debug.plot(x_mean, y_mean_new, lw=1, ls='solid', color='black')
+            x_bins,
+            high_low[0] / norms[key],
+            high_low[2] / norms[key],
+            color=cmap(j),
+            alpha=0.5
+        )
+        posterior_ax.plot(
+            x_bins,
+            high_low[1] / norms[key],
+            lw=1,
+            color=cmap(j)
+        )
 
     posterior_ax.set_xlim(*hist_range)
     posterior_fig.tight_layout()
     posterior_fig.savefig(f'{path_to_output}/plots/upper-lower.pdf')
-
-    ax_debug.set_xlim(*hist_range)
-    costumize_axis(ax_debug, r'$\mathcal C$', 'Posterior')
-    fig_debug.tight_layout()
-    fig_debug.savefig(path_to_output + '/plots/same-norms-debug.pdf')
-
-    g2 = sns.pairplot(data=dfs,
-                      corner=True,
-                      diag_kind='kde',
-                      kind='hist',
-                      hue='hydro')
-    g2.map_lower(sns.kdeplot, levels=4)
-    g2.tight_layout()
-    g2.savefig(f'{path_to_output}/plots/full-posterior.pdf')
-    del g2
-
-    # compare one to all
-    fig, ax = plt.subplots(figsize=(7, 7))
-    fig.patch.set_facecolor('white')
-    sns.kdeplot(data=dfs,
-                x=x_axis_col,
-                hue='hydro',
-                ax=ax)
-    sns.kdeplot(data=df_special,
-                x=x_axis_col,
-                weights=df_special['weight'],
-                hue='hydro',
-                linestyle='dashed',
-                alpha=0.5,
-                ax=ax)
-    ax.set_xlim(*hist_range)
-    fig.tight_layout()
-    fig.savefig(f'{path_to_output}/plots/compare-one-to-many.pdf')
-    del fig, ax
 
 
 if __name__ == "__main__":
