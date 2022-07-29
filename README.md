@@ -59,7 +59,7 @@ $ ldd build/exact_solution.x
 	libgomp.so.1 => /lib/x86_64-linux-gnu/libgomp.so.1 (0x00007f5ecf736000)
 	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f5ecf71b000)
 	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f5ecf527000)
-    /lib64/ld-linux-x86-64.so.2 (0x00007f5ed1d13000)
+    	/lib64/ld-linux-x86-64.so.2 (0x00007f5ed1d13000)
 	libgfortran.so.5 => /lib/x86_64-linux-gnu/libgfortran.so.5 (0x00007f5ecf26d000)
 	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f5ecf267000)
 	libquadmath.so.0 => /lib/x86_64-linux-gnu/libquadmath.so.0 (0x00007f5ecf21d000)
