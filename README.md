@@ -116,6 +116,7 @@ The `hydro_type`'s are as follows
 | VAH            | 2 |
 | Modified VAH   | 3 |
 | Exact RTA Soln | 4 |  
+
 The `hydro_type` field is automatically modified by `HydroCodeAPI`, in
 accordance with which hydro name you give it.
 
