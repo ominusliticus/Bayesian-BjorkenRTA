@@ -3,13 +3,13 @@
 from HydroBayesianAnalysis import HydroBayesianAnalysis as HBA
 from HydroCodeAPI import HydroCodeAPI as HCA
 from HydroEmulation import HydroEmulator as HE
-from my_plotting import costumize_axis, get_cmap, smooth_histogram
+from my_plotting import costumize_axis, get_cmap
 
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 from scipy.optimize import curve_fit
 
 # For progress bars
@@ -40,22 +40,14 @@ def fit_and_plot_posterior(xdata: np.ndarray,
     print("fit params for analytic distribution {}: ({:.5e}, {:.5e})".
           format(name, params[0], params[1]))
     return params
-    # ax.plot(points,
-    #         gauss(points,
-    #               loc=params[0],
-    #               scale=params[1],
-    #               norm=params[2]),
-    #         lw=0.5,
-    #         ls='solid',
-    #         color='black')
-    # fig.savefig(plot_name)
 
 
 def normalize_for_C(xdata: np.ndarray,
                     ydata: np.ndarray,
                     scale: Optional[float] = None) -> np.ndarray:
     area = np.sum(np.diff(xdata)[0] * ydata)
-    fit_params = fit_and_plot_posterior(xdata, ydata, None, None, None, None, None)
+    fit_params = fit_and_plot_posterior(xdata, ydata,
+                                        None, None, None, None, None)
     norm = np.sqrt(2 * np.pi * fit_params[1] ** 2)
     if not scale:
         return ydata / (area * norm)
@@ -117,7 +109,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
     Runs the entire analysis suite, including the emulator fiiting `n` times
     and saves MCMC chains in file indexed by the iteration number
     '''
-    code_api = HCA(str(Path(output_dir + '/swap').absolute()))
+    code_api = HCA(str(Path(f'{output_dir}/swap').absolute()))
     parameter_names = ['C']
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
@@ -137,13 +129,15 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.RunMCMC(nsteps=400,
-                         nburn=100,
-                         ntemps=20,
-                         exact_observables=exact_pseudo,
-                         exact_error=pseudo_error,
-                         GP_emulators=emulator_class.GP_emulators,
-                         read_from_file=False)
+        ba_class.RunMCMC(
+            nsteps=400,
+            nburn=100,
+            ntemps=20,
+            exact_observables=exact_pseudo,
+            exact_error=pseudo_error,
+            GP_emulators=emulator_class.GP_emulators,
+            output_path=str(Path(f'{output_dir}/swap').absolute()),
+            read_from_file=False)
         with open(output_dir + f'/mass_MCMC_run_{i}.pkl', 'wb') as f:
             pickle.dump(ba_class.MCMC_chains, f)
 
@@ -199,11 +193,6 @@ def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
-    # fig, ax = PlotAnalyticPosteriors(local_params=local_params,
-    #                                  parameter_names=parameter_names,
-    #                                  parameter_ranges=parameter_ranges,
-    #                                  simulation_taus=simulation_taus,
-    #                                  pseudo_data=exact_pseudo)
     ba_class.PlotPosteriors(output_dir=output_dir,
                             axis_names=[r'$\mathcal C$'])
 
@@ -353,18 +342,6 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
         _ = [proc.start() for proc in jobs]
         _ = [proc.join() for proc in jobs]
 
-        # for i, name in enumerate(hydro_names):
-        #     local_params['hydro_type'] = i
-        #     output = np.array(
-        #         [[code_api.ProcessHydro(
-        #               params_dict=local_params,
-        #               parameter_names=parameter_names,
-        #               design_point=[C],
-        #               use_PT_PL=True)[int(i)-1]
-        #           for i in observ_indices]
-        #          for C in tqdm(Cs)])
-        #     for_analytic_hydro_output[name] = output
-
         for_analytic_hydro_output = dict(
             (key, np.array(for_analytic_hydro_output[key]))
             for key in hydro_names)
@@ -453,7 +430,6 @@ def analyze_saved_runs(path_to_output: str,
                         pd.DataFrame(
                             {r'$\mathcal C$': bins_special[:-1],
                              'weight': counts_special,
-                             # / np.sum(counts_special * np.diff(bins)),
                              'hydro': key})],
                         ignore_index=True)
 

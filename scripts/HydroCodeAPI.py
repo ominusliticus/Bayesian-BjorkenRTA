@@ -54,7 +54,7 @@ class HydroCodeAPI:
 
     Constructor parameters
     ---------
-    output_path - str, path that determines where to output files generated 
+    output_path - str, path that determines where to output files generated
                   from running the C++ code. Also tells python where to read
                   output from
     """
@@ -163,7 +163,7 @@ class HydroCodeAPI:
     def GetExactResults(self,
                         params_dict: Dict[str, float]) -> np.ndarray:
         '''
-        Open output file from running Boltzmann RTA solution 
+        Open output file from running Boltzmann RTA solution
         '''
         with open(
                 self.output_path

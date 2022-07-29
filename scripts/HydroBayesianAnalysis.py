@@ -144,7 +144,7 @@ class HydroBayesianAnalysis(object):
                                 to evaluate he likelihood (generally supplied
                                 by an Monte Carlo Sampler)
             hydro_name        - name of hydro theory for which to run emulator
-            tau_index         - index specifying the entry in 
+            tau_index         - index specifying the entry in
                                 self.simulation_taus array to evaluate
                                 emulator for
 
@@ -217,10 +217,10 @@ class HydroBayesianAnalysis(object):
                             simulation_taus passed at initialization\n
         exact_error : (n,3) np.ndarray where n is the number of\n
                       simulation_taus passed at initialization
-        GP_emulators : Dictionary of list of emulators 
+        GP_emulators : Dictionary of list of emulators
         output_path : Define path where to output mcmc chains to load previous
                       runs
-        read_from_file : Boolean, read last run only works if existing run 
+        read_from_file : Boolean, read last run only works if existing run
                          exists.
 
         Returns:
@@ -283,8 +283,8 @@ class HydroBayesianAnalysis(object):
                 self.evidence[name] = sampler.log_evidence_estimate()
 
             try:
-                cmd(['mkdir', '-p', f'{output_path}/pickle_files'])
-                .check_returncode()
+                (cmd(['mkdir', '-p', f'{output_path}/pickle_files'])
+                    .check_returncode())
             except (CalledProcessError):
                 print(f"Could not create dir {output_path}/pickle_files")
 
