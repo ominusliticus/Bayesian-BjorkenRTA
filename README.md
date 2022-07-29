@@ -19,8 +19,10 @@ python.
 
 ## C++ setup
 Before running the C++ code, make sure all the dependencies are install.
-To get the aramadillo dependency, run the following command
-(<span style="color:red">this script creates directories</span>)
+To get the aramadillo dependency, run the following command  
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
+this script creates directories
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
 ```terminal
 sh setup.sh
 ```
@@ -35,8 +37,10 @@ The system requirements to run the C++ code are
 - compiler support for C++17 or higher  
 
 ### Debugging Failed Setup
-To test that the C++ code runs successfully, run the following command
-(<span style="color:red">this script creates directories</span>)
+To test that the C++ code runs successfully, run the following command  
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
+this script creates directories
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
 ```terminal
 sh test_run.sh
 ```
@@ -66,25 +70,97 @@ The equivalent command for for `ldd` on MacOS is `otool -L`.
 The python version should be higher than 3.0 (preferably 3.8>).
 The libraries you need to run the python code are
 (these libraries are fairly version stabl)
-<div style="display: grid; grid-template-columns: 1fr 1fr;">
-  <div style="text-align: just;" markdown="1">
-- `matplotlib`
-- `multiprocessing`
-- `numpy`
-- `panda`
-- `pickle`
-- `ptemcee`
-  </div>
-  <div style="text-algin: just;" markdown="1">
-- `pydoe`
-- `scipy`
-- `seaborn`
-- `scikit-learn`
-- `subprocess`
-- `tqdm`
-  </div>
-</div>
+|                   |                 |
+| :---              | :---            |
+| `matplotlib`      | `pydoe`         | 
+| `multiprocessing` | `scipy`         |
+| `numpy`           | `seaborn`       |
+| `panda`           | `scikit-learn`  |
+| `pickle`          | `subprocess`    |
+| `ptemcee`         | `tqdm`          |
 
+Note that on the default MacOS python distribution, the pickling of 
+inner functions is not defined.
+This means the `multiprocessing` cannot parallelize the code executions.
+If you are running a non-default python version on your Mac and you want
+the parallelization, please edit the `HydroCodeAPI.py` file accordingly.  
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
+Please note that the python code does create directories.
+![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
+   
+
+# Workflow
+
+The most important data structure for the python code is the 
+parameters dictionary.
+This get processed an fed to the C++ code command line interface.
+It is simple to create on instance of it and pass around as necessary.
+Your default parameter dictionary should look something like this
+```python
+local_params = {
+    'tau_0': 0.1,               # start time for simulation
+    'tau_f': 12.1,              # stop time for simulation
+    'Lambda_0': 0.5 / 0.197,    # to be replaced with initial temperature
+    'xi_0': -0.90,              # to be replaced with initial shear stress
+    'alpha_0': 0.655,           # to be replaced with initial bulk stress
+    'mass': 0.2 / 0.197,        # mass of particles in QGP
+    'C': 5 / (4 * pi),          # relaxation time constant 
+    'hydro_type': 0             # which hydro model to run
+}
+```
+The `hydro_type`'s are as follows
+| Name           | code |
+| :---           | :--: |
+| Chapman-Enskog | 0 |
+| DNMR           | 1 |
+| VAH            | 2 |
+| Modified VAH   | 3 |
+| Exact RTA Soln | 4 |  
+The `hydro_type` field is automatically modified by the `HydroCodeAPI` in
+accordance with which hydro name you give it.
+
+### Example Workflow
+An example parameter estimation workflow would look something like this
+```python
+from numpy import array, pi, linspace
+import HydroCodeAPI as HCA
+import HydroEmulation as HE
+import HydroBayesianAnalysis as HBA
+# some setup
+output_path = './'
+parameter_names = ['C']
+parameter_ranges = array([[1 / (4 * pi), [10 / (4 * pi)]])
+simulation_taus = linspace(5.1, 12.1, 8, endpoint=True)
+# instantiate HydroCodeAPI
+code_api = HCA(str(Path(f'{output_path}/swap').absolute()))
+# instantiate HydroEmulation
+emulator_class = HE(
+    hca=code_api,
+    params_dict=local_params,   # Have not defined here see above
+    parameter_names=parameter_names,
+    parameter_ranges=parameter_ranges,
+    simulation_taus=simulation_taus,
+    hydro_names=code_api.hydro_names,
+    use_existing_emulators=False,
+    use_PT_PL=True,
+    output_dir=output_dir,
+    samples_per_feature=points_per_feat)
+# Instantiate HydroBayesianAnalysis
+ba_class = HBA(
+    default_params=local_params,
+    parameter_names=parameter_names,
+    parameter_ranges=parameter_ranges,
+    simulation_taus=simulation_taus)
+# Run MCMC sampler
+ba_class.RunMCMC(
+    nsteps=number_steps,
+    nburn=50,
+    ntemps=20,
+    exact_observables=exact_pseudo,
+    exact_error=pseudo_error,
+    GP_emulators=emulator_class.GP_emulators,
+    read_from_file=False)
+```
 
 # How to cite
 The paper is currently still being published, but this document will be updated with the relevant sources when everything is read.
