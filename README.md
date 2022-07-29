@@ -2,15 +2,15 @@
 
 This project explores concepts in *Bayesian Inference* by applying them to the 
 toy model of Bjorken expansion.
-The topics we study include
-- [x] Parameter Estimation
-- [] Model Selection
-- [] Model Mixing
+The topics we study include  
+&#9745; Parameter Estimation  
+&#9744; Model Selection  
+&#9744; Model Mixing  
 
 ## Repository Breakdown
 
 There are two components to this repository.
-The first is the C++ component, which implents the hdyrodynamic code for fast
+The first is the C++ component, which implements the hdyrodynamic code for fast
 simulation.
 The second component is the Bayesian inferencing technology implemented in 
 python.
@@ -18,7 +18,7 @@ python.
 # Getting Started
 
 ## C++ setup
-Before running the C++ code, make sure all the dependencies are install.
+Before running the C++ code, make sure all the dependencies are installed.
 To get the aramadillo dependency, run the following command  
 ![#f03c15](https://via.placeholder.com/15/f03c15/f03c15.png)
 this script creates directories
@@ -26,12 +26,12 @@ this script creates directories
 ```terminal
 sh setup.sh
 ```
-Armadillo also need link to the open OpenBLAS library, so you will have to 
-install `libopenblas`.
+Armadillo also needs link to the open OpenBLAS library, so you will have to 
+install `libopenblas`.  
 The C++ code runs in parallel using the OpenMP library.
-This means you have to install `libomp`.
+This means you have to install `libomp`.  
 You can change whether the C++ code runs in parallel or single-core by
-adjusting the flag `USE_PARALLEL` flag `include/config.hpp`.  
+adjusting the `USE_PARALLEL` flag in `include/config.hpp`.  
 The system requirements to run the C++ code are
 - at least 4 cores
 - compiler support for C++17 or higher  
@@ -45,9 +45,9 @@ this script creates directories
 sh test_run.sh
 ```
 If this test fails, it probably means you don't have all the dependencies
-install.
+installed.
 If you are running on linux you can type `ldd build/exact_solution.x` to 
-what libraries the executable links to.
+see what shared libraries the executable links with.
 The ouput should look something like this
 ```terminal
 $ ldd build/exact_solution.x 
@@ -64,12 +64,12 @@ $ ldd build/exact_solution.x
 	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f5ecf267000)
 	libquadmath.so.0 => /lib/x86_64-linux-gnu/libquadmath.so.0 (0x00007f5ecf21d000)
 ```
-The equivalent command for for `ldd` on MacOS is `otool -L`.
+The equivalent command for `ldd` on MacOS is `otool -L`.
 
 ## Python Setup
-The python version should be higher than 3.0 (preferably 3.8>).
+The python version should be higher than 3.0 (preferably >3.8).
 The libraries you need to run the python code are
-(these libraries are fairly version stabl)
+(these libraries are fairly version stable)
 |                   |                 |
 | :---              | :---            |
 | `matplotlib`      | `pydoe`         | 
@@ -93,7 +93,7 @@ Please note that the python code does create directories.
 
 The most important data structure for the python code is the 
 parameters dictionary.
-This get processed an fed to the C++ code command line interface.
+This get processed and fed to the C++ code command line interface.
 It is simple to create on instance of it and pass around as necessary.
 Your default parameter dictionary should look something like this
 ```python
@@ -116,11 +116,12 @@ The `hydro_type`'s are as follows
 | VAH            | 2 |
 | Modified VAH   | 3 |
 | Exact RTA Soln | 4 |  
-The `hydro_type` field is automatically modified by the `HydroCodeAPI` in
+The `hydro_type` field is automatically modified by `HydroCodeAPI`, in
 accordance with which hydro name you give it.
 
 ### Example Workflow
-An example parameter estimation workflow would look something like this
+Assuming that you have already run the `make` command in the top directory of this
+project, an example parameter estimation workflow would look something like this
 ```python
 from numpy import array, pi, linspace
 import HydroCodeAPI as HCA
