@@ -1,5 +1,5 @@
 //  Copyright 2021-2022 Kevin Ingles
-//  
+//
 //  Permission is hereby granted, free of charge, to any person obtaining
 //  a copy of this software and associated documentation files (the
 //  "Software"), to deal in the Software without restriction, including
@@ -7,10 +7,10 @@
 //  distribute, sublicense, and/or sell copies of the Software, and to
 //  permit persons to whom the Sofware is furnished to do so, subject to
 //  the following conditions:
-//  
+//
 //  The above copyright notice and this permission notice shall be
 //  included in all copies or substantial poritions of the Software.
-//  
+//
 //  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 //  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 //  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -21,15 +21,15 @@
 //
 // Author: Kevin Ingles
 // File: main.cpp
-// Description: Translation unit that contains the int main program and 
+// Description: Translation unit that contains the int main program and
 
-#include "../include/config.hpp"
-#include "../include/Errors.hpp"
-#include "../include/ExactSolution.hpp"
-#include "../include/GlobalConstants.hpp"
-#include "../include/HydroTheories.hpp"
-#include "../include/Integration.hpp"
-#include "../include/Parameters.hpp"
+#include "config.hpp"
+#include "Errors.hpp"
+#include "ExactSolution.hpp"
+#include "GlobalConstants.hpp"
+#include "HydroTheories.hpp"
+#include "Integration.hpp"
+#include "Parameters.hpp"
 
 #include <chrono>
 
@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 			hydro_altaniso.~AltAnisoHydroEvolution();
 			break;
 		}
-		case 4 :    // Boltzmann RTA exact solution
+		case 4 :	// Boltzmann RTA exact solution
 		{
 			exact::ExactSolution hydro_exact;
 			hydro_exact.Run(params);
