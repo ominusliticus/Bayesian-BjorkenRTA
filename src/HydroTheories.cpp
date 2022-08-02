@@ -894,7 +894,7 @@ namespace hydro {
 						   IntegralJ(2, 2, 0, 1, m, X) / (a * L * L),
 						   -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L) } };
 			// Print(std::cout, M);
-			return M;
+			return std::move(M);
 		};
 
 		// Begin simulation
@@ -987,8 +987,8 @@ namespace hydro {
 			// Fourth order
 			X4	= { alpha4, Lambda4, xi4 };
 			e4	= IntegralJ(2, 0, 0, 0, m, X4) / alpha4;
-			pl4 = IntegralJ(2, 2, 0, 0, m, X4) / alpha4;
 			pt4 = IntegralJ(2, 0, 1, 0, m, X4) / alpha4;
+			pl4 = IntegralJ(2, 2, 0, 0, m, X4) / alpha4;
 
 			T	 = InvertEnergyDensity(e4, m);
 			p4	 = ThermalPressure(T, m);

@@ -26,11 +26,14 @@
 //               Pi, pi and P to the microscopic parameters needed by VAH,
 //               modified VAH and the RTA solution.
 
+#ifndef INVERT_OBSERVABLES_HPP
+#define INVERT_OBSERVABLES_HPP
+
 #include "config.hpp"
 #include "Errors.hpp"
+
 #include <armadillo>
 
-namespace hydro {
-	double LineBackTrakc();
-	void   FindAnisoVariables();
-}	 // namespace hydro
+void FindAnisoVariables();
+
+#endif
