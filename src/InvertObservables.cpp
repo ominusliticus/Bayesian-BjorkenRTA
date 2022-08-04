@@ -42,12 +42,12 @@ constexpr double tol_dX = 1e-4;
 constexpr double tol_F	= 1e-4;
 
 /// hydro_fields is vector of the form (E, PT, PL)
-/// aniso_vars is vector of the form (alpha, Lambda, xi)
+/// aniso_vars is vector of the form (Log(alpha), Lambda, xi)
 vec&& ComputeF(const vec& hydro_fields, double mass, const vec& aniso_vars)
 {
-	double micro_energy_density = evo.IntegralJ(2, 0, 0, 0, mass, aniso_vars) / aniso_vars(0);
-	double micro_trans_pressure = evo.IntegralJ(2, 0, 1, 0, mass, aniso_vars) / aniso_vars(0);
-	double micro_long_pressure	= evo.IntegralJ(2, 2, 0, 0, mass, aniso_vars) / aniso_vars(0);
+	double micro_energy_density = evo.IntegralJ(2, 0, 0, 0, mass, aniso_vars) / std::exp(aniso_vars(0));
+	double micro_trans_pressure = evo.IntegralJ(2, 0, 1, 0, mass, aniso_vars) / std::exp(aniso_vars(0));
+	double micro_long_pressure	= evo.IntegralJ(2, 2, 0, 0, mass, aniso_vars) / std::exp(aniso_vars(0));
 
 	return { micro_energy_density - hydro_fields(0),
 			 micro_long_pressure - hydro_fields(1),
@@ -55,7 +55,7 @@ vec&& ComputeF(const vec& hydro_fields, double mass, const vec& aniso_vars)
 }
 
 /// hydro_fields is vector of the form (E, PT, PL)
-/// aniso_vars is vector of the form (alpha, Lambda, xi)
+/// aniso_vars is vector of the form (Log(alpha), Lambda, xi)
 /// Line backtracing algorithm taken from Numerical Recipes pgs. 478-489
 double LineBackTrack(const vec& hydro_fields, const double& aniso_vars, const double& delta_aniso_vars, double mass)
 {
@@ -109,5 +109,9 @@ double LineBackTrack(const vec& hydro_fields, const double& aniso_vars, const do
 
 double FindAnisoVariables(double E, double PT, double PL, double mass)
 {
+    // The aniso variables are of the form (Log(alpha), Lambda, xi)
+    vec aniso_vars = { 0.0, 0.1 / 0.1973, 1.0, 0.0 };
+    vec delta_aniso_vars = { 0.0, 0.0, 0.0 };
+    
 }
 
