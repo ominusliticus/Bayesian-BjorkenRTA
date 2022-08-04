@@ -22,7 +22,7 @@ ifeq ($(UNAME_S),Linux)
 	OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 
 	# Armadillo instructions
-	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
+	ARMA_INC = $(THIRD_PARTY)armadillo/include/
 	ARMA_LIB = -lopenblas -llapack
 	
 	LIBS = -lpthread $(ARMA_LIB)
@@ -30,13 +30,13 @@ ifeq ($(UNAME_S),Linux)
 endif
 ifeq ($(UNAME_S),Darwin)
 	CC = clang++ -std=c++20 -Wall
-	OPT = -O3 -funroll-loops -finline-functions # -fopenmp
+	OPT = -O3 -funroll-loops -finline-functions -arch x86_64
 
-	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
-	ARMA_LIB = /usr/local/Cellar/openblas/0.3.20/lib/libopenblas.a
+	ARMA_INC = $(THIRD_PARTY)armadillo/include/
+	ARMA_LIB = $(wildcard /usr/local/Cellar/openblas/*/lib/libopenblas.a)
 
-	LIBS = -lpthread $(ARMA_LIB) /usr/local/Cellar/libomp/14.0.0/lib/libomp.a
-	INCLUDE = -I /usr/local/include -I /usr/local/Cellar/libomp/14.0.0/include -I $(ARMA_INC) -I $(INC)
+	LIBS = -lpthread $(ARMA_LIB) $(wildcard /usr/local/Cellar/libomp/*/lib/libomp.a)
+	INCLUDE = -I /usr/local/include -I $(wildcard /usr/local/Cellar/libomp/*/include) -I $(ARMA_INC) -I $(INC)
 endif
 CFLAGS = $(OPT)
 

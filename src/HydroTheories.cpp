@@ -857,7 +857,7 @@ namespace hydro {
 				 * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
 
 		// Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
-		auto ThermalPressure = [this](double T, double mass) -> double
+		auto ThermalPressure = [](double T, double mass) -> double
 		{
 			double z = mass / T;
 			if (z == 0) return pow(T, 4.0) / (PI * PI);
@@ -877,25 +877,6 @@ namespace hydro {
 
 		pt1 = params.pt0;
 		pl1 = params.pl0;
-
-		// usefull function for calculating Jacobian matrix
-		// TO DO: change call move/copy construtor functions to overwrite existing data to speed up runtime
-		auto ComputeJacobian = [this](double m, vec& X)
-		{
-			double a = X(0);
-			double L = X(1);
-			mat	   M = { { -IntegralJ(2, 0, 0, 0, m, X) / (a * a),
-						   IntegralJ(2, 0, 0, 1, m, X) / (a * L * L),
-						   -IntegralJ(4, 2, 0, -1, m, X) / (2.0 * a * L) },
-						 { -IntegralJ(2, 0, 1, 0, m, X) / (a * a),
-						   IntegralJ(2, 0, 1, 1, m, X) / (a * L * L),
-						   -IntegralJ(4, 2, 1, -1, m, X) / (2.0 * a * L) },
-						 { -IntegralJ(2, 2, 0, 0, m, X) / (a * a),
-						   IntegralJ(2, 2, 0, 1, m, X) / (a * L * L),
-						   -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L) } };
-			// Print(std::cout, M);
-			return std::move(M);
-		};
 
 		// Begin simulation
 		TransportCoefficients tc = CalculateTransportCoefficients(T0, pt1, pl1, X1, params);
@@ -1069,8 +1050,26 @@ namespace hydro {
 	}
 
 	// -------------------------------------
+	mat&& AltAnisoHydroEvolution::ComputeJacobian(double m, const vec& X)
+	{
+		double a = X(0);
+		double L = X(1);
+		mat	   M = { { -IntegralJ(2, 0, 0, 0, m, X) / (a * a),
+					   IntegralJ(2, 0, 0, 1, m, X) / (a * L * L),
+					   -IntegralJ(4, 2, 0, -1, m, X) / (2.0 * a * L) },
+					 { -IntegralJ(2, 0, 1, 0, m, X) / (a * a),
+					   IntegralJ(2, 0, 1, 1, m, X) / (a * L * L),
+					   -IntegralJ(4, 2, 1, -1, m, X) / (2.0 * a * L) },
+					 { -IntegralJ(2, 2, 0, 0, m, X) / (a * a),
+					   IntegralJ(2, 2, 0, 1, m, X) / (a * L * L),
+					   -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L) } };
+		// Print(std::cout, M);
+		return std::move(M);
+	};
 
-	double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, vec& X)
+	// -------------------------------------
+
+	double AltAnisoHydroEvolution::IntegralJ(int n, int r, int q, int s, double mass, const vec& X)
 	{
 		double Lambda  = X(1);
 		double xi	   = X(2);
@@ -1148,6 +1147,7 @@ namespace hydro {
 						   / (4.0 * z * z * w);	   // I calculated by hand
 				else assert("Unsupported choice");
 			}
+			return -inf;
 		};
 
 		auto integrand = [=](double p_bar)

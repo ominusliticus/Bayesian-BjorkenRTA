@@ -201,3 +201,7 @@ void SimulationParameters::SetParameters(double _tau_0,
 }
 
 // ----------------------------------------
+
+void SimulationParameters::SetInitialTemperature()
+{
+}

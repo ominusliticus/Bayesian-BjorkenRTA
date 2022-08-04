@@ -1,5 +1,5 @@
 //  Copyright 2021-2022 Kevin Ingles
-//  
+//
 //  Permission is hereby granted, free of charge, to any person obtaining
 //  a copy of this software and associated documentation files (the
 //  "Software"), to deal in the Software without restriction, including
@@ -7,10 +7,10 @@
 //  distribute, sublicense, and/or sell copies of the Software, and to
 //  permit persons to whom the Sofware is furnished to do so, subject to
 //  the following conditions:
-//  
+//
 //  The above copyright notice and this permission notice shall be
 //  included in all copies or substantial poritions of the Software.
-//  
+//
 //  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 //  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 //  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -22,7 +22,7 @@
 // Author: Kevin Ingles
 // File: Parameter.hpp
 // Description: Header file that describes interface for argument parsing input streams
-//              to generate a struct with parameters needed to run the various 
+//              to generate a struct with parameters needed to run the various
 //              hydrodynamic models
 
 #ifndef PARAMETERS_HPP
@@ -30,50 +30,56 @@
 
 #include "Errors.hpp"
 
-#include <vector>
 #include <armadillo>
 #include <string>
+#include <vector>
 
 using vec = arma::vec;
 
-struct SimulationParameters
-{
-    SimulationParameters() = default;
-    SimulationParameters(const char* filename);
-    ~SimulationParameters();
+struct SimulationParameters {
+	SimulationParameters() = default;
+	SimulationParameters(const char* filename);
+	~SimulationParameters();
 
-    static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
-    void SetParameter(const char* name, double value);
-    void SetParameters(double _tau_0, double _Lambda_0, double _xi_0, double _alpah_0, double _tau_f, double _mass, double _eta_s);
-    void SetInitialTemperature(void);
-    double IntegralJ(int n, int r, int q, int s, double mass, vec& X);
+	static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
 
-    friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
-    bool operator==(const SimulationParameters& other);
-    bool operator!=(const SimulationParameters& other);
+	void SetParameter(const char* name, double value);
+	void SetParameters(double _tau_0,
+					   double _Lambda_0,
+					   double _xi_0,
+					   double _alpah_0,
+					   double _tau_f,
+					   double _mass,
+					   double _eta_s);
+	void SetInitialTemperature();
 
-    unsigned int type; // Which hydro simulation to compute
+	friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
-    double tau_0;
-    double Lambda_0;
-    double xi_0;
-    double alpha_0;
+	bool operator==(const SimulationParameters& other);
+	bool operator!=(const SimulationParameters& other);
 
-    double tau_f; 
-    double mass;
-    double C;
+	unsigned int type;	  // Which hydro simulation to compute
 
-    double steps;
-    double step_size;
+	double tau_0;
+	double Lambda_0;
+	double xi_0;
+	double alpha_0;
 
-    // parameters for hydrodynamic evolution equations
-    double pl0;
-    double pt0;
+	double tau_f;
+	double mass;
+	double C;
 
-    // TO DO: convert: exact evolution into sturct an remove this vecotr, but keep initial value parameter
-    double T0;
+	double steps;
+	double step_size;
 
-    std::string file_identifier;
-}; // end struct SimulationParameters
+	// parameters for hydrodynamic evolution equations
+	double pl0;
+	double pt0;
+
+	// TO DO: convert: exact evolution into sturct an remove this vecotr, but keep initial value parameter
+	double T0;
+
+	std::string file_identifier;
+};	  // end struct SimulationParameters
 
 #endif
