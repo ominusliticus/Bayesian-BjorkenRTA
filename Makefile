@@ -22,7 +22,7 @@ ifeq ($(UNAME_S),Linux)
 	OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 
 	# Armadillo instructions
-	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
+	ARMA_INC = $(THIRD_PARTY)armadillo/include/
 	ARMA_LIB = -lopenblas -llapack
 	
 	LIBS = -lpthread $(ARMA_LIB)
@@ -32,7 +32,7 @@ ifeq ($(UNAME_S),Darwin)
 	CC = clang++ -std=c++20 -Wall
 	OPT = -O3 -funroll-loops -finline-functions # -fopenmp
 
-	ARMA_INC = $(THIRD_PARTY)armadillo-code/include/
+	ARMA_INC = $(THIRD_PARTY)armadillo/include/
 	ARMA_LIB = /usr/local/Cellar/openblas/0.3.20/lib/libopenblas.a
 
 	LIBS = -lpthread $(ARMA_LIB) /usr/local/Cellar/libomp/14.0.0/lib/libomp.a
