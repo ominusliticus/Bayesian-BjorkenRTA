@@ -1,3 +1,8 @@
+### TO-DO:
+&#9745; Fix files in test/ to be compatible with new Parameter.hpp/cpp file
+&#9745; Generate files with which test output is supposed to be compared
+
+
 # About
 
 This project explores concepts in *Bayesian Inference* by applying them to the 
@@ -27,7 +32,7 @@ this script creates directories
 sh setup.sh
 ```
 Armadillo also needs link to the open OpenBLAS library, so you will have to 
-install `libopenblas`.  
+install `libopenblas` and `liblaplack`.  
 The C++ code runs in parallel using the OpenMP library.
 This means you have to install `libomp`.  
 You can change whether the C++ code runs in parallel or single-core by
@@ -65,6 +70,12 @@ $ ldd build/exact_solution.x
 	libquadmath.so.0 => /lib/x86_64-linux-gnu/libquadmath.so.0 (0x00007f5ecf21d000)
 ```
 The equivalent command for `ldd` on MacOS is `otool -L`.
+
+Note that the `Makefile` is written with the assumption that you used homebrew to install
+the `libopenblas` and `liblapack` libraries.
+If you used another package manager, you will want to edit the `Makefile` to either include
+the `-lopenblas` and `-llapack` flags, or provide the direct path to the static libraries 
+and include directories.
 
 ## Python Setup
 The python version should be higher than 3.0 (preferably >3.8).

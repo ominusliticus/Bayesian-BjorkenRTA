@@ -34,26 +34,6 @@
 #include <sstream>
 #include <string>
 
-// This snippet has been copied repeatedly into translation units as a patch for the fact
-// that the Clang compiler does not have support for the std::cyl_bessel_k function
-#if __APPLE__
-namespace std {
-	static double cyl_bessel_k(int n, double x)
-	{
-		return GausQuad(
-			[n, x](double t) -> double
-			{
-				double val = std::exp(-x * std::cosh(t));
-				return val > 0 ? val * std::cosh(static_cast<double>(n) * t) : 0;
-			},
-			0,
-			inf,
-			1e-8,
-			8);
-	}
-}	 // namespace std
-#endif
-
 SimulationParameters::SimulationParameters(const char* filename)
 {
 	std::fstream fin(filename, std::fstream::in);
