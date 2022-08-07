@@ -101,6 +101,6 @@ int main()
 	evaluate_truthfulness(X, soln, value);
 
 	if (value) Print(std::cout, "test_inversion: \033[1;32mPASSES!\033[0m");
-	else Print(std::cout, "test_inversion: \033[1;31mFAILED!\033[0m");
+	else Print(std::cout, "test_inversion: \033[1;31mFAILS!\033[0m");
 	return 0;
 }
