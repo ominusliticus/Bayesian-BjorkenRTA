@@ -67,6 +67,7 @@ int main()
 	double e  = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
 	double pt = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	double pl = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
+	Print(std::cout, e, pt, pl);
 
 	vec soln = { 1.0, 1.0, 1.0 };
 	FindAnisoVariables(e, pt, pl, mass, soln);

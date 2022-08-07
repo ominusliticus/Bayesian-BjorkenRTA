@@ -475,14 +475,14 @@ def analyze_saved_runs(path_to_output: str,
 
 if __name__ == "__main__":
     local_params = {
-        'tau_0':        0.1,
-        'Lambda_0':     0.5 / 0.197,
-        'xi_0': -0.90,
-        'alpha_0':      0.655,  # 2 * pow(10, -3),
-        'tau_f':        12.1,
-        'mass':         0.2 / 0.197,
-        'C':            5 / (4 * np.pi),
-        'hydro_type':   0
+        'tau_0': 0.1,
+        'e0': 112.233,
+        'pt0': 13.668,
+        'pl0': 84.0118,
+        'tau_f': 12.1,
+        'mass': 0.2 / 0.197,
+        'C': 5 / (4 * np.pi),
+        'hydro_type': 0
     }
 
     total_runs = 30
@@ -516,16 +516,16 @@ if __name__ == "__main__":
     )
 
     if True:
-        # RunManyMCMCRuns(exact_pseudo=exact_pseudo,
-        #                 pseudo_error=pseudo_error,
-        #                 output_dir=f'./pickle_files/{output_folder}',
-        #                 local_params=local_params,
-        #                 points_per_feat=20,
-        #                 n=total_runs,
-        #                 start=0)
+        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+                        pseudo_error=pseudo_error,
+                        output_dir=f'./pickle_files/{output_folder}',
+                        local_params=local_params,
+                        points_per_feat=20,
+                        n=total_runs,
+                        start=0)
 
-        # AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
-        #                 runs=total_runs)
+        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+                        runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
             local_params=local_params,
@@ -535,7 +535,7 @@ if __name__ == "__main__":
             pseudo_data=exact_pseudo,
             pseudo_error=pseudo_error,
             path_to_output=f'./pickle_files/{output_folder}',
-            use_existing_run=True)
+            use_existing_run=False)
 
         analyze_saved_runs(path_to_output=f'./pickle_files/{output_folder}',
                            number_of_runs=total_runs,
