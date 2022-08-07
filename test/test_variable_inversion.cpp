@@ -38,7 +38,7 @@
 using SP  = SimulationParameters;
 using vec = arma::vec;
 
-void evaluate_truthfulness(const vec& X, const vec& soln, bool value)
+void evaluate_truthfulness(const vec& X, const vec& soln, bool& value)
 {
 	double tol = 1e-5;
 	if (std::fabs(X(0) - soln(0)) < tol && std::fabs(X(1) - soln(1) < tol) && std::fabs(X(2) - soln(2) < tol))
@@ -70,6 +70,8 @@ int main()
 
 	vec soln = { 1.0, 1.0, 1.0 };
 	FindAnisoVariables(e, pt, pl, mass, soln);
+	Print(std::cout, X(0), X(1), X(2));
+	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X_soln, soln, value);
 
 	// the following test cases are taken from Table II in
@@ -85,10 +87,12 @@ int main()
 	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
 	FindAnisoVariables(e, pt, pl, mass, soln);
+	Print(std::cout, X(0), X(1), X(2));
+	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X, soln, value);
 
 	// Magenta
-	alpha  = 2.5e-5;
+	alpha  = 2.5e-8;
 	Lambda = mass / 10.98;
 	xi	   = -0.949;
 	X(0)   = alpha;
@@ -98,6 +102,8 @@ int main()
 	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
 	FindAnisoVariables(e, pt, pl, mass, soln);
+	Print(std::cout, X(0), X(1), X(2));
+	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X, soln, value);
 
 	if (value) Print(std::cout, "test_inversion: \033[1;32mPASSES!\033[0m");

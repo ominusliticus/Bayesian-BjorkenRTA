@@ -161,7 +161,7 @@ namespace hydro {
 
 		TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params);
 		// Calculate Jacobian matrix to switch between hydro fields and anisotropic variables
-		mat&& ComputeJacobian(double mass, const vec& X);
+		mat ComputeJacobian(double mass, const vec& X);
 		// Functions used to calcualte the transport coefficients
 		double IntegralJ(int n, int q, int r, int s, double mass, const vec& X);
 
