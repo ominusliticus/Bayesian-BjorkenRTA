@@ -70,8 +70,6 @@ int main()
 
 	vec soln = { 1.0, 1.0, 1.0 };
 	FindAnisoVariables(e, pt, pl, mass, soln);
-	Print(std::cout, X(0), X(1), X(2));
-	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X_soln, soln, value);
 
 	// the following test cases are taken from Table II in
@@ -87,8 +85,6 @@ int main()
 	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
 	FindAnisoVariables(e, pt, pl, mass, soln);
-	Print(std::cout, X(0), X(1), X(2));
-	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X, soln, value);
 
 	// Magenta
@@ -102,8 +98,6 @@ int main()
 	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
 	FindAnisoVariables(e, pt, pl, mass, soln);
-	Print(std::cout, X(0), X(1), X(2));
-	Print(std::cout, soln(0), soln(1), soln(2));
 	evaluate_truthfulness(X, soln, value);
 
 	if (value) Print(std::cout, "test_inversion: \033[1;32mPASSES!\033[0m");
