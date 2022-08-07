@@ -26,6 +26,7 @@
 
 #include "Parameters.hpp"
 #include "GlobalConstants.hpp"
+#include "HydroTheories.hpp"
 #include "Integration.hpp"
 
 #include <cassert>
@@ -58,10 +59,10 @@ SimulationParameters::SimulationParameters(const char* filename)
 			// Note: assumes tab or space separation
 			buffer >> var_name;
 			if (var_name.compare("tau_0") == 0) buffer >> tau_0;
-			else if (var_name.compare("Lambda_0") == 0) buffer >> Lambda_0;
-			else if (var_name.compare("xi_0") == 0) buffer >> xi_0;
-			else if (var_name.compare("alpha_0") == 0) buffer >> alpha_0;
 			else if (var_name.compare("tau_f") == 0) buffer >> tau_f;
+			else if (var_name.compare("e0") == 0) buffer >> e0;
+			else if (var_name.compate("pt0") == 0) buffer >> pt0;
+			else if (var_name.compate("pl0") == 0) buffer >> pl0;
 			else if (var_name.compare("mass") == 0) buffer >> mass;
 			else if (var_name.compare("C") == 0) buffer >> C;
 			else if (var_name.compare("steps") == 0) buffer >> steps;
@@ -72,6 +73,7 @@ SimulationParameters::SimulationParameters(const char* filename)
 	step_size = tau_0 / 20;
 	steps	  = std::ceil((tau_f - tau_0) / step_size);
 
+	if (self->type == 2 || self->type == 3) SetAnisotropicVariables();
 	SetInitialTemperature();
 	fin.close();
 }	 // end SimulationParameters::SimulationParameters(...)
@@ -90,6 +92,7 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
 	for (int i = 1; i < cmdln_count - 1; i += 2)
 		params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
 
+	SetAnisotropicVariables();
 	return params;
 }
 
@@ -113,6 +116,7 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
 	Print(out, "##################################");
 	Print(out, "# Parameters for hyrdo evolution #");
 	Print(out, "##################################");
+	Print(out, "e0      ", params.e0);
 	Print(out, "pl0     ", params.pl0);
 	Print(out, "pt0     ", params.pt0);
 	Print(out, "T0      ", params.T0);
@@ -137,6 +141,9 @@ void SimulationParameters::SetParameter(const char* name, double value)
 {
 	std::string var_name(name);
 	if (var_name.compare("tau_0") == 0) tau_0 = value;
+	else if (var_name.compare("e0") == 0) buffer >> e0;
+	else if (var_name.compate("pt0") == 0) buffer >> pt0;
+	else if (var_name.compate("pl0") == 0) buffer >> pl0;
 	else if (var_name.compare("Lambda_0") == 0) Lambda_0 = value;
 	else if (var_name.compare("xi_0") == 0) xi_0 = value;
 	else if (var_name.compare("alpha_0") == 0) alpha_0 = value;
@@ -151,37 +158,47 @@ void SimulationParameters::SetParameter(const char* name, double value)
 		step_size = tau_0 / 20;
 		steps	  = std::ceil((tau_f - tau_0) / step_size);
 	}
-	if (var_name.compare("Lambda_0") == 0 || var_name.compare("xi_0") == 0 || var_name.compare("alpha_0") == 0
-		|| var_name.compare("mass") == 0)
-		SetInitialTemperature();
+	if (var_name.compare("e0") == 0 || var_name.compare("mass") == 0) SetInitialTemperature();
 }
 
 // ----------------------------------------
 
 void SimulationParameters::SetParameters(double _tau_0,
-										 double _Lambda_0,
-										 double _xi_0,
-										 double _alpha_0,
+										 double _e0,
+										 double _pt0,
+										 double _pl0,
 										 double _tau_f,
 										 double _mass,
 										 double _C)
 {
-	tau_0	 = _tau_0;
-	Lambda_0 = _Lambda_0;
-	xi_0	 = _xi_0;
-	alpha_0	 = _alpha_0;
-	tau_f	 = _tau_f;
-	mass	 = _mass;
-	C		 = _C;
+	tau_0 = _tau_0;
+	e0	  = _e0;
+	pt0	  = _pt0;
+	pl0	  = _pl0;
+	tau_f = _tau_f;
+	mass  = _mass;
+	C	  = _C;
 
 	step_size = tau_0 / 20;
 	steps	  = std::ceil((tau_f - tau_0) / step_size);
 
 	SetInitialTemperature();
+	SetAnisotropicVariables();
 }
 
 // ----------------------------------------
 
 void SimulationParameters::SetInitialTemperature()
 {
+	hydro::AltAnisoHydroEvolution mvah;
+	T0 = mvah.InvertEnergyDensity(e0, mass);
+}
+
+void SimuulationParameters::SetAnisotropicVariables()
+{
+	vec X = { 1.0, 1.0, 1.0 };
+	FindAnisoVariables(e0, pt0, pl0, mass, X);
+	alpha_0	 = X(0);
+	Lambda_0 = X(1);
+	xi_0	 = X(2);
 }

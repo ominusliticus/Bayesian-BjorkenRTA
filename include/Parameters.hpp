@@ -1,5 +1,3 @@
-//  Copyright 2021-2022 Kevin Ingles
-//
 //  Permission is hereby granted, free of charge, to any person obtaining
 //  a copy of this software and associated documentation files (the
 //  "Software"), to deal in the Software without restriction, including
@@ -52,6 +50,7 @@ struct SimulationParameters {
 					   double _mass,
 					   double _eta_s);
 	void SetInitialTemperature();
+	void SetAnisotropicVariables();
 
 	friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
@@ -73,10 +72,9 @@ struct SimulationParameters {
 	double step_size;
 
 	// parameters for hydrodynamic evolution equations
+	double e0;
 	double pl0;
 	double pt0;
-
-	// TO DO: convert: exact evolution into sturct an remove this vecotr, but keep initial value parameter
 	double T0;
 
 	std::string file_identifier;
