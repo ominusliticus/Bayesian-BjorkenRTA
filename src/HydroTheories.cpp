@@ -1050,7 +1050,7 @@ namespace hydro {
 	}
 
 	// -------------------------------------
-	mat&& AltAnisoHydroEvolution::ComputeJacobian(double m, const vec& X)
+	mat AltAnisoHydroEvolution::ComputeJacobian(double m, const vec& X)
 	{
 		double a = X(0);
 		double L = X(1);
@@ -1064,7 +1064,7 @@ namespace hydro {
 					   IntegralJ(2, 2, 0, 1, m, X) / (a * L * L),
 					   -IntegralJ(4, 4, 0, -1, m, X) / (2.0 * a * L) } };
 		// Print(std::cout, M);
-		return std::move(M);
+		return M;
 	};
 
 	// -------------------------------------
