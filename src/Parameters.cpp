@@ -88,11 +88,10 @@ SimulationParameters::~SimulationParameters()
 SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** cmdln_args)
 {
 	if (cmdln_count == 0) return SimulationParameters("utils/params.txt");
-
 	SimulationParameters params{};
 	for (int i = 1; i < cmdln_count - 1; i += 2)
 		params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
-
+	params.type = std::atoi(cmdln_args[cmdln_count - 2]);
 	params.SetAnisotropicVariables();
 	return params;
 }

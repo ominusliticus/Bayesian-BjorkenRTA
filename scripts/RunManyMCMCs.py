@@ -123,7 +123,7 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                             hydro_names=code_api.hydro_names,
                             use_existing_emulators=False,
                             use_PT_PL=True,
-                            output_dir=output_dir,
+                            output_path=output_dir,
                             samples_per_feature=points_per_feat)
         ba_class = HBA(default_params=local_params,
                        parameter_names=parameter_names,
@@ -165,7 +165,7 @@ def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
                         hydro_names=code_api.hydro_names,
                         use_existing_emulators=False,
                         use_PT_PL=True,
-                        output_dir=output_dir,
+                        output_path=output_dir,
                         samples_per_feature=points_per_feat)
     emulator_class.TestEmulator(
         hca=code_api,
@@ -218,7 +218,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                      pts_analytic_post, endpoint=True)
     # TODO: Store calculated analytic result in pkl file...
     for_analytic_hydro_output = dict((name, []) for name in hydro_names)
-    code_api = HCA(str(Path('./swap').absolute()))
+    code_api = HCA(str(Path(f'{path_to_output}/swap').absolute()))
 
     # Generate experimental data
     pseudo_e = pseudo_data[:, 1]
@@ -487,7 +487,7 @@ if __name__ == "__main__":
 
     total_runs = 30
     # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'Mass_run_5'
+    output_folder = 'Mass_run_6'
 
     # exact_pseudo, pseudo_error = SampleObservables(
     #     error_level=0.05,
