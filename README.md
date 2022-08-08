@@ -111,14 +111,15 @@ Your default parameter dictionary should look something like this
 local_params = {
     'tau_0': 0.1,               # start time for simulation
     'tau_f': 12.1,              # stop time for simulation
-    'Lambda_0': 0.5 / 0.197,    # to be replaced with initial temperature
-    'xi_0': -0.90,              # to be replaced with initial shear stress
-    'alpha_0': 0.655,           # to be replaced with initial bulk stress
+    'e0': 112.233,              # initial energy density
+    'pt0': 13.668,              # initial transverse pressure
+    'pl0': 84.0118,             # initial longitudinal pressur
     'mass': 0.2 / 0.197,        # mass of particles in QGP
     'C': 5 / (4 * pi),          # relaxation time constant 
     'hydro_type': 0             # which hydro model to run
 }
 ```
+
 The `hydro_type`'s are as follows
 | Name           | code |
 | :---           | :--: |
@@ -129,7 +130,21 @@ The `hydro_type`'s are as follows
 | Exact RTA Soln | 4 |  
 
 The `hydro_type` field is automatically modified by `HydroCodeAPI`, in
-accordance with which hydro name you give it.
+accordance with which hydro name you give it.  
+
+As initial condition, the code expects energy density, transverse pressure and
+longitudinal pressure.
+These are automatically converted to shear and bulk pressure by first using the
+equation of state
+$$
+\mathcal E = \mathcal P_\mathrm{eq} + T\mathcal S
+$$
+and second the relations
+$$
+\Pi = \frac{\mathcal P_L + 2 \mathcal P_T}{3} - \mathcal P_\matrm{eq}
+\quad
+\pi = \frac{2}{3}\left(\mathcal P_T - \mathcal P_L\right)
+$$
 
 ### Example Workflow
 Assuming that you have already run the `make` command in the top directory of this
