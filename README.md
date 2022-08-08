@@ -1,6 +1,6 @@
 ### TO-DO:
-&#9745; Fix files in test/ to be compatible with new Parameter.hpp/cpp file
-&#9745; Generate files with which test output is supposed to be compared
+&#9744; Fix files in `test/` to be compatible with new Parameter.hpp/cpp file  
+&#9744; Generate files with which test output is supposed to be compared
 
 
 # About
