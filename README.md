@@ -144,8 +144,8 @@ $$
 and second the relations
 
 $$
-\Pi = \frac{\mathcal P_L + 2 \mathcal P_T}{3} - \mathcal P_\matrm{eq}
-\quad
+\Pi = \frac{\mathcal P_L + 2 \mathcal P_T}{3} - \mathcal P_\mathrm{eq},
+\qquad
 \pi = \frac{2}{3}\left(\mathcal P_T - \mathcal P_L\right)
 $$
 
