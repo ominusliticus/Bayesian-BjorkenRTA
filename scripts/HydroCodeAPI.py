@@ -22,7 +22,7 @@
 # Author: Kevin Ingles
 # File: HydroCodeAPI.py
 # Description: This file calls the executable generated from
-#              from the C++ routines defined in the C++ property
+#              the C++ routines defined in the C++ code
 #              one directory higher
 
 from platform import uname
@@ -42,9 +42,6 @@ from multiprocessing import Manager, Process
 
 # For progress bars
 from tqdm import tqdm
-
-# TODO: Make GetExactSolution take the `use_PT_PL` keyword to hide this
-#       complexity
 
 
 class HydroCodeAPI:

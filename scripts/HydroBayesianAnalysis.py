@@ -45,11 +45,6 @@ import pickle
 from subprocess import run as cmd
 from subprocess import CalledProcessError
 
-# TODO: 1. Create function that inverts energy density, shear and bulk
-#          pressure to give energy density, transverse and longitudinal
-#          pressure
-
-
 class HydroBayesianAnalysis(object):
     """
     This class is the API for all Bayesian Analysis methods, including
