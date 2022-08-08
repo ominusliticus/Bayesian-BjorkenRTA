@@ -136,10 +136,13 @@ As initial condition, the code expects energy density, transverse pressure and
 longitudinal pressure.
 These are automatically converted to shear and bulk pressure by first using the
 equation of state
+
 $$
 \mathcal E = \mathcal P_\mathrm{eq} + T\mathcal S
 $$
+
 and second the relations
+
 $$
 \Pi = \frac{\mathcal P_L + 2 \mathcal P_T}{3} - \mathcal P_\matrm{eq}
 \quad
