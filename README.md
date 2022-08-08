@@ -190,6 +190,7 @@ ba_class.RunMCMC(
     exact_observables=exact_pseudo,
     exact_error=pseudo_error,
     GP_emulators=emulator_class.GP_emulators,
+    output_path=str(Path(f'{output_path}/swap').absolute()),
     read_from_file=False)
 ```
 
