@@ -360,7 +360,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
                 fig=fig,
                 ax=ax)
-            print(np.sum(np.diff(Cs) * line.get_ydata()))
+            print(np.sum(np.diff(Cs)[0] * line.get_ydata()))
 
     return fig, ax
 
