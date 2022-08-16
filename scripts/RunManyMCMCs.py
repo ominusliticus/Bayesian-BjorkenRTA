@@ -70,12 +70,10 @@ def SampleObservables(error_level: float,
                                                  parameter_names],
                                    use_PT_PL=True)
     tau_start = 0.1
-    delta_tau = tau_start / 20
+    delta_tau = tau_start / 20.0
     observ_indices = (simulation_taus
                       - np.full_like(simulation_taus, tau_start)) / delta_tau
 
-    exact_out = np.array([output[int(i)-1] for i in observ_indices])
-    print(exact_out.shape)
     E = np.array([output[int(i)-1, 1] for i in observ_indices])
     pt = np.array([output[int(i)-1, 2] for i in observ_indices])
     pl = np.array([output[int(i)-1, 3] for i in observ_indices])
@@ -313,12 +311,11 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
                 fig=fig,
                 ax=ax)
-            print(np.sum(np.diff(Cs)[0] * line.get_ydata()))
     else:
         # Scan parameter space for hydro models
         manager = Manager()
         for_analytic_hydro_output = manager.dict()
-        tau_start, delta_tau = 0.1, 0.005
+        tau_start, delta_tau = 0.1, 0.1 / 20.0
         observ_indices = (simulation_taus
                           - np.full_like(simulation_taus,
                                          tau_start)) / delta_tau
@@ -360,7 +357,6 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                 plot_name=path_to_output + '/plots/debug_posterior1.pdf',
                 fig=fig,
                 ax=ax)
-            print(np.sum(np.diff(Cs)[0] * line.get_ydata()))
 
     return fig, ax
 
@@ -434,7 +430,6 @@ def analyze_saved_runs(path_to_output: str,
                         ignore_index=True)
 
     bin_shift = np.diff(bins)[0]
-    print(all_counts.keys())
     norms = dict(
         (key,
          np.sum(
@@ -442,7 +437,6 @@ def analyze_saved_runs(path_to_output: str,
                  np.array(all_counts[key]), [0.5], axis=0)
          )) for key in all_counts.keys())
 
-    print(norms.keys())
     cmap = get_cmap(10, 'tab10')
     x_bins = bins[:-1] + 0.5 * bin_shift
     for j, key in enumerate(norms.keys()):
@@ -476,44 +470,44 @@ def analyze_saved_runs(path_to_output: str,
 if __name__ == "__main__":
     local_params = {
         'tau_0': 0.1,
-        'e0': 112.233,
-        'pt0': 13.668,
-        'pl0': 84.0118,
+        'e0': 12.4991,
+        'pt0': 6.0977,
+        'pl0': 0.0090,
         'tau_f': 12.1,
         'mass': 0.2 / 0.197,
         'C': 5 / (4 * np.pi),
         'hydro_type': 0
     }
 
-    total_runs = 30
+    total_runs = 10
     # output_folder = 'very_large_mcmc_run_1'
     output_folder = 'Mass_run_6'
 
-    # exact_pseudo, pseudo_error = SampleObservables(
-    #     error_level=0.05,
-    #     true_params=local_params,
-    #     parameter_names=['C'],
-    #     simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True))
-    exact_pseudo = np.array(
-        [[5.1,  0.75470255, 0.27463283, 0.1588341],
-         [6.1,  0.6216813,  0.21947875, 0.14180029],
-         [7.1,  0.51281854, 0.17400683, 0.11073481],
-         [8.1,  0.39545993, 0.14676481, 0.10393984],
-         [9.1,  0.40051311, 0.13026088, 0.09105533],
-         [10.1, 0.30190729, 0.12180956, 0.07787765],
-         [11.1, 0.30734799, 0.08858191, 0.07306867],
-         [12.1, 0.25883392, 0.08667172, 0.06143159]]
-    )
-    pseudo_error = np.array(
-        [[0.0383127,  0.013715,   0.00803337],
-         [0.03082207, 0.01079027, 0.00672129],
-         [0.02560243, 0.00879639, 0.00574629],
-         [0.02177809, 0.00736298, 0.00499578],
-         [0.01886813, 0.00629024, 0.00440209],
-         [0.01658759, 0.00546173, 0.00392206],
-         [0.0147574,  0.00480543, 0.00352685],
-         [0.01325973, 0.00427459, 0.00319652]]
-    )
+    exact_pseudo, pseudo_error = SampleObservables(
+        error_level=0.05,
+        true_params=local_params,
+        parameter_names=['C'],
+        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True))
+    # exact_pseudo = np.array(
+    #     [[5.1,  0.75470255, 0.27463283, 0.1588341],
+    #      [6.1,  0.6216813,  0.21947875, 0.14180029],
+    #      [7.1,  0.51281854, 0.17400683, 0.11073481],
+    #      [8.1,  0.39545993, 0.14676481, 0.10393984],
+    #      [9.1,  0.40051311, 0.13026088, 0.09105533],
+    #      [10.1, 0.30190729, 0.12180956, 0.07787765],
+    #      [11.1, 0.30734799, 0.08858191, 0.07306867],
+    #      [12.1, 0.25883392, 0.08667172, 0.06143159]]
+    # )
+    # pseudo_error = np.array(
+    #     [[0.0383127,  0.013715,   0.00803337],
+    #      [0.03082207, 0.01079027, 0.00672129],
+    #      [0.02560243, 0.00879639, 0.00574629],
+    #      [0.02177809, 0.00736298, 0.00499578],
+    #      [0.01886813, 0.00629024, 0.00440209],
+    #      [0.01658759, 0.00546173, 0.00392206],
+    #      [0.0147574,  0.00480543, 0.00352685],
+    #      [0.01325973, 0.00427459, 0.00319652]]
+    # )
 
     if True:
         RunManyMCMCRuns(exact_pseudo=exact_pseudo,

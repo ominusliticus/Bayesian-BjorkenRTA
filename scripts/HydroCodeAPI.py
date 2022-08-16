@@ -231,12 +231,11 @@ class HydroCodeAPI:
             params_dict['hydro_type'] = itr
             names = ['ce', 'dnmr', 'vah', 'mvah']
             output = np.array(
-                [[self.ProcessHydro(
+                [self.ProcessHydro(
                         params_dict,
                         parameter_names,
                         design_point,
-                        use_PT_PL)[int(j)-1]
-                  for j in observ_indices[i]]
+                        use_PT_PL)[observ_indices.astype(int)[i]-1]
                  for i, design_point in enumerate(
                      tqdm(design_points,
                           desc=f'{names[itr]}: ',
@@ -244,6 +243,8 @@ class HydroCodeAPI:
             output_dict[key] = output
 
         # Having trouble getting multiprocessing to work on mac
+        # This seems like a programming pattern that I can extract to another
+        # function
         if 'Darwin' in uname():
             for i, name in enumerate(self.hydro_names):
                 for_multiprocessing(params_dict=params_dict,

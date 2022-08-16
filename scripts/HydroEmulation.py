@@ -24,8 +24,9 @@
 # Description: This file constructs the Gaussian emulators from hydro
 #              simulations for efficient code evaluation
 
+from platform import uname
+
 # For type identification
-from enum import auto
 from typing import List, Dict
 import numpy as np
 
@@ -45,6 +46,9 @@ from HydroCodeAPI import HydroCodeAPI
 # For plotting residuals
 import matplotlib.pyplot as plt
 from my_plotting import get_cmap, costumize_axis, autoscale_y
+
+# for running hydro in parallel
+from multiprocessing import Manager, Process
 
 # For progress bars
 from tqdm import tqdm
@@ -122,8 +126,6 @@ class HydroEmulator:
             self.GP_emulators = pickle.load(f_pickle_emulators)
             f_pickle_emulators.close()
         else:
-            print("Running hydro")
-
             try_until_no_nan = True
             while try_until_no_nan:
                 # Run hydro code and generate scalers and GP pickle files
@@ -185,6 +187,7 @@ class HydroEmulator:
                 for m, key in enumerate(hydro_names):
                     if np.any(np.isnan(hydro_simulations[key])):
                         nan_detected[m] = True
+                        print('NaN detected, rerunning')
                     else:
                         nan_detected[m] = False
                 try_until_no_nan = np.any(nan_detected)
@@ -192,8 +195,6 @@ class HydroEmulator:
             print("Fitting emulators")
             hydro_lists = np.array(
                 [hydro_simulations[key] for key in hydro_names])
-
-            self.GP_emulators = dict((key, []) for key in hydro_names)
 
             obs = ['E', 'P1', 'P2']
             f_emulator_scores = open(
@@ -203,14 +204,27 @@ class HydroEmulator:
                 f'{output_path}/all_emulators_n={len(parameter_names)}.pkl',
                 'wb')
 
-            for i, name in enumerate(hydro_names):
-                global_emulators = []
+            manager = Manager()
+            self.GP_emulators = manager.dict()
+            for name in hydro_names:
+                self.GP_emulators[name] = []
+
+            def train_hydro_emulator(global_emulators: Dict[str, List[gpr]],
+                                     itr: int,
+                                     name: str,
+                                     hydro_lists: np.ndarray,
+                                     parameter_ranges: np.ndarray,
+                                     parameter_names: List[str],
+                                     simulation_taus: np.ndarray,
+                                     design_points: np.ndarray) -> None:
+                all_emulators = []
                 for j, tau in enumerate(tqdm(simulation_taus,
-                                             desc=f'{name}: ')):
+                                             desc=f'{name}: ',
+                                             position=itr)):
                     local_emulators = []
                     f_emulator_scores.write(f'\tTraining GP for {name}\n')
                     for m in range(1, 4):
-                        data = hydro_lists[i, j, :, m].reshape(-1, 1)
+                        data = hydro_lists[itr, j, :, m].reshape(-1, 1)
 
                         bounds = np.outer(
                             np.diff(parameter_ranges), (1e-2, 1e2))
@@ -255,14 +269,39 @@ class HydroEmulator:
                         f_emulator_scores.write(
                             '------------------------------\n')
                         local_emulators.append(GPR)
-                    global_emulators.append(local_emulators)
-                self.GP_emulators[name] = global_emulators
+                    all_emulators.append(local_emulators)
+                global_emulators[name] = all_emulators
+
+            # This seems like a programming pattern I can extract to anoterh
+            # function
+            if 'Darwin' in uname():
+                for i, name in enumerate(self.GP_emulators.keys()):
+                    train_hydro_emulator(global_emulators=self.GP_emulators,
+                                         itr=i,
+                                         name=name,
+                                         hydro_lists=hydro_lists,
+                                         parameter_ranges=parameter_ranges,
+                                         parameter_names=parameter_names,
+                                         simulation_taus=simulation_taus,
+                                         desgin_points=design_points)
+            else:
+                jobs = [Process(target=train_hydro_emulator,
+                                args=(self.GP_emulators,
+                                      i,
+                                      name,
+                                      hydro_lists,
+                                      parameter_ranges,
+                                      parameter_names,
+                                      simulation_taus,
+                                      design_points))
+                        for i, name in enumerate(hydro_names)]
+
+                _ = [proc.start() for proc in jobs]
+                _ = [proc.join() for proc in jobs]
 
             pickle.dump(self.GP_emulators, f_pickle_emulators)
             f_emulator_scores.close()
             f_pickle_emulators.close()
-
-            print("Done")
 
     def TestEmulator(self,
                      hca: HydroCodeAPI,
