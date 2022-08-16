@@ -45,6 +45,7 @@ import pickle
 from subprocess import run as cmd
 from subprocess import CalledProcessError
 
+
 class HydroBayesianAnalysis(object):
     """
     This class is the API for all Bayesian Analysis methods, including

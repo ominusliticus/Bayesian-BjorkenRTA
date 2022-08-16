@@ -71,7 +71,7 @@ double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& 
 	double step_adj_prev  = step_adj_root;
 	double mag_F2_current = mag_F2;
 	double mag_F2_prev	  = mag_F2;
-	for (int i = 0; i < 20; ++i)
+	for (int i = 0; i < 10; ++i)
 	{
 		if (step_adj * mag_dX <= tol_dX) return step_adj;						 // Check if converged
 		else if (mag_F2 <= g0 + step_adj * alpha * g0_prime) return step_adj;	 // Check if converging fast enough
@@ -108,12 +108,15 @@ double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& 
 
 void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_vars)
 {
-	constexpr double step_max = 100.0;
+	constexpr double step_max = 10.0;
 	// The aniso variables are of the form (Log(alpha), Lambda, xi)
 	vec		  delta_aniso_vars = { 0.0, 0.0, 0.0 };
 	const vec hydro_fields	   = { E, PT, PL };
 	vec		  F				   = ComputeF(hydro_fields, mass, aniso_vars);
-	for (size_t n = 0; n < 10000; ++n)
+	bool	  converged		   = false;
+	// for (size_t n = 0; n < 10000; ++n)
+	size_t n = 0;
+	while (!converged)
 	{
 		mat J			 = evo.ComputeJacobian(mass, aniso_vars);
 		delta_aniso_vars = -J.i() * F;
@@ -130,11 +133,16 @@ void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_
 		aniso_vars = aniso_vars + step_adj * delta_aniso_vars;
 		F		   = ComputeF(hydro_fields, mass, aniso_vars);
 		if (aniso_vars(0) < 0.0 || aniso_vars(1) < 0.0 || aniso_vars(2) < -1.0)
-			std::runtime_error("Variable inversion gave unphysical anisotropic parameters.");
+			Print(std::cout, "Variable inversion gave unphysical anisotropic parameters.");
 		// Check for convergence
-		if (step_adj * mag_delta_aniso_vars < tol_dX && arma::norm(F, 2) < tol_F) return;
+		if (step_adj * mag_delta_aniso_vars < tol_dX && arma::norm(F, 2) < tol_F)
+		{
+			converged = true;
+			return;
+		}
+		++n;
 	}
 	Print(std::cerr, "Failed to converge within steps");
-	std::runtime_error("Failed to converge: convergence should not fail. Try increasing N_max");
+	Print(std::cout, "Failed to converge: convergence should not fail. Try increasing N_max");
 }
 

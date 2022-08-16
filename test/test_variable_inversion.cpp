@@ -41,7 +41,8 @@ using vec = arma::vec;
 void evaluate_truthfulness(const vec& X, const vec& soln, bool& value)
 {
 	double tol = 1e-5;
-	if (std::fabs(X(0) - soln(0)) < tol && std::fabs(X(1) - soln(1) < tol) && std::fabs(X(2) - soln(2) < tol))
+	if (std::fabs(X(0) - soln(0)) / soln(0) < tol && std::fabs(X(1) - soln(1)) / soln(1) < tol
+		&& std::fabs(X(2) - soln(2)) / soln(2) < tol)
 		value &= true;
 	else value &= false;
 }
@@ -67,38 +68,60 @@ int main()
 	double e  = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
 	double pt = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	double pl = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
-	Print(std::cout, e, pt, pl);
+	// // Print(std::cout, e, pt, pl);
 
 	vec soln = { 1.0, 1.0, 1.0 };
-	FindAnisoVariables(e, pt, pl, mass, soln);
-	evaluate_truthfulness(X_soln, soln, value);
+	// FindAnisoVariables(e, pt, pl, mass, soln);
+	// evaluate_truthfulness(X_soln, soln, value);
 
-	// the following test cases are taken from Table II in
-	//  Phys. Rev. C 105, n.2 0249111 (2022)
-	// Green
-	alpha  = 4e-5;
-	Lambda = mass / 4.808;
-	xi	   = -0.908;
+	// // the following test cases are taken from Table II in
+	// //  Phys. Rev. C 105, n.2 0249111 (2022)
+	// // Green
+	// alpha  = 4e-5;
+	// Lambda = mass / 4.808;
+	// xi	   = -0.908;
+	// X(0)   = alpha;
+	// X(1)   = Lambda;
+	// X(2)   = xi;
+	// e	   = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
+	// pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
+	// pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
+	// FindAnisoVariables(e, pt, pl, mass, soln);
+	// evaluate_truthfulness(X, soln, value);
+
+	// // Magenta
+	// alpha  = 2.5e-8;
+	// Lambda = mass / 10.98;
+	// xi	   = -0.949;
+	// X(0)   = alpha;
+	// X(1)   = Lambda;
+	// X(2)   = xi;
+	// e	   = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
+	// pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
+	// pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
+	// FindAnisoVariables(e, pt, pl, mass, soln);
+	// evaluate_truthfulness(X, soln, value);
+
+	// Maroon
+	alpha  = 0.078;
+	Lambda = mass / 0.294;
+	xi	   = 1208.05;
 	X(0)   = alpha;
 	X(1)   = Lambda;
 	X(2)   = xi;
 	e	   = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
 	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
 	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
+	// soln   = vec{ 0.01, 2.0, 1200.0 };
+	soln = vec{ 1.0, mvah.InvertEnergyDensity(e, mass), 2.0 * std::pow(10.0, std::log10(pt / pl)) };
 	FindAnisoVariables(e, pt, pl, mass, soln);
-	evaluate_truthfulness(X, soln, value);
-
-	// Magenta
-	alpha  = 2.5e-8;
-	Lambda = mass / 10.98;
-	xi	   = -0.949;
-	X(0)   = alpha;
-	X(1)   = Lambda;
-	X(2)   = xi;
-	e	   = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
-	pt	   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
-	pl	   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
-	FindAnisoVariables(e, pt, pl, mass, soln);
+	Print(std::cout, alpha, Lambda, xi);
+	Print(std::cout, soln(0), soln(1), soln(2));
+	Print(std::cout, e, pt, pl);
+	Print(std::cout,
+		  mvah.IntegralJ(2, 0, 0, 0, mass, soln) / soln(0),
+		  mvah.IntegralJ(2, 0, 1, 0, mass, soln) / soln(0),
+		  mvah.IntegralJ(2, 2, 0, 0, mass, soln) / soln(0));
 	evaluate_truthfulness(X, soln, value);
 
 	if (value) Print(std::cout, "test_inversion: \033[1;32mPASSES!\033[0m");

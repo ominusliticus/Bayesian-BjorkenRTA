@@ -92,7 +92,8 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
 	for (int i = 1; i < cmdln_count - 1; i += 2)
 		params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
 	params.type = std::atoi(cmdln_args[cmdln_count - 2]);
-	params.SetAnisotropicVariables();
+	params.SetInitialTemperature();
+	if (params.type == 2 || params.type == 3 || params.type == 4) params.SetAnisotropicVariables();
 	return params;
 }
 
@@ -196,7 +197,8 @@ void SimulationParameters::SetInitialTemperature()
 
 void SimulationParameters::SetAnisotropicVariables()
 {
-	vec X = { 1.0, 1.0, 1.0 };
+	double x = std::log10(pt0 / pl0);
+	vec	   X = { 1.0, T0, 2.0 * std::pow(10.0, x) };
 	FindAnisoVariables(e0, pt0, pl0, mass, X);
 	alpha_0	 = X(0);
 	Lambda_0 = X(1);

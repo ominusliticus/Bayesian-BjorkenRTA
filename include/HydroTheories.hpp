@@ -159,7 +159,7 @@ namespace hydro {
 			double zetaBar_zL;
 		};
 
-		TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, SP& params);
+		TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, const vec& X, SP& params);
 		// Calculate Jacobian matrix to switch between hydro fields and anisotropic variables
 		mat ComputeJacobian(double mass, const vec& X);
 		// Functions used to calcualte the transport coefficients
@@ -176,16 +176,10 @@ namespace hydro {
 		double p1, p2, p3, p4;
 		double pt1, pt2, pt3, pt4;
 		double pl1, pl2, pl3, pl4;
-		double xi1, xi2, xi3, xi4;
-		double dxi1, dxi2, dxi3, dxi4;
-		double alpha1, alpha2, alpha3, alpha4;
-		double dalpha1, dalpha2, dalpha3, dalpha4;
-		double Lambda1, Lambda2, Lambda3, Lambda4;
-		double dLambda1, dLambda2, dLambda3, dLambda4;
 
+		// These vectors contain the anisotropic parameters (alpha, Lambda, xi)
 		vec X1, X2, X3, X4;
-		vec psi1, psi2, psi3, psi4;
-		vec qt1, qt2, qt3, qt4;
+		vec dX1, dX2, dX3, dX4;
 
 		// Simulation information
 		double T0;	  // Starting temperature in fm^{-1}
