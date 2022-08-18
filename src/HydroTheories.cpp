@@ -863,11 +863,6 @@ namespace hydro {
 
 			// Convert evolution vector to (alpha, Lambda, xi) coordinates
 			qt1 = M.i() * psi1;
-			// Print(std::cout, M);
-			// Print(std::cout, M.i());
-			// Print(std::cout, psi1);
-			// Print(std::cout, qt1);
-			// Print(std::cout, "--------------------------");
 
 			// Calculate update step
 			dX1 = dt * qt1;
@@ -877,14 +872,9 @@ namespace hydro {
 			if (X2(2) < -0.999)												// Check if xi < -1.0
 				RK4Update(X1, X2, dX1, t, dt / 10.0, T, 10, tc, params);	// Poorly placed but best I could come up
 																			// with to implement recursion
-
-			e2	= IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
-			pt2 = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
-			pl2 = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
-			// Print(std::cout, e2, pl2, pt2);
-			// Print(std::cout, alpha2, Lambda2, xi2);
-			// Print(std::cout, "--------------------------");
-
+			e2	 = IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
+			pt2	 = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
+			pl2	 = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
 			T	 = InvertEnergyDensity(e2, m);
 			p2	 = ThermalPressure(T, m);
 			M	 = ComputeJacobian(m, X2);
@@ -900,13 +890,9 @@ namespace hydro {
 			// Third order
 			if (X3(2) < -0.999) RK4Update(X2, X3, dX2, t, dt / 20.0, T, 10, tc, params);
 
-			e3	= IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
-			pt3 = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
-			pl3 = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
-			// Print(std::cout, e3, pl3, pt3);
-			// Print(std::cout, alpha3, Lambda3, xi3);
-			// Print(std::cout, "--------------------------");
-
+			e3	 = IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
+			pt3	 = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
+			pl3	 = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
 			T	 = InvertEnergyDensity(e3, m);
 			p3	 = ThermalPressure(T, m);
 			M	 = ComputeJacobian(m, X3);
@@ -922,14 +908,9 @@ namespace hydro {
 			// Fourth order
 			if (X4(2) < -0.999) RK4Update(X3, X4, dX3, t, dt / 20.0, T, 10, tc, params);
 
-			e4	= IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
-			pt4 = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
-			pl4 = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
-			// Print(std::cout, e4, pl4, pt4);
-			// Print(std::cout, alpha4, Lambda4, xi4);
-			// Print(std::cout, "--------------------------");
-			// Print(std::cout);
-
+			e4	 = IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
+			pt4	 = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
+			pl4	 = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
 			T	 = InvertEnergyDensity(e4, m);
 			p4	 = ThermalPressure(T, m);
 			M	 = ComputeJacobian(m, X4);
@@ -943,7 +924,7 @@ namespace hydro {
 			dX += (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
 			X1 = X1 + (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
 
-			// update first step values
+			// update first order values
 			e1	= IntegralJ(2, 0, 0, 0, m, X1) / X1(0);
 			pt1 = IntegralJ(2, 0, 1, 0, m, X1) / X1(0);
 			pl1 = IntegralJ(2, 2, 0, 0, m, X1) / X1(0);
@@ -1013,14 +994,14 @@ namespace hydro {
 		double				  T = T0;
 		mat					  M;
 		vec					  X{ X1 }, X_old{ X1 }, dX{ X1 };
-		double				  e{ e1 }, pt{ pt1 }, pl{ pl1 }, p{ p1 }, xi{ xi1 };
+		double				  e{ e1 }, pt{ pt1 }, pl{ pl1 }, p{ p1 };
 		for (int n = 0; n < params.steps; n++)
 		{
 			t = t0 + n * dt;
 
 			double pi = 2.0 * (pt - pl) / 3.0;
 			double Pi = (2.0 * pt + pl) / 3.0 - p;
-			Print(e_plot, t, e, p, pt, pl, xi);
+			Print(e_plot, t, e, p, pt, pl, X(2));
 			Print(bulk_plot, t, Pi, tc.zetaBar_zT);
 			Print(shear_plot, t, pi, tc.zetaBar_zL);
 
