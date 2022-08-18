@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 		{
 			exact::ExactSolution hydro_exact;
 			hydro_exact.Run(params);
-			hydro_exact.OutputMoments(argv[argc - 1], params);
+			hydro_exact.OutputMoments(argv[argc - 1], const_cast<SP&>(params));
 			break;
 		}
 		default :

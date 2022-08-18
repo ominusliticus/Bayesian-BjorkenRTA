@@ -820,55 +820,143 @@ namespace hydro {
 	// Alt Anisotropic struct implementation //
 	//////////////.////////////////////////////
 
+	// Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
+	double ThermalPressure(double T, double mass)
+	{
+		double z = mass / T;
+		if (z == 0) return pow(T, 4.0) / (PI * PI);
+		else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
+	}
+
+	// -----------------------------------------
+
 	// Function does in intermittent RK step and checks if xi > -1
 	// If not, it calls itself with a subdivision of the current interval (t,t+dt)
 	// to improve the "convergence" (not sure what to call it)
-	struct RKUpdateStruct {
-		vec&   X_1;
-		vec&   X_current;
-		vec&   X_next;
-		vec&   dX;
-		double mass;
-		double t;
-		double dt;
-		double e;
-		double p;
-		double pt;
-		double pl;
-		double T;
-	};
-
-	using rks				 = RKUpdateStruct;
-	using mvah				 = AltAnisoHydroEvolution;
-	static double dt_coeff[] = { 0.0, 1.0, 0.5, 1.0 };	  // Some hackery to make sure that
-														  // RK4 updates are correct
-
-	// TODO: Need to make recursive call step through RK4 update steps instead of just 10
-	//       The update also needs to adjust the time interval to step through to stay consistent
-	void RK4Update(rks& data, SP& params, mvah& inst, size_t steps, size_t nn)
+	void AltAnisoHydroEvolution::RK4Update(vec&					  X_current,
+										   vec&					  X_update,
+										   vec&					  dX,
+										   double				  t,
+										   double				  dt,
+										   double				  T,
+										   size_t				  steps,
+										   TransportCoefficients& tc,
+										   const SP&			  params)
 	{
-		double dt = data.dt / static_cast<double>(steps);
-		for (size_t i = 0; i < steps; i++)
+		double m = params.mass;
+
+		// RK4 with updating anisotropic variables
+		// Note all dynamic variables are declared as member variables
+		X1		  = X_current;
+		vec dummy = { 0.0, 0.0, 0.0 };
+		dX		  = dummy;
+
+		for (size_t n = 0; n < steps; ++n)
 		{
-			mat M = inst.ComputeJacobian(data.mass, data.X_current);
+			// First order
+			// Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
+			mat M = ComputeJacobian(m, X1);
 
 			// compute transport coefficients to calculate evolution of (E,PT,PL) and store in vector
-			auto tc	 = inst.CalculateTransportCoefficients(data.T, data.pt, data.pl, data.X_current, params);
-			auto psi = vec{ inst.dedt(data.e, data.pl, data.t + dt_coeff[nn % 4] * dt),
-							inst.dptdt(data.p, data.pt, data.pl, data.t + dt_coeff[nn % 4] * dt, tc),
-							inst.dpldt(data.p, data.pt, data.pl, data.t + dt_coeff[nn % 4] * dt, tc) };
+			tc	 = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
+			psi1 = { dedt(e1, pl1, t), dptdt(p1, pt1, pl1, t, tc), dpldt(p1, pt1, pl1, t, tc) };
 
 			// Convert evolution vector to (alpha, Lambda, xi) coordinates
-			vec qt = M.i() * psi;
+			qt1 = M.i() * psi1;
+			// Print(std::cout, M);
+			// Print(std::cout, M.i());
+			// Print(std::cout, psi1);
+			// Print(std::cout, qt1);
+			// Print(std::cout, "--------------------------");
 
 			// Calculate update step
-			data.dX		= dt * qt;
-			data.X_next = data.X_1 + data.dX;
+			dX1 = dt * qt1;
+			X2	= X1 + 0.5 * dX1;
+
+			// Second order
+			if (X2(2) < -0.999)												// Check if xi < -1.0
+				RK4Update(X1, X2, dX1, t, dt / 10.0, T, 10, tc, params);	// Poorly placed but best I could come up
+																			// with to implement recursion
+
+			e2	= IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
+			pt2 = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
+			pl2 = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
+			// Print(std::cout, e2, pl2, pt2);
+			// Print(std::cout, alpha2, Lambda2, xi2);
+			// Print(std::cout, "--------------------------");
+
+			T	 = InvertEnergyDensity(e2, m);
+			p2	 = ThermalPressure(T, m);
+			M	 = ComputeJacobian(m, X2);
+			tc	 = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
+			psi2 = { dedt(e2, pl2, t + dt / 2.0),
+					 dptdt(p2, pt2, pl2, t + dt / 2.0, tc),
+					 dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
+			qt2	 = M.i() * psi2;
+
+			dX2 = dt * qt2;
+			X3	= X1 + 0.5 * dX2;
+
+			// Third order
+			if (X3(2) < -0.999) RK4Update(X2, X3, dX2, t, dt / 20.0, T, 10, tc, params);
+
+			e3	= IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
+			pt3 = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
+			pl3 = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
+			// Print(std::cout, e3, pl3, pt3);
+			// Print(std::cout, alpha3, Lambda3, xi3);
+			// Print(std::cout, "--------------------------");
+
+			T	 = InvertEnergyDensity(e3, m);
+			p3	 = ThermalPressure(T, m);
+			M	 = ComputeJacobian(m, X3);
+			tc	 = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
+			psi3 = { dedt(e3, pl3, t + dt / 2.0),
+					 dptdt(p3, pt3, pl3, t + dt / 2.0, tc),
+					 dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
+			qt3	 = M.i() * psi3;
+
+			dX3 = dt * qt3;
+			X4	= X1 + dX3;
+
+			// Fourth order
+			if (X4(2) < -0.999) RK4Update(X3, X4, dX3, t, dt / 20.0, T, 10, tc, params);
+
+			e4	= IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
+			pt4 = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
+			pl4 = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
+			// Print(std::cout, e4, pl4, pt4);
+			// Print(std::cout, alpha4, Lambda4, xi4);
+			// Print(std::cout, "--------------------------");
+			// Print(std::cout);
+
+			T	 = InvertEnergyDensity(e4, m);
+			p4	 = ThermalPressure(T, m);
+			M	 = ComputeJacobian(m, X4);
+			tc	 = CalculateTransportCoefficients(T, pt4, pl4, X4, params);
+			psi4 = { dedt(e4, pl4, t + dt), dptdt(p4, pt4, pl4, t + dt, tc), dpldt(p4, pt4, pl4, t + dt, tc) };
+			qt4	 = M.i() * psi4;
+
+			dX4 = dt * qt4;
+			if (X1(2) + dX4(2) < -0.999) RK4Update(X4, dummy, dX4, t, dt / 10.0, T, 10, tc, params);
+
+			dX += (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
+			X1 = X1 + (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
+
+			// update first step values
+			e1	= IntegralJ(2, 0, 0, 0, m, X1) / X1(0);
+			pt1 = IntegralJ(2, 0, 1, 0, m, X1) / X1(0);
+			pl1 = IntegralJ(2, 2, 0, 0, m, X1) / X1(0);
+			T	= InvertEnergyDensity(e1, m);
+			p1	= ThermalPressure(T, m);
 		}
-		if (data.X_next(2) < -1) { RK4Update(data, params, inst, 10 * steps, nn); }
+
+		X_update = X1;
 	}
 
-	void AltAnisoHydroEvolution::RunHydroSimulation(const char* file_path, SP& params)
+	// -----------------------------------------
+
+	void AltAnisoHydroEvolution::RunHydroSimulation(const char* file_path, const SP& params)
 	{
 		// Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
 		double t0 = params.tau_0;
@@ -905,22 +993,16 @@ namespace hydro {
 			e0 = 3.0 * pow(T0, 4.0) / (PI * PI)
 				 * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
 
-		// Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
-		auto ThermalPressure = [](double T, double mass) -> double
-		{
-			double z = mass / T;
-			if (z == 0) return pow(T, 4.0) / (PI * PI);
-			else return z * z * pow(T, 4.0) / (2.0 * PI * PI) * std::cyl_bessel_k(2, z);
-		};
-
 		// Note: all dynamic variables are declared as struct memebrs variables
 		// Initializing simulation variables
 		e1 = e0;
 		p1 = ThermalPressure(T0, m);
 
-		X1 = vec{ params.alpha_0, params.Lambda_0, params.xi_0 };
-		X4 = X3 = X2 = X1;
-		dX1 = dX2 = dX2 = dX4 = X1;
+		double alpha1  = params.alpha_0;
+		double Lambda1 = params.Lambda_0;
+		double xi1	   = params.xi_0;
+
+		X1 = { alpha1, Lambda1, xi1 };
 
 		pt1 = params.pt0;
 		pl1 = params.pl0;
@@ -930,64 +1012,26 @@ namespace hydro {
 		double				  t;
 		double				  T = T0;
 		mat					  M;
+		vec					  X{ X1 }, X_old{ X1 }, dX{ X1 };
+		double				  e{ e1 }, pt{ pt1 }, pl{ pl1 }, p{ p1 }, xi{ xi1 };
 		for (int n = 0; n < params.steps; n++)
 		{
 			t = t0 + n * dt;
 
-			double pi = 2.0 * (pt1 - pl1) / 3.0;
-			double Pi = (2.0 * pt1 + pl1) / 3.0 - p1;
-			Print(e_plot, t, e1, p1, pt1, pl1, X1(2));
+			double pi = 2.0 * (pt - pl) / 3.0;
+			double Pi = (2.0 * pt + pl) / 3.0 - p;
+			Print(e_plot, t, e, p, pt, pl, xi);
 			Print(bulk_plot, t, Pi, tc.zetaBar_zT);
 			Print(shear_plot, t, pi, tc.zetaBar_zL);
 
-			Print(std::cout, "1", X1(0), X1(1), X1(2));
-			// First order
-			auto data1 = rks{ X1, X1, X2, dX1, m, t, 0.5 * dt, e1, p1, pt1, pl1, T };
-			RK4Update(data1, params, *this, 1, 0);
-			Print(std::cout, "2", X2(0), X2(1), X2(2));
+			RK4Update(X_old, X, dX, t, dt, T, 1, tc, params);
+			e  = IntegralJ(2, 0, 0, 0, m, X) / X(0);
+			pt = IntegralJ(2, 0, 1, 0, m, X) / X(0);
+			pl = IntegralJ(2, 2, 0, 0, m, X) / X(0);
+			T  = InvertEnergyDensity(e, m);
+			p  = ThermalPressure(T, m);
 
-			// Second order
-			e2	= IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
-			pt2 = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
-			pl2 = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
-
-			T		   = InvertEnergyDensity(e2, m);
-			p2		   = ThermalPressure(T, m);
-			auto data2 = rks{ X1, X2, X3, dX2, m, t, 0.5 * dt, e2, p2, pt2, pl2, T };
-			RK4Update(data2, params, *this, 1, 1);
-			Print(std::cout, "3", X3(0), X3(1), X3(2));
-
-			// Third order
-			e3	= IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
-			pt3 = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
-			pl3 = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
-
-			T		   = InvertEnergyDensity(e3, m);
-			p3		   = ThermalPressure(T, m);
-			auto data3 = rks{ X1, X3, X4, dX3, m, t, dt, e3, p3, pt3, pl3, T };
-			RK4Update(data3, params, *this, 1, 2);
-			Print(std::cout, "4", X4(0), X4(1), X4(2));
-			Print(std::cout, "---------------------");
-
-			// Fourth order
-			e4	= IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
-			pt4 = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
-			pl4 = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
-
-			T		   = InvertEnergyDensity(e4, m);
-			p4		   = ThermalPressure(T, m);
-			vec	 dummy = vec{ 0.0, 0.0, 0.0 };
-			auto data4 = rks{ X1, X4, dummy, dX4, m, t, dt, e3, p3, pt3, pl3, T };
-			RK4Update(data4, params, *this, 1, 3);
-
-			X1 = X1 + (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
-
-			// update first step values
-			e1	= IntegralJ(2, 0, 0, 0, m, X1) / X1(0);
-			pt1 = IntegralJ(2, 0, 1, 0, m, X1) / X1(0);
-			pl1 = IntegralJ(2, 2, 0, 0, m, X1) / X1(0);
-			T	= InvertEnergyDensity(e1, m);
-			p1	= ThermalPressure(T, m);
+			X_old = X;
 
 		}	 // End simulation loop
 
@@ -1154,7 +1198,7 @@ namespace hydro {
 	}
 
 	AltAnisoHydroEvolution::TransportCoefficients
-	AltAnisoHydroEvolution::CalculateTransportCoefficients(double T, double pt, double pl, const vec& X, SP& params)
+	AltAnisoHydroEvolution::CalculateTransportCoefficients(double T, double pt, double pl, vec& X, const SP& params)
 	{
 		// Coefficients for relaxation times
 		// TO DO: should the relaxation times always be equal in Bjorken flow?

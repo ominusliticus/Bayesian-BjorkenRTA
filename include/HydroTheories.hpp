@@ -144,7 +144,7 @@ namespace hydro {
 		~AltAnisoHydroEvolution() = default;
 
 		// Setup and run numerical evolution
-		void RunHydroSimulation(const char* file_path, SP& params);
+		void RunHydroSimulation(const char* file_path, const SP& params);
 
 		// Need to invert enery density to get temperature. This is done by taking advantage of
 		// the Landau matching condition, i.e. the energy denisty in the comoving frame is
@@ -159,7 +159,18 @@ namespace hydro {
 			double zetaBar_zL;
 		};
 
-		TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, const vec& X, SP& params);
+		// Implement adaptive time step integration of evolution equations
+		void RK4Update(vec&					  X_current,
+					   vec&					  X_update,
+					   vec&					  dX,
+					   double				  t,
+					   double				  dt,
+					   double				  T,
+					   size_t				  step,
+					   TransportCoefficients& tc,
+					   const SP&			  params);
+
+		TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, const SP& params);
 		// Calculate Jacobian matrix to switch between hydro fields and anisotropic variables
 		mat ComputeJacobian(double mass, const vec& X);
 		// Functions used to calcualte the transport coefficients
@@ -177,9 +188,10 @@ namespace hydro {
 		double pt1, pt2, pt3, pt4;
 		double pl1, pl2, pl3, pl4;
 
-		// These vectors contain the anisotropic parameters (alpha, Lambda, xi)
 		vec X1, X2, X3, X4;
 		vec dX1, dX2, dX3, dX4;
+		vec psi1, psi2, psi3, psi4;
+		vec qt1, qt2, qt3, qt4;
 
 		// Simulation information
 		double T0;	  // Starting temperature in fm^{-1}
