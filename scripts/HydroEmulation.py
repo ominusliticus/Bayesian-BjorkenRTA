@@ -198,7 +198,7 @@ class HydroEmulator:
 
             obs = ['E', 'P1', 'P2']
             f_emulator_scores = open(
-                f'full_outputs/emulator_scores_n={len(parameter_names)}.txt',
+                f'{output_path}/emulator_scores_n={len(parameter_names)}.txt',
                 'w')
             f_pickle_emulators = open(
                 f'{output_path}/all_emulators_n={len(parameter_names)}.pkl',
@@ -386,14 +386,14 @@ class HydroEmulator:
                             self.GP_emulators[name][j][k].predict(
                                 feats, return_std=True)
                         if j == 0 and k == 0:
-                            ax[k].plot(C, pred[:, 0],
+                            ax[k].plot(C, pred,
                                        lw=2, color=cmap(i), label=name)
                         else:
                             ax[k].plot(C, pred.reshape(-1,),
                                        lw=2, color=cmap(i))
                         ax[k].fill_between(C,
-                                           pred[:, 0] + err,
-                                           pred[:, 0] - err,
+                                           pred[:] + err,
+                                           pred[:] - err,
                                            color=cmap(i), alpha=.4)
             for k in range(3):
                 autoscale_y(ax=ax[k], margin=0.1)
