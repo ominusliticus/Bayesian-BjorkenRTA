@@ -50,3 +50,5 @@ output/test
 3rd_party/armadillo-code/
 compile_commands.json
 fmt/
+
+debugging*

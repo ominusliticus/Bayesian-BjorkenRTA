@@ -299,6 +299,7 @@ class HydroEmulator:
                 _ = [proc.start() for proc in jobs]
                 _ = [proc.join() for proc in jobs]
 
+            self.GP_emulators = dict(self.GP_emulators)
             pickle.dump(self.GP_emulators, f_pickle_emulators)
             f_emulator_scores.close()
             f_pickle_emulators.close()
