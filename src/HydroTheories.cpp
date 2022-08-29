@@ -115,24 +115,22 @@ namespace hydro {
 				bulk_plot  = std::fstream(file / fmt::format("ce_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 				break;
 			case theory::DNMR :
-				// Print(std::cout, "Calculting viscous hydro in 14-moment approximation");
+				// Print(std::cout, "Calculting viscous hydro in DNMR 14-moment approximation");
 				e_plot	   = std::fstream(file / fmt::format("dnmr_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 				shear_plot = std::fstream(file / fmt::format("dnmr_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 				bulk_plot  = std::fstream(file / fmt::format("dnmr_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+				break;
+			case theory::MIS :
+				// Print(std::cout, "Calculting viscous hydro in MIS 14-moment approximation");
+				e_plot	   = std::fstream(file / fmt::format("mis_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+				shear_plot = std::fstream(file / fmt::format("mis_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+				bulk_plot  = std::fstream(file / fmt::format("mis_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 				break;
 		}
 		if (!e_plot.is_open() && !shear_plot.is_open() && !bulk_plot.is_open())
 		{
 			Print_Error(std::cerr, "ViscousHydroEvolution::RunHydroSimulation: Failed to open output files.");
-			switch (theo)
-			{
-				case theory::CE :
-					Print_Error(std::cerr, "Pleae make sure the folder ./output/CE_hydro/ exists.");
-					break;
-				case theory::DNMR :
-					Print_Error(std::cerr, "Pleae make sure the folder ./output/DNMR_hydro/ exists.");
-					break;
-			}
+			Print_Error(std::cerr, fmt::format("Pleae make sure the folder {} exists.", file_path));
 			exit(-3333);
 		}
 		else
@@ -365,25 +363,9 @@ namespace hydro {
 				double delta_pipi  = 5.0 / 3.0 + 7.0 * beta * I3_63 / (3.0 * beta_pi);
 				double lambda_piPi = -2.0 * chi / 3.0;
 
-				// double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
-				// double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
-				// double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
-
 				TransportCoefficients tc{ tau_pi,	  beta_pi,	   tau_Pi,		beta_Pi, delta_pipi,
 										  delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi };
 				return tc;
-				// double local_tol = 100 * tol;
-				// if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
-				// else
-				// {
-				//     Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport
-				//     coefficients did not satisfy relations."); Print_Error(std::cerr,
-				//     fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
-				//     Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              =
-				//     {}", check2)); Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi
-				//     - 1.0) / 7.0) = {}", check3)); exit(-5555);
-				// }
-				break;
 			}
 
 			case theory::DNMR :	   // Reference Appendix E in arXiv:1803.01810
@@ -446,29 +428,41 @@ namespace hydro {
 				;
 				double lambda_piPi = 6.0 / 5.0 - 2.0 * pow(m, 4.0) * (cBar_e * I00 + cBar_Pi * I01) / 15;
 
-				// double check1 = std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2);
-				// double check2 = std::fabs(lambda_Pipi - delta_pipi + 1 + cs2);
-				// double check3 = std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0);
-
 				TransportCoefficients tc{ tau_pi,	  beta_pi,	   tau_Pi,		beta_Pi, delta_pipi,
 										  delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi };
 				return tc;
-				// double local_tol = 100 * tol;
-				// if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return tc;
-				// else
-				// {
-				//     Print_Error(std::cerr, "ViscousHydroEvolution::CalculateTransportCoefficients: transport
-				//     coefficients did not satisfy relations."); Print_Error(std::cerr,
-				//     fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
-				//     Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)              =
-				//     {}", check2)); Print_Error(std::cerr, fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi
-				//     - 1.0) / 7.0) = {}", check3)); exit(-5555);
-				// }
-				break;
+			}
+			case theory::MIS :
+			{
+				return TransportCoefficients{};
 			}
 		}	 // End switch(theo)
 
 		return {};
+	}
+
+	// -------------------------------------
+
+	bool ViscousHydroEvolution::CheckTransportCoeffs(const TransportCoefficients& tc, double cs2)
+	{
+		double check1 = std::fabs(tc.delta_PiPi - 5.0 * tc.lambda_piPi / 6.0 + cs2);
+		double check2 = std::fabs(tc.lambda_Pipi - tc.delta_pipi + 1 + cs2);
+		double check3 = std::fabs(tc.tau_pipi - 6.0 * (2.0 * tc.delta_pipi - 1.0) / 7.0);
+
+		double local_tol = 100 * tol;
+		if (check1 < local_tol && check2 < local_tol && check3 < local_tol) return true;
+		else
+		{
+			Print_Error(std::cerr,
+						"ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy "
+						"relations.");
+			Print_Error(std::cerr,
+						fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
+			Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)   = {}", check2));
+			Print_Error(std::cerr,
+						fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3));
+			return false;
+		}
 	}
 
 	// -------------------------------------

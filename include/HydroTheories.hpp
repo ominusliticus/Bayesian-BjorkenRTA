@@ -43,9 +43,10 @@ using mat = arma::mat;
 using SP = SimulationParameters;
 
 namespace hydro {
-	enum class theory { CE = 0, DNMR };
 
 	struct ViscousHydroEvolution {
+		enum class theory { CE = 0, DNMR, MIS };
+
 		// Constructors
 		ViscousHydroEvolution()	 = default;
 		~ViscousHydroEvolution() = default;
@@ -73,6 +74,7 @@ namespace hydro {
 		};
 
 		TransportCoefficients CalculateTransportCoefficients(double e, double pi, double Pi, SP& params, theory theo);
+		bool				  CheckTransportCoeffs(const TransportCoefficients& tc, double cs2);
 
 		// Evolution equations
 		double dedt(double e, double p, double pi, double Pi, double tau);
