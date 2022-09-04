@@ -35,49 +35,49 @@
 using vec = arma::vec;
 
 struct SimulationParameters {
-	SimulationParameters() = default;
-	SimulationParameters(const char* filename);
-	~SimulationParameters();
+    SimulationParameters() = default;
+    SimulationParameters(const char* filename);
+    ~SimulationParameters();
 
-	static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
+    static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
 
-	void SetParameter(const char* name, double value);
-	void SetParameters(double _tau_0,
-					   double _Lambda_0,
-					   double _xi_0,
-					   double _alpah_0,
-					   double _tau_f,
-					   double _mass,
-					   double _eta_s);
-	void SetInitialTemperature();
-	void SetAnisotropicVariables();
+    void SetParameter(const char* name, double value);
+    void SetParameters(double _tau_0,
+                       double _Lambda_0,
+                       double _xi_0,
+                       double _alpah_0,
+                       double _tau_f,
+                       double _mass,
+                       double _eta_s);
+    void SetInitialTemperature();
+    void SetAnisotropicVariables();
 
-	friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
+    friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 
-	bool operator==(const SimulationParameters& other);
-	bool operator!=(const SimulationParameters& other);
+    bool operator==(const SimulationParameters& other);
+    bool operator!=(const SimulationParameters& other);
 
-	unsigned int type;	  // Which hydro simulation to compute
+    unsigned int type;    // Which hydro simulation to compute
 
-	double tau_0;
-	double Lambda_0;
-	double xi_0;
-	double alpha_0;
+    double tau_0;
+    double Lambda_0;
+    double xi_0;
+    double alpha_0;
 
-	double tau_f;
-	double mass;
-	double C;
+    double tau_f;
+    double mass;
+    double C;
 
-	double steps;
-	double step_size;
+    double steps;
+    double step_size;
 
-	// parameters for hydrodynamic evolution equations
-	double e0;
-	double pl0;
-	double pt0;
-	double T0;
+    // parameters for hydrodynamic evolution equations
+    double e0;
+    double pl0;
+    double pt0;
+    double T0;
 
-	std::string file_identifier;
-};	  // end struct SimulationParameters
+    std::string file_identifier;
+};    // end struct SimulationParameters
 
 #endif

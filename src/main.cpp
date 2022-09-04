@@ -35,57 +35,57 @@
 
 int main(int argc, char** argv)
 {
-	SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
+    SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
 
-	switch (params.type)
-	{
-		case 0 :	// Chapman-Enskog hydro
-		{
-			hydro::ViscousHydroEvolution hydro_ce;
-			hydro_ce.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::CE);
-			hydro_ce.~ViscousHydroEvolution();
-			break;
-		}
-		case 1 :	// DNMR hydro
-		{
-			hydro::ViscousHydroEvolution hydro_dnmr;
-			hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::DNMR);
-			hydro_dnmr.~ViscousHydroEvolution();
-			break;
-		}
-		case 2 :	// Mueller-Israel-Stewart
-		{
-			hydro::ViscousHydroEvolution hydro_dnmr;
-			hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::MIS);
-			hydro_dnmr.~ViscousHydroEvolution();
-			break;
-		}
-		case 3 :	// Anisotropic
-		{
-			hydro::AnisoHydroEvolution hydro_aniso;
-			hydro_aniso.RunHydroSimulation(argv[argc - 1], params);
-			hydro_aniso.~AnisoHydroEvolution();
-			break;
-		}
-		case 4 :	// Alternative anisotropic formulation
-		{
-			hydro::AltAnisoHydroEvolution hydro_altaniso;
-			hydro_altaniso.RunHydroSimulation(argv[argc - 1], params);
-			hydro_altaniso.~AltAnisoHydroEvolution();
-			break;
-		}
-		case 5 :	// Boltzmann RTA exact solution
-		{
-			exact::ExactSolution hydro_exact;
-			hydro_exact.Run(params);
-			hydro_exact.OutputMoments(argv[argc - 1], const_cast<SP&>(params));
-			break;
-		}
-		default :
-		{
-			Print(std::cout, "Invalid variable SimulationParameter::type. Please fix.");
-			exit(-1234);
-		}
-	}
-	return 0;
+    switch (params.type)
+    {
+        case 0 :    // Chapman-Enskog hydro
+        {
+            hydro::ViscousHydroEvolution hydro_ce;
+            hydro_ce.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::CE);
+            hydro_ce.~ViscousHydroEvolution();
+            break;
+        }
+        case 1 :    // DNMR hydro
+        {
+            hydro::ViscousHydroEvolution hydro_dnmr;
+            hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::DNMR);
+            hydro_dnmr.~ViscousHydroEvolution();
+            break;
+        }
+        case 2 :    // Mueller-Israel-Stewart
+        {
+            hydro::ViscousHydroEvolution hydro_dnmr;
+            hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::MIS);
+            hydro_dnmr.~ViscousHydroEvolution();
+            break;
+        }
+        case 3 :    // Anisotropic
+        {
+            hydro::AnisoHydroEvolution hydro_aniso;
+            hydro_aniso.RunHydroSimulation(argv[argc - 1], params);
+            hydro_aniso.~AnisoHydroEvolution();
+            break;
+        }
+        case 4 :    // Alternative anisotropic formulation
+        {
+            hydro::AltAnisoHydroEvolution hydro_altaniso;
+            hydro_altaniso.RunHydroSimulation(argv[argc - 1], params);
+            hydro_altaniso.~AltAnisoHydroEvolution();
+            break;
+        }
+        case 5 :    // Boltzmann RTA exact solution
+        {
+            exact::ExactSolution hydro_exact;
+            hydro_exact.Run(params);
+            hydro_exact.OutputMoments(argv[argc - 1], const_cast<SP&>(params));
+            break;
+        }
+        default :
+        {
+            Print(std::cout, "Invalid variable SimulationParameter::type. Please fix.");
+            exit(-1234);
+        }
+    }
+    return 0;
 }

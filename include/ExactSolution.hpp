@@ -1,5 +1,5 @@
 //  Copyright 2021-2022 Kevin Ingles
-//  
+//
 //  Permission is hereby granted, free of charge, to any person obtaining
 //  a copy of this software and associated documentation files (the
 //  "Software"), to deal in the Software without restriction, including
@@ -7,10 +7,10 @@
 //  distribute, sublicense, and/or sell copies of the Software, and to
 //  permit persons to whom the Sofware is furnished to do so, subject to
 //  the following conditions:
-//  
+//
 //  The above copyright notice and this permission notice shall be
 //  included in all copies or substantial poritions of the Software.
-//  
+//
 //  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 //  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 //  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
@@ -18,19 +18,19 @@
 //  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 //  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 //  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
-// 
+//
 // Author: Kevin Ingles
 // Credit: Chandrodoy Chattopadhyay for original code
 // File: ExactSolution.hpp
-// Description: Header file which defines the routines and data structures to 
-//              facilitate the calculation of the Boltzmann RTA exact solution 
+// Description: Header file which defines the routines and data structures to
+//              facilitate the calculation of the Boltzmann RTA exact solution
 //              for Bjorken expansion
 
 #ifndef EXACT_SOLUTION_HPP
 #define EXACT_SOLUTION_HPP
 
-#include <vector>
 #include <tuple>
+#include <vector>
 
 #include "config.hpp"
 #include "Errors.hpp"
@@ -39,14 +39,15 @@
 
 // For parallelizing the temperature evolution loops in eaxt::ExactSolution::Run()
 #if USE_PARALLEL
-    #include <omp.h>
+#  include <omp.h>
 #endif
 
 using SP = SimulationParameters;
 
-// TODO: Add documentation to comments that explain what all the variables used mean (can be done in implementation file)
+// TODO: Add documentation to comments that explain what all the variables used mean (can be done in implementation
+// file)
 
-namespace exact{
+namespace exact {
     // Enum to indicate which moment to calculate
     // ED - Energy density
     // PL - Longitudinal pressure
@@ -58,18 +59,15 @@ namespace exact{
     ///        Code need by all subsequent functions         ///
     ////////////////////////////////////////////////////////////
 
-    struct ExactSolution
-    {
+    struct ExactSolution {
         ExactSolution() = default;
 
-        
         // Get temperature based current time step
         double GetTemperature(double z, SP& params);
         // Calculate relaxation time given proper time tau
         double TauRelaxation(double tau, SP& params);
         // Exponential of integral of inverse relaxation time
         double DecayFactor(double tau1, double tau2, SP& params);
-
 
         ////////////////////////////////////////////////////////////
         ///        Code for evaluating moments analytically      ///
@@ -93,7 +91,6 @@ namespace exact{
         // Returns nth moment for particle distribution function
         double GetMoments(double tau, SP& params, Moment flag);
 
-
         ////////////////////////////////////////////////////////////
         ///        Code for evaluating moments numerically       ///
         ////////////////////////////////////////////////////////////
@@ -114,12 +111,11 @@ namespace exact{
         std::tuple<double, double> EaxctDistributionTuple(double w, double pT, double tau, SP& params);
         std::tuple<double, double> ThetaIntegratedExactDistributionTuple(double p, double tau, SP& params);
 
-
         ////////////////////////////////////////////////////////////
         ///        Code to solve temperature evolution           ///
         ////////////////////////////////////////////////////////////
 
-        // Calculate the equilibrium energy density at temperature T_eq 
+        // Calculate the equilibrium energy density at temperature T_eq
         // with momemtum integration
         double EquilibriumEnergyDensity(double temp, SP& params);
 
@@ -131,8 +127,7 @@ namespace exact{
 
         // output moments of solution
         void OutputMoments(const char* file_name, SP& params);
-
     };
-}
+}    // namespace exact
 
 #endif
