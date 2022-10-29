@@ -142,12 +142,10 @@ namespace exact {
                 return y * (std::sqrt(y * y + z * z) + (1 + z * z) / std::sqrt(x) * atanh_val);
 
             case Moment::PL :
-                return sign * y * y * y / std::pow(x, 1.5)
-                       * (std::sqrt(x * (y * y + z * z)) - (z * z + 1.0) * atanh_val);
+                return sign * y * y * y / std::pow(x, 1.5) * (std::sqrt(x * (y * y + z * z)) - (z * z + 1.0) * atanh_val);
 
             case Moment::PT :
-                return sign * y / std::pow(x, 1.5)
-                       * (-std::sqrt(x * (y * y + z * z)) + (z * z + 2.0 * y * y - 1.0) * atanh_val);
+                return sign * y / std::pow(x, 1.5) * (-std::sqrt(x * (y * y + z * z)) + (z * z + 2.0 * y * y - 1.0) * atanh_val);
 
             case Moment::PEQ :
                 Print(std::cout, "Invalid option");
@@ -271,8 +269,7 @@ namespace exact {
 
     double ExactSolution::EquilibriumContributionAux(double x, double tau, SP& params, Moment flag)
     {
-        return DecayFactor(tau, x, params) * EquilibtirumDistributionMoment(tau, x, params, flag)
-               / TauRelaxation(x, params);
+        return DecayFactor(tau, x, params) * EquilibtirumDistributionMoment(tau, x, params, flag) / TauRelaxation(x, params);
     }
 
     // -------------------------------------
@@ -323,8 +320,7 @@ namespace exact {
         double feq_contrib = GausQuad(
             [this, tau](double t, double pT, double w, SP& params)
             {
-                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params)
-                       / TauRelaxation(t, params);
+                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
             },
             tau_0,
             tau,
@@ -368,8 +364,7 @@ namespace exact {
         double feq_contrib = GausQuad(
             [this, tau](double t, double pT, double w, SP& params)
             {
-                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params)
-                       / TauRelaxation(t, params);
+                return DecayFactor(tau, t, params) * EquilibriumDistribution(w, pT, t, params) / TauRelaxation(t, params);
             },
             tau_0,
             tau,
@@ -619,6 +614,7 @@ namespace exact {
         double e0 = InitialDistributionMoment(tau_0, params, Moment::ED);
         double T0 = InvertEnergyDensity(e0, params);
 
+        Print(std::cout, "Initialize temperatures");
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
@@ -678,7 +674,9 @@ namespace exact {
         std::fstream fout(file, std::fstream::out);
         if (!fout.is_open())
         {
-            Print_Error(std::cerr, "Be sure the ./output/exact/ folder has been created!");
+
+            // Print_Error(std::cerr, fmt::format("Could not open file {}", file));
+            Print_Error(std::cerr, fmt::format("Be sure the {} folder has been created!", file_path));
             exit(-3333);
         }
         fout << std::fixed << std::setprecision(16);

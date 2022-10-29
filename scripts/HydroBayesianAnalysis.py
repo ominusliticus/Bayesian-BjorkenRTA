@@ -52,6 +52,7 @@ class HydroBayesianAnalysis(object):
     parameter inference, model selection and model averaging.
     ----
     Constructor parameters:
+    hydro_names      - list of hydros to run, either strings with names or numbers
     default_params   - parameter dictionary which stores the params we
                                wish to infer upon
     parameter_names  - the keys to the above dictionary (seems
@@ -63,13 +64,14 @@ class HydroBayesianAnalysis(object):
 
     def __init__(
             self,
-            default_params: Dict,
-            parameter_names: List,
+            hydro_names: List[str],
+            default_params: Dict[str, float],
+            parameter_names: List[str],
             parameter_ranges: np.ndarray,
             simulation_taus: np.ndarray,
             ) -> None:
         print("Initializing Bayesian Analysis class")
-        self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
+        self.hydro_names = hydro_names
         self.params = default_params
         self.parameter_names = parameter_names
         self.num_params = len(parameter_names)

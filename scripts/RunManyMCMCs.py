@@ -24,6 +24,26 @@ rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
 
 
+def convert_hydro_name_to_int(name: str) -> int:
+    '''
+    Returns integer corresponding to the hydro in C++ code.
+    See documentation or ../src/main.cpp: int main() for options
+    '''
+    match name:
+        case 'ce':
+            return 0
+        case 'dnmr':
+            return 1
+        case 'mis':
+            return 2
+        case 'vah':
+            return 3
+        case 'mvah':
+            return 4
+        case 'exact':
+            return 5
+
+
 def fit_and_plot_posterior(xdata: np.ndarray,
                            ydata: np.ndarray,
                            points: np.ndarray,
@@ -63,7 +83,7 @@ def SampleObservables(error_level: float,
     code_api = HCA(str(Path('./swap').absolute()))
 
     # Generate experimental data
-    true_params['hydro_type'] = 4
+    true_params['hydro_type'] = convert_hydro_name_to_int('exact')
     output = code_api.ProcessHydro(params_dict=true_params,
                                    parameter_names=parameter_names,
                                    design_point=[true_params[key] for key in
@@ -96,7 +116,8 @@ def SampleObservables(error_level: float,
                                 for i in range(num_taus)])
 
 
-def RunManyMCMCRuns(exact_pseudo: np.ndarray,
+def RunManyMCMCRuns(hydro_names: List[str],
+                    exact_pseudo: np.ndarray,
                     pseudo_error: np.ndarray,
                     output_dir: str,
                     local_params: Dict[str, float],
@@ -118,12 +139,13 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
                             parameter_names=parameter_names,
                             parameter_ranges=parameter_ranges,
                             simulation_taus=simulation_taus,
-                            hydro_names=code_api.hydro_names,
+                            hydro_names=hydro_names,
                             use_existing_emulators=False,
                             use_PT_PL=True,
                             output_path=output_dir,
                             samples_per_feature=points_per_feat)
-        ba_class = HBA(default_params=local_params,
+        ba_class = HBA(hydro_names=hydro_names,
+                       default_params=local_params,
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
@@ -140,7 +162,8 @@ def RunManyMCMCRuns(exact_pseudo: np.ndarray,
             pickle.dump(ba_class.MCMC_chains, f)
 
 
-def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
+def RunVeryLargeMCMC(hydro_names: List[str],
+                     exact_pseudo: np.ndarray,
                      pseudo_error: np.ndarray,
                      output_dir: str,
                      local_params: Dict[str, float],
@@ -160,7 +183,7 @@ def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
                         parameter_names=parameter_names,
                         parameter_ranges=parameter_ranges,
                         simulation_taus=simulation_taus,
-                        hydro_names=code_api.hydro_names,
+                        hydro_names=hydro_names,
                         use_existing_emulators=False,
                         use_PT_PL=True,
                         output_path=output_dir,
@@ -177,7 +200,8 @@ def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
         output_statistics=True,
         plot_emulator_vs_test_points=True,
         output_dir=output_dir)
-    ba_class = HBA(default_params=local_params,
+    ba_class = HBA(hydro_names=hydro_names,
+                   default_params=local_params,
                    parameter_names=parameter_names,
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
@@ -195,7 +219,8 @@ def RunVeryLargeMCMC(exact_pseudo: np.ndarray,
                             axis_names=[r'$\mathcal C$'])
 
 
-def PlotAnalyticPosteriors(local_params: Dict[str, float],
+def PlotAnalyticPosteriors(hydro_names: List[str],
+                           local_params: Dict[str, float],
                            parameter_names: List[str],
                            parameter_ranges: Dict[str, np.ndarray],
                            simulation_taus: np.ndarray,
@@ -210,7 +235,6 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
     '''
     # Setup scan for inferred parameter
     pts_analytic_post = 100
-    hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
     Cs = np.linspace(0.2,
                      0.5,
                      pts_analytic_post, endpoint=True)
@@ -321,7 +345,7 @@ def PlotAnalyticPosteriors(local_params: Dict[str, float],
                                          tau_start)) / delta_tau
 
         def for_multiprocessing(dic: Dict, key: str, itr: int):
-            local_params['hydro_type'] = itr
+            local_params['hydro_type'] = convert_hydro_name_to_int(key)
             output = np.array([[code_api.ProcessHydro(
                                     params_dict=local_params,
                                     parameter_names=parameter_names,
@@ -509,8 +533,11 @@ if __name__ == "__main__":
     #      [0.01325973, 0.00427459, 0.00319652]]
     # )
 
+    hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
+
     if True:
-        RunManyMCMCRuns(exact_pseudo=exact_pseudo,
+        RunManyMCMCRuns(hydro_names=hydro_names,
+                        exact_pseudo=exact_pseudo,
                         pseudo_error=pseudo_error,
                         output_dir=f'./pickle_files/{output_folder}',
                         local_params=local_params,
@@ -522,6 +549,7 @@ if __name__ == "__main__":
                         runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
+            hydro_names=hydro_names,
             local_params=local_params,
             parameter_names=['C'],
             parameter_ranges=np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]]),
@@ -536,7 +564,8 @@ if __name__ == "__main__":
                            posterior_fig=fig,
                            posterior_ax=ax)
     else:
-        RunVeryLargeMCMC(exact_pseudo=exact_pseudo,
+        RunVeryLargeMCMC(hydro_names=hydro_names,
+                         exact_pseudo=exact_pseudo,
                          pseudo_error=pseudo_error,
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,

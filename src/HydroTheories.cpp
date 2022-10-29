@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <tuple>
 
 #if __APPLE__
 namespace std {
@@ -109,19 +110,22 @@ namespace hydro {
         switch (theo)
         {
             case theory::CE :
-                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog approximation");
+                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog
+                // approximation");
                 e_plot     = std::fstream(file / fmt::format("ce_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 shear_plot = std::fstream(file / fmt::format("ce_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 bulk_plot  = std::fstream(file / fmt::format("ce_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::DNMR :
-                // Print(std::cout, "Calculting viscous hydro in DNMR 14-moment approximation");
+                // Print(std::cout, "Calculting viscous hydro in DNMR 14-moment
+                // approximation");
                 e_plot     = std::fstream(file / fmt::format("dnmr_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 shear_plot = std::fstream(file / fmt::format("dnmr_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 bulk_plot  = std::fstream(file / fmt::format("dnmr_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
             case theory::MIS :
-                // Print(std::cout, "Calculting viscous hydro in MIS 14-moment approximation");
+                // Print(std::cout, "Calculting viscous hydro in MIS 14-moment
+                // approximation");
                 e_plot     = std::fstream(file / fmt::format("mis_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 shear_plot = std::fstream(file / fmt::format("mis_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 bulk_plot  = std::fstream(file / fmt::format("mis_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
@@ -129,7 +133,9 @@ namespace hydro {
         }
         if (!e_plot.is_open() && !shear_plot.is_open() && !bulk_plot.is_open())
         {
-            Print_Error(std::cerr, "ViscousHydroEvolution::RunHydroSimulation: Failed to open output files.");
+            Print_Error(std::cerr,
+                        "ViscousHydroEvolution::RunHydroSimulation: Failed to "
+                        "open output files.");
             Print_Error(std::cerr, fmt::format("Pleae make sure the folder {} exists.", file_path));
             exit(-3333);
         }
@@ -141,7 +147,8 @@ namespace hydro {
         }
 
         // Initialize simulation
-        double T0 = params.T0;    // Note that the temperature is already in units fm^{-1}
+        double T0 = params.T0;    // Note that the temperature is already in
+                                  // units fm^{-1}
         double z0 = m / T0;
         double e0;    // Equilibrium energy density
         if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
@@ -149,7 +156,8 @@ namespace hydro {
             e0 = 3.0 * pow(T0, 4.0) / (PI * PI)
                  * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
 
-        // Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
+        // Thermal pressure necessary for calculating bulk pressure and
+        // inverting pi to xi
         auto ThermalPressure = [this](double e, SP& params) -> double
         {
             double T = InvertEnergyDensity(e, params);
@@ -182,7 +190,7 @@ namespace hydro {
             // fmt::print("e1 = {}, pi1 = {}, Pi1 = {}\n", e1, pi1, Pi1);
 
             // First order
-            tc   = CalculateTransportCoefficients(e1, pi1, Pi1, params, theo);
+            tc   = CalculateTransportCoefficients(e1, pi1, Pi1, t, params, theo);
             de1  = dt * dedt(e1, p1, pi1, Pi1, t);
             dpi1 = dt * dpidt(pi1, Pi1, t, tc);
             dPi1 = dt * dPidt(pi1, Pi1, t, tc);
@@ -193,7 +201,7 @@ namespace hydro {
 
             // Second order
             p2   = ThermalPressure(e2, params);
-            tc   = CalculateTransportCoefficients(e2, pi2, Pi2, params, theo);
+            tc   = CalculateTransportCoefficients(e2, pi2, Pi2, t + dt / 2.0, params, theo);
             de2  = dt * dedt(e2, p2, pi2, Pi2, t + dt / 2.0);
             dpi2 = dt * dpidt(pi2, Pi2, t + dt / 2.0, tc);
             dPi2 = dt * dPidt(pi2, Pi2, t + dt / 2.0, tc);
@@ -204,7 +212,7 @@ namespace hydro {
 
             // Third order
             p3   = ThermalPressure(e3, params);
-            tc   = CalculateTransportCoefficients(e3, pi3, Pi3, params, theo);
+            tc   = CalculateTransportCoefficients(e3, pi3, Pi3, t + dt / 2.0, params, theo);
             de3  = dt * dedt(e3, p3, pi3, Pi3, t + dt / 2.0);
             dpi3 = dt * dpidt(pi3, Pi3, t + dt / 2.0, tc);
             dPi3 = dt * dPidt(pi3, Pi3, t + dt / 2.0, tc);
@@ -215,7 +223,7 @@ namespace hydro {
 
             // Fourth order
             p4   = ThermalPressure(e4, params);
-            tc   = CalculateTransportCoefficients(e4, pi4, Pi4, params, theo);
+            tc   = CalculateTransportCoefficients(e4, pi4, Pi4, t + dt, params, theo);
             de4  = dt * dedt(e4, p4, pi4, Pi4, t + dt);
             dpi4 = dt * dpidt(pi4, Pi4, t + dt, tc);
             dPi4 = dt * dPidt(pi4, Pi4, t + dt, tc);
@@ -281,19 +289,21 @@ namespace hydro {
     // -------------------------------------
 
     ViscousHydroEvolution::TransportCoefficients
-    ViscousHydroEvolution::CalculateTransportCoefficients(double e, double pi, double Pi, SP& params, theory theo)
+    ViscousHydroEvolution::CalculateTransportCoefficients(double e, double pi, double Pi, double tau, SP& params, theory theo)
     {
         // invert energy density to temperature
         double T    = InvertEnergyDensity(e, params);
         double m    = params.mass;
         double z    = m / T;
+        double P_eq = z * z * T * T * T * T * std::cyl_bessel_k(2, z) / (2.0 * PI * PI);
         double beta = 1.0 / T;
 
         switch (theo)
         {
             case theory::CE :
             {
-                // Thermodynamic integrals, c.f. Eqs. (45) - (48) in arXiv:1407.7231
+                // Thermodynamic integrals, c.f. Eqs. (45) - (48) in
+                // arXiv:1407.7231
                 double I3_63, I1_42, I3_42, I2_31, I0_31, I0_30;
                 if (z == 0)
                 {
@@ -332,8 +342,7 @@ namespace hydro {
                         max_depth,
                         z);
 
-                    I3_63
-                        = -pow(T * z, 5.0) / (210 * PI * PI) * ((K5 - 11.0 * K3 + 58.0 * K1) / 16.0 - 4.0 * Ki1 + Ki3);
+                    I3_63 = -pow(T * z, 5.0) / (210 * PI * PI) * ((K5 - 11.0 * K3 + 58.0 * K1) / 16.0 - 4.0 * Ki1 + Ki3);
                     I1_42 = pow(T * z, 5.0) / (30.0 * PI * PI) * ((K5 - 7.0 * K3 + 22.0 * K1) / 16.0 - Ki1);
                     I3_42 = pow(T * z, 3.0) / (30.0 * PI * PI) * ((K3 - 9.0 * K1) * 0.25 + 3.0 * Ki1 - Ki3);
                     I2_31 = -pow(T * z, 3.0) / (6.0 * PI * PI) * ((K3 - 5.0 * K1) * 0.25 + Ki1);
@@ -348,9 +357,10 @@ namespace hydro {
                 // Eqs. (25) - (26) in arXiv:1407.7231
                 double beta_pi = beta * I1_42;
                 double beta_Pi = 5.0 * beta_pi / 3.0 + beta * I0_31 * cs2;
-                // double s = - beta * beta * I0_31;                             // thermal entropy density
+                // double s = - beta * beta * I0_31; // thermal entropy density
 
-                // TO DO: should relaxation time always be the same in Bjorken flow?
+                // TO DO: should relaxation time always be the same in Bjorken
+                // flow?
                 double tau_pi = 5.0 * params.C / T;
                 double tau_Pi = tau_pi;
 
@@ -363,14 +373,16 @@ namespace hydro {
                 double delta_pipi  = 5.0 / 3.0 + 7.0 * beta * I3_63 / (3.0 * beta_pi);
                 double lambda_piPi = -2.0 * chi / 3.0;
 
-                TransportCoefficients tc{ tau_pi,     beta_pi,     tau_Pi,      beta_Pi, delta_pipi,
-                                          delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi };
+                TransportCoefficients tc{
+                    tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi
+                };
                 return tc;
             }
 
             case theory::DNMR :    // Reference Appendix E in arXiv:1803.01810
             {
-                // See arXiv:1403.0962 Eq. (48) for this definition, where z = cosh(th)
+                // See arXiv:1403.0962 Eq. (48) for this definition, where z =
+                // cosh(th)
                 auto IntegralI = [](int n, int q, double z, double T)
                 {
                     if (z == 0) { return pow(T, n + 2) * Gamma(n + 2) / (2.0 * PI * PI * DoubleFactorial(2 * q + 1)); }
@@ -379,8 +391,8 @@ namespace hydro {
                         return GausQuad(
                             [](double x, double z, double T, int n, int q)
                             {
-                                return pow(T * z, n + 2) * pow(x, n - 2 * q) * pow(x * x - 1.0, (2 * q + 1) * 0.5)
-                                       * std::exp(-z * x) / (2.0 * PI * PI * DoubleFactorial(2 * q + 1));
+                                return pow(T * z, n + 2) * pow(x, n - 2 * q) * pow(x * x - 1.0, (2 * q + 1) * 0.5) * std::exp(-z * x)
+                                       / (2.0 * PI * PI * DoubleFactorial(2 * q + 1));
                             },
                             1,
                             inf,
@@ -416,7 +428,8 @@ namespace hydro {
 
                 double beta_pi = beta * I32;
                 double beta_Pi = 5.0 * beta_pi / 3.0 - beta * I31 * cs2;
-                // double s = beta * beta * I31;                             // thermal entropy density
+                // double s = beta * beta * I31;                             //
+                // thermal entropy density
 
                 double tau_pi = 5.0 * params.C / T;
                 double tau_Pi = tau_pi;
@@ -428,13 +441,54 @@ namespace hydro {
                 ;
                 double lambda_piPi = 6.0 / 5.0 - 2.0 * pow(m, 4.0) * (cBar_e * I00 + cBar_Pi * I01) / 15;
 
-                TransportCoefficients tc{ tau_pi,     beta_pi,     tau_Pi,      beta_Pi, delta_pipi,
-                                          delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi };
+                TransportCoefficients tc{
+                    tau_pi, beta_pi, tau_Pi, beta_Pi, delta_pipi, delta_PiPi, lambda_piPi, lambda_Pipi, tau_pipi
+                };
                 return tc;
             }
             case theory::MIS :
             {
-                return TransportCoefficients{};
+                auto calculate_betas = [this](double e, double m, SP& params) -> std::tuple<double, double>
+                {
+                    double T = InvertEnergyDensity(e, params);
+                    double z = m / T;
+
+                    double K2    = std::cyl_bessel_k(2, z);
+                    double K2_2  = K2 * K2;
+                    double K3    = std::cyl_bessel_k(3, z);
+                    double K3_2  = K3 * K3;
+                    double P_eq  = z * z * T * T * T * T * K2 / (2.0 * PI * PI);
+                    double gamma = z * z * (1 + (5 / z) * K3 / K2 - K3_2 / K2_2);
+                    gamma        = gamma / (gamma - 1);
+
+                    double beta_pi = (K2_2 / K3_2) * (z + 6.0 * K3 / K2) / (2.0 * z * P_eq);
+                    double beta_Pi = (K2_2 / K3_2) * (5.0 - 3.0 * gamma + 3.0 * (10.0 - 7.0 * gamma) * K3 / (z * K2))
+                                     / (3.0 * gamma - 5.0 + 3.0 * gamma * K2 / (z * K3)) / P_eq;
+
+                    return std::make_tuple(beta_pi, beta_Pi);
+                };
+
+                double tau_pi = 5.0 * params.C / T;
+                double tau_Pi = tau_pi;
+
+                double dt = params.step_size;
+                double de = dt * dedt(e, P_eq, pi, Pi, tau);
+                // For the less familiar, the C++ pattern below is called "structured binding"
+                auto [beta_pi, beta_Pi]           = calculate_betas(e, m, params);
+                auto [prev_beta_pi, prev_beta_Pi] = calculate_betas(e - de, m, params);
+                auto [next_beta_pi, next_beta_Pi] = calculate_betas(e + de, m, params);
+
+                double prev_T       = InvertEnergyDensity(e - de, params);
+                double next_T       = InvertEnergyDensity(e + de, params);
+                double deriv_for_pi = (1.0 / (next_beta_pi * next_T) - 1.0 / (prev_beta_pi * prev_T)) / (2.0 * dt);
+                double deriv_for_Pi = (1.0 / (next_beta_Pi * next_T) - 1.0 / (prev_beta_Pi * prev_T)) / (2.0 * dt);
+
+                double beta_pi_T  = beta_pi * T;
+                double beta_Pi_T  = beta_Pi * T;
+                double delta_pipi = 0.5 * beta_pi_T * (1.0 / beta_pi_T + tau * deriv_for_pi);
+                double delta_PiPi = 0.5 * beta_Pi_T * (1.0 / beta_Pi_T + tau * deriv_for_Pi);
+
+                return TransportCoefficients{ tau_pi, 1.0 / beta_pi, tau_Pi, 1.0 / beta_Pi, delta_pipi, delta_PiPi, 0.0, 0.0, 0.0 };
             }
         }    // End switch(theo)
 
@@ -454,13 +508,17 @@ namespace hydro {
         else
         {
             Print_Error(std::cerr,
-                        "ViscousHydroEvolution::CalculateTransportCoefficients: transport coefficients did not satisfy "
-                        "relations.");
+                        "ViscousHydroEvolution::CalculateTransportCoefficients:"
+                        " transport coefficients did not satisfy relations.");
             Print_Error(std::cerr,
-                        fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi / 6.0 + cs2)      = {}", check1));
+                        fmt::format("std::fabs(delta_PiPi - 5.0 * lambda_piPi "
+                                    "/ 6.0 + cs2)      = {}",
+                                    check1));
             Print_Error(std::cerr, fmt::format("std::fabs(lambda_Pipi - delta_pipi + 1 + cs2)   = {}", check2));
             Print_Error(std::cerr,
-                        fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * delta_pipi - 1.0) / 7.0) = {}", check3));
+                        fmt::format("std::fabs(tau_pipi - 6.0 * (2.0 * "
+                                    "delta_pipi - 1.0) / 7.0) = {}",
+                                    check3));
             return false;
         }
     }
@@ -511,7 +569,9 @@ namespace hydro {
         std::fstream          shear_plot(file / fmt::format("vah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
-            Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
+            Print_Error(std::cerr,
+                        "AnisoHydroEvolution::RunHydroSimulation: Failed to "
+                        "open output files.");
             Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
             exit(-3333);
         }
@@ -523,7 +583,8 @@ namespace hydro {
         }
 
         // Initialize simulation
-        T0        = params.T0;    // Note that the temperature is already in units fm^{-1}
+        T0 = params.T0;    // Note that the temperature is already in units
+                           // fm^{-1}
         double z0 = m / T0;
         double e0;    // Equilibrium energy density
         if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
@@ -531,7 +592,8 @@ namespace hydro {
             e0 = 3.0 * pow(T0, 4.0) / (PI * PI)
                  * (z0 * z0 * std::cyl_bessel_k(2, z0) / 2.0 + pow(z0, 3.0) * std::cyl_bessel_k(1, z0) / 6.0);
 
-        // Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
+        // Thermal pressure necessary for calculating bulk pressure and
+        // inverting pi to xi
         auto ThermalPressure = [this](double e, SP& params) -> double
         {
             double T = InvertEnergyDensity(e, params);
@@ -772,11 +834,8 @@ namespace hydro {
     {
         if (xi == 0) return 0.2;
         else if (xi < 0)
-            return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atanh(std::sqrt(-xi)) / std::sqrt(-xi))
-                   / pow(xi, 2.0);
-        else
-            return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atan(std::sqrt(xi)) / std::sqrt(xi))
-                   / pow(xi, 2.0);
+            return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atanh(std::sqrt(-xi)) / std::sqrt(-xi)) / pow(xi, 2.0);
+        else return 0.5 * ((3.0 + 2.0 * xi) / (1.0 + xi) - 3.0 * std::atan(std::sqrt(xi)) / std::sqrt(xi)) / pow(xi, 2.0);
     }
 
     // -------------------------------------
@@ -814,7 +873,8 @@ namespace hydro {
     // Alt Anisotropic struct implementation //
     //////////////.////////////////////////////
 
-    // Thermal pressure necessary for calculating bulk pressure and inverting pi to xi
+    // Thermal pressure necessary for calculating bulk pressure and inverting pi
+    // to xi
     double ThermalPressure(double T, double mass)
     {
         double z = mass / T;
@@ -825,8 +885,8 @@ namespace hydro {
     // -----------------------------------------
 
     // Function does in intermittent RK step and checks if xi > -1
-    // If not, it calls itself with a subdivision of the current interval (t,t+dt)
-    // to improve the "convergence" (not sure what to call it)
+    // If not, it calls itself with a subdivision of the current interval
+    // (t,t+dt) to improve the "convergence" (not sure what to call it)
     void AltAnisoHydroEvolution::RK4Update(vec&                   X_current,
                                            vec&                   X_update,
                                            vec&                   dX,
@@ -851,7 +911,8 @@ namespace hydro {
             // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
             mat M = ComputeJacobian(m, X1);
 
-            // compute transport coefficients to calculate evolution of (E,PT,PL) and store in vector
+            // compute transport coefficients to calculate evolution of
+            // (E,PT,PL) and store in vector
             tc   = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
             psi1 = { dedt(e1, pl1, t), dptdt(p1, pt1, pl1, t, tc), dpldt(p1, pt1, pl1, t, tc) };
 
@@ -863,9 +924,17 @@ namespace hydro {
             X2  = X1 + 0.5 * dX1;
 
             // Second order
-            if (X2(2) < -0.999)                                             // Check if xi < -1.0
-                RK4Update(X1, X2, dX1, t, dt / 10.0, T, 10, tc, params);    // Poorly placed but best I could come up
-                                                                            // with to implement recursion
+            if (X2(2) < -0.999)    // Check if xi < -1.0
+                RK4Update(X1,
+                          X2,
+                          dX1,
+                          t,
+                          dt / 10.0,
+                          T,
+                          10,
+                          tc,
+                          params);    // Poorly placed but best I could come up
+                                      // with to implement recursion
             e2   = IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
             pt2  = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
             pl2  = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
@@ -873,9 +942,7 @@ namespace hydro {
             p2   = ThermalPressure(T, m);
             M    = ComputeJacobian(m, X2);
             tc   = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
-            psi2 = { dedt(e2, pl2, t + dt / 2.0),
-                     dptdt(p2, pt2, pl2, t + dt / 2.0, tc),
-                     dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
+            psi2 = { dedt(e2, pl2, t + dt / 2.0), dptdt(p2, pt2, pl2, t + dt / 2.0, tc), dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
             qt2  = M.i() * psi2;
 
             dX2 = dt * qt2;
@@ -891,9 +958,7 @@ namespace hydro {
             p3   = ThermalPressure(T, m);
             M    = ComputeJacobian(m, X3);
             tc   = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
-            psi3 = { dedt(e3, pl3, t + dt / 2.0),
-                     dptdt(p3, pt3, pl3, t + dt / 2.0, tc),
-                     dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
+            psi3 = { dedt(e3, pl3, t + dt / 2.0), dptdt(p3, pt3, pl3, t + dt / 2.0, tc), dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
             qt3  = M.i() * psi3;
 
             dX3 = dt * qt3;
@@ -933,7 +998,8 @@ namespace hydro {
 
     void AltAnisoHydroEvolution::RunHydroSimulation(const char* file_path, const SP& params)
     {
-        // Print(std::cout, "Calculating alternative anistropic hydrodynamic evolution");
+        // Print(std::cout, "Calculating alternative anistropic hydrodynamic
+        // evolution");
         double t0 = params.tau_0;
         double dt = params.step_size;
 
@@ -948,7 +1014,9 @@ namespace hydro {
         std::fstream          shear_plot(file / fmt::format("mvah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
-            Print_Error(std::cerr, "AnisoHydroEvolution::RunHydroSimulation: Failed to open output files.");
+            Print_Error(std::cerr,
+                        "AnisoHydroEvolution::RunHydroSimulation: Failed to "
+                        "open output files.");
             Print_Error(std::cerr, "Pleae make sure the folder ./output/aniso_hydro/ exists.");
             exit(-3333);
         }
@@ -960,7 +1028,8 @@ namespace hydro {
         }
 
         // Initialize simulation
-        T0        = params.T0;    // Note that the temperature is already in units fm^{-1}
+        T0 = params.T0;    // Note that the temperature is already in units
+                           // fm^{-1}
         double z0 = m / T0;
         double e0;    // Equilibrium energy density
         if (z0 == 0) e0 = 3.0 * pow(T0, 4.0) / (PI * PI);
@@ -1105,10 +1174,7 @@ namespace hydro {
 
             if (std::fabs(z) < 0.1)
             {
-                if (n == 2 && r == 0 && q == 0)
-                {
-                    return 2.0 * w * (1.0 + z / 3.0 - z2 / 15.0 + z3 / 35.0 - z4 / 63.0 + z5 / 99.0);
-                }
+                if (n == 2 && r == 0 && q == 0) { return 2.0 * w * (1.0 + z / 3.0 - z2 / 15.0 + z3 / 35.0 - z4 / 63.0 + z5 / 99.0); }
                 else if (n == 2 && r == 0 && q == 1)
                 {
                     return 4.0 / w * (1.0 / 3.0 - z / 15.0 + z2 / 35.0 - z3 / 63.0 + z4 / 99.0 - z5 / 143.0);
@@ -1119,14 +1185,11 @@ namespace hydro {
                 }
                 else if (n == 2 && r == 2 && q == 1)
                 {
-                    return 4.0 / w3
-                           * (1.0 / 15.0 - 2.0 * z / 35.0 + z2 / 21.0 - 4.0 * z3 / 99.0 + 5.0 * z4 / 143.0
-                              - 2.0 * z5 / 65.0);
+                    return 4.0 / w3 * (1.0 / 15.0 - 2.0 * z / 35.0 + z2 / 21.0 - 4.0 * z3 / 99.0 + 5.0 * z4 / 143.0 - 2.0 * z5 / 65.0);
                 }
                 else if (n == 2 && r == 4 && q == 0)
                 {
-                    return 2.0 / w3
-                           * (1.0 / 5.0 - 3.0 * z / 35.0 + z2 / 21.0 - z3 / 33.0 + 3.0 * z4 / 143.0 - z5 / 65.0);
+                    return 2.0 / w3 * (1.0 / 5.0 - 3.0 * z / 35.0 + z2 / 21.0 - z3 / 33.0 + 3.0 * z4 / 143.0 - z5 / 65.0);
                 }
                 else if (n == 4 && r == 2 && q == 0)
                 {
@@ -1135,8 +1198,7 @@ namespace hydro {
                 else if (n == 4 && r == 2 && q == 1)
                 {
                     return 4.0 / w
-                           * (1.0 / 15.0 - 2.0 * z / 105.0 + z2 / 105.0 - 4.0 * z3 / 693.0 + 5.0 * z4 / 1287.0
-                              - 2.0 * z5 / 715.0);
+                           * (1.0 / 15.0 - 2.0 * z / 105.0 + z2 / 105.0 - 4.0 * z3 / 693.0 + 5.0 * z4 / 1287.0 - 2.0 * z5 / 715.0);
                 }
                 else if (n == 4 && r == 4 && q == 0)
                 {
@@ -1155,8 +1217,7 @@ namespace hydro {
                     return (w * (-1.0 + z + (1.0 + z) * (1.0 + z) * t)) / (4.0 * z);    // I calculated by hand
                 else if (n == 4 && r == 2 && q == 1) return (3.0 + z + (1.0 + z) * (z - 3.0) * t) / (4.0 * z * z * w);
                 else if (n == 4 && r == 4 && q == 0)
-                    return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t)
-                           / (4.0 * z * z * w);    // I calculated by hand
+                    return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);    // I calculated by hand
                 else assert("Unsupported choice");
             }
             return -inf;
@@ -1164,8 +1225,8 @@ namespace hydro {
 
         auto integrand = [=](double p_bar)
         {
-            return std::pow(p_bar, n + s + 1) * std::pow(1.0 + std::pow(m_bar / p_bar, 2.0), (double)s / 2.0)
-                   * Rnrq(p_bar) * std::exp(-std::sqrt(p_bar * p_bar + m_bar * m_bar));
+            return std::pow(p_bar, n + s + 1) * std::pow(1.0 + std::pow(m_bar / p_bar, 2.0), (double)s / 2.0) * Rnrq(p_bar)
+                   * std::exp(-std::sqrt(p_bar * p_bar + m_bar * m_bar));
         };
 
         double result = norm * GausQuad(integrand, 0, inf, tol, max_depth);

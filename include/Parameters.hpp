@@ -42,13 +42,7 @@ struct SimulationParameters {
     static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
 
     void SetParameter(const char* name, double value);
-    void SetParameters(double _tau_0,
-                       double _Lambda_0,
-                       double _xi_0,
-                       double _alpah_0,
-                       double _tau_f,
-                       double _mass,
-                       double _eta_s);
+    void SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _eta_s);
     void SetInitialTemperature();
     void SetAnisotropicVariables();
 

@@ -162,6 +162,7 @@ class HydroEmulator:
                              parameter_names=parameter_names,
                              design_points=design_points,
                              simulation_taus=simulation_taus,
+                             hydro_names=hydro_names,
                              use_PT_PL=use_PT_PL)
 
                 hydro_simulations = dict((key, []) for key in hydro_names)

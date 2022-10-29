@@ -55,9 +55,9 @@ int main(int argc, char** argv)
         }
         case 2 :    // Mueller-Israel-Stewart
         {
-            hydro::ViscousHydroEvolution hydro_dnmr;
-            hydro_dnmr.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::MIS);
-            hydro_dnmr.~ViscousHydroEvolution();
+            hydro::ViscousHydroEvolution hydro_mis;
+            hydro_mis.RunHydroSimulation(argv[argc - 1], params, hydro::ViscousHydroEvolution::theory::MIS);
+            hydro_mis.~ViscousHydroEvolution();
             break;
         }
         case 3 :    // Anisotropic

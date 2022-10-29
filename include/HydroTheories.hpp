@@ -73,7 +73,7 @@ namespace hydro {
             double tau_pipi;
         };
 
-        TransportCoefficients CalculateTransportCoefficients(double e, double pi, double Pi, SP& params, theory theo);
+        TransportCoefficients CalculateTransportCoefficients(double e, double pi, double Pi, double tau, SP& params, theory theo);
         bool                  CheckTransportCoeffs(const TransportCoefficients& tc, double cs2);
 
         // Evolution equations

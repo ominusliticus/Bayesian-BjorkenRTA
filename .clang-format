@@ -57,7 +57,7 @@ BreakConstructorInitializers: BeforeColon
 BreakInheritanceList: AfterComma
 BreakStringLiterals: true
 
-ColumnLimit: 120
+ColumnLimit: 135
 ContinuationIndentWidth: 4
 
 DerivePointerAlignment: true

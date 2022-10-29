@@ -57,7 +57,6 @@ class HydroCodeAPI:
     """
 
     def __init__(self, output_path: str) -> None:
-        self.hydro_names = ['ce', 'dnmr', 'vah', 'mvah']
         self.output_path = output_path
 
         try:
@@ -122,8 +121,10 @@ class HydroCodeAPI:
         elif hydro_type == 1:
             prefix = '/dnmr_'
         elif hydro_type == 2:
-            prefix = '/vah_'
+            prefix = '/mis_'
         elif hydro_type == 3:
+            prefix = '/vah_'
+        elif hydro_type == 4:
             prefix = '/mvah_'
 
         f_e = open(
@@ -184,7 +185,7 @@ class HydroCodeAPI:
         for i, name in enumerate(parameter_names):
             params_dict[name] = design_point[i]
         self.ExecuteHydroCode(params_dict, params_dict['hydro_type'])
-        if params_dict['hydro_type'] == 4:
+        if params_dict['hydro_type'] == 5:
             return np.array(self.GetExactResults(params_dict))
         else:
             return np.array(self.GetFromOutputFiles(params_dict,
@@ -195,6 +196,7 @@ class HydroCodeAPI:
                  parameter_names: List[str],
                  design_points: np.ndarray,
                  simulation_taus: np.ndarray,
+                 hydro_names: List[str],
                  use_PT_PL: bool = True) -> None:
         '''
         Run multiple hydro code for multiple design points
@@ -204,7 +206,7 @@ class HydroCodeAPI:
         # Multi-processing to run different hydros in sequence
         manager = Manager()
         hydro_output = manager.dict()
-        for name in self.hydro_names:
+        for name in hydro_names:
             hydro_output[name] = None
 
         def for_multiprocessing(params_dict: Dict[str, float],
@@ -229,7 +231,6 @@ class HydroCodeAPI:
                      for design_point in design_points])
 
             params_dict['hydro_type'] = itr
-            names = ['ce', 'dnmr', 'vah', 'mvah']
             output = np.array(
                 [self.ProcessHydro(
                         params_dict,
@@ -238,7 +239,7 @@ class HydroCodeAPI:
                         use_PT_PL)[observ_indices.astype(int)[i]-1]
                  for i, design_point in enumerate(
                      tqdm(design_points,
-                          desc=f'{names[itr]}: ',
+                          desc=f'{hydro_names[itr]}: ',
                           position=itr))])
             output_dict[key] = output
 
@@ -246,7 +247,7 @@ class HydroCodeAPI:
         # This seems like a programming pattern that I can extract to another
         # function
         if 'Darwin' in uname():
-            for i, name in enumerate(self.hydro_names):
+            for i, name in enumerate(hydro_names):
                 for_multiprocessing(params_dict=params_dict,
                                     parameter_names=parameter_names,
                                     design_points=design_points,
@@ -261,12 +262,12 @@ class HydroCodeAPI:
                                   hydro_output,
                                   key,
                                   i))
-                    for i, key in enumerate(self.hydro_names)]
+                    for i, key in enumerate(hydro_names)]
 
             _ = [proc.start() for proc in jobs]
             _ = [proc.join() for proc in jobs]
 
-        for k, name in enumerate(self.hydro_names):
+        for k, name in enumerate(hydro_names):
             for j, tau in enumerate(simulation_taus):
                 with open(
                         ('{}/{}_simulation_points_n='
