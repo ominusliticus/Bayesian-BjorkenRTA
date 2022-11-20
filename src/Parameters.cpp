@@ -74,7 +74,7 @@ SimulationParameters::SimulationParameters(const char* filename)
     step_size = tau_0 / 20;
     steps     = std::ceil((tau_f - tau_0) / step_size);
 
-    if (this->type == 2 || this->type == 3) SetAnisotropicVariables();
+    if (this->type == 3 || this->type == 4) SetAnisotropicVariables();
     SetInitialTemperature();
     fin.close();
 }    // end SimulationParameters::SimulationParameters(...)
@@ -93,7 +93,7 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
         params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
     params.type = std::atoi(cmdln_args[cmdln_count - 2]);
     params.SetInitialTemperature();
-    if (params.type == 2 || params.type == 3 || params.type == 4) params.SetAnisotropicVariables();
+    if (params.type == 3 || params.type == 4 || params.type == 5) params.SetAnisotropicVariables();
     return params;
 }
 
@@ -128,8 +128,8 @@ std::ostream& operator<<(std::ostream& out, SimulationParameters& params)
 
 bool SimulationParameters::operator==(const SimulationParameters& other)
 {
-    bool is_match = (tau_0 == other.tau_0) && (Lambda_0 == other.Lambda_0) && (xi_0 == other.xi_0)
-                    && (alpha_0 == other.alpha_0) && (tau_f == other.tau_f) && (mass == other.mass) && (C == other.C);
+    bool is_match = (tau_0 == other.tau_0) && (Lambda_0 == other.Lambda_0) && (xi_0 == other.xi_0) && (alpha_0 == other.alpha_0)
+                    && (tau_f == other.tau_f) && (mass == other.mass) && (C == other.C);
     return is_match;
 }
 
@@ -164,13 +164,7 @@ void SimulationParameters::SetParameter(const char* name, double value)
 
 // ----------------------------------------
 
-void SimulationParameters::SetParameters(double _tau_0,
-                                         double _e0,
-                                         double _pt0,
-                                         double _pl0,
-                                         double _tau_f,
-                                         double _mass,
-                                         double _C)
+void SimulationParameters::SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _C)
 {
     tau_0 = _tau_0;
     e0    = _e0;

@@ -182,7 +182,7 @@ void Run200MeV(void)
     auto start = std::chrono::steady_clock::now();
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
-    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 20.1, 0.2 / 0.197, 3.0 / (4.0 * PI));
+    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.2 / 0.197, 3.0 / (4.0 * PI));
     Print(std::cout, params);
 
     auto                 eaxct_start = std::chrono::steady_clock::now();

@@ -133,7 +133,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
     simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
 
-    for i in tqdm(np.arange(start, n)):
+    for i in tqdm(np.arange(start, n), total=n):
         emulator_class = HE(hca=code_api,
                             params_dict=local_params,
                             parameter_names=parameter_names,
@@ -293,7 +293,7 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
             return val
 
         post = np.zeros_like(Cs)
-        for j, name in enumerate(['ce', 'dnmr', 'vah', 'mvah']):
+        for j, name in enumerate(hydro_names):
             for i in range(size):
                 temp = 1
                 for k in range(simulation_taus.size):
@@ -385,12 +385,13 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
     return fig, ax
 
 
-def AverageManyRuns(output_dir: str,
+def AverageManyRuns(hydro_names: List[str],
+                    output_dir: str,
                     runs: int) -> None:
     # TODO: generalize to a script that can read MAP from multi-dim
     #       parameter space
     out_dict = dict((key, np.zeros(runs))
-                    for key in ['ce', 'dnmr', 'vah', 'mvah'])
+                    for key in hydro_names)
     for i in np.arange(runs):
         with open(output_dir + f'/mass_MCMC_run_{i}.pkl', 'rb') as f:
             mcmc_chains = pickle.load(f)
@@ -411,7 +412,8 @@ def AverageManyRuns(output_dir: str,
         print(f'{key}: {avg[key]} +/- {std[key]}')
 
 
-def analyze_saved_runs(path_to_output: str,
+def analyze_saved_runs(hydro_names: List[str],
+                       path_to_output: str,
                        number_of_runs: int,
                        posterior_fig: plt.Figure,
                        posterior_ax: plt.Axes) -> None:
@@ -420,7 +422,7 @@ def analyze_saved_runs(path_to_output: str,
     # data frames to be used by seaborn and draw posteriors
     dfs = pd.DataFrame(columns=[r'$\mathcal C$', 'hydro'])
     df_special = pd.DataFrame(columns=[r'$\mathcal C$', 'weight', 'hydro'])
-    all_counts = dict((key, []) for key in ['ce', 'dnmr', 'vah', 'mvah'])
+    all_counts = dict((key, []) for key in hydro_names)
     x = np.random.randint(number_of_runs)
     for i in range(number_of_runs):
         with open(f'{path_to_output}/mass_MCMC_run_{i}.pkl', 'rb') as f:
@@ -545,7 +547,8 @@ if __name__ == "__main__":
                         n=total_runs,
                         start=0)
 
-        AverageManyRuns(output_dir=f'./pickle_files/{output_folder}',
+        AverageManyRuns(hydro_names=hydro_names,
+                        output_dir=f'./pickle_files/{output_folder}',
                         runs=total_runs)
 
         fig, ax = PlotAnalyticPosteriors(
@@ -559,7 +562,8 @@ if __name__ == "__main__":
             path_to_output=f'./pickle_files/{output_folder}',
             use_existing_run=False)
 
-        analyze_saved_runs(path_to_output=f'./pickle_files/{output_folder}',
+        analyze_saved_runs(hydro_names=hydro_names,
+                           path_to_output=f'./pickle_files/{output_folder}',
                            number_of_runs=total_runs,
                            posterior_fig=fig,
                            posterior_ax=ax)

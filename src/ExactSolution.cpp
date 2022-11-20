@@ -629,7 +629,6 @@ namespace exact {
         Print(std::cout, "Calculating temperature evoluton.");
         do
         {
-            Print(std::cout, fmt::format("n = {}", n));
 #if USE_PARALLEL
             omp_set_dynamic(0);
 #  pragma omp parallel for shared(e) num_threads(4)
@@ -649,7 +648,7 @@ namespace exact {
                 D[i]        = 1.0 / Temp;
             }
             err = std::abs(last_D - D[steps - 1]) / D[steps - 1];
-            fmt::print("err = {}\t", err);
+            Print(std::cout, fmt::format("n = {}, err = {}", n, err));
             last_D = D[steps - 1];
             n++;
         } while (err > eps);
