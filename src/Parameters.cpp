@@ -93,7 +93,9 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
         params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
     params.type = std::atoi(cmdln_args[cmdln_count - 2]);
     params.SetInitialTemperature();
+    Print(std::cout, "InitialSetTemperature()");
     if (params.type == 3 || params.type == 4 || params.type == 5) params.SetAnisotropicVariables();
+    Print(std::cout, "SetAnisotropicVariables()");
     return params;
 }
 

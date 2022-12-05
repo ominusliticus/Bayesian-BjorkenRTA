@@ -281,15 +281,15 @@ class HydroBayesianAnalysis(object):
                 self.evidence[name] = sampler.log_evidence_estimate()
 
             try:
-                (cmd(['mkdir', '-p', f'{output_path}/pickle_files'])
+                (cmd(['mkdir', '-p', f'{output_path}'])
                     .check_returncode())
             except (CalledProcessError):
-                print(f"Could not create dir {output_path}/pickle_files")
+                print(f"Could not create dir {output_path}")
 
-            with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
+            with open(f'{output_path}/mcmc_chains.pkl',
                       'wb') as f:
                 pickle.dump(self.MCMC_chains, f)
-            with open(f'{output_path}/pickle_files/evidence.pkl', 'wb') as f:
+            with open(f'{output_path}/evidence.pkl', 'wb') as f:
                 pickle.dump(self.evidence, f)
 
     def CalculateBayesFactor(self, hydro1: str, hydro2: str) -> float:
@@ -334,5 +334,11 @@ class HydroBayesianAnalysis(object):
                          hue='hydro')
         g.map_lower(sns.kdeplot, levels=4, color='black')
         g.tight_layout()
+
+        try:
+            (cmd(['mkdir', '-p', f'{output_dir}/plots'])
+                .check_returncode())
+        except (CalledProcessError):
+            print(f"Could not create dir {output_dir}/plots")
         g.savefig(
             f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')

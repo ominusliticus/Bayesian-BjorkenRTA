@@ -35,7 +35,9 @@
 
 int main(int argc, char** argv)
 {
+    Print(std::cout, "Hello, World!");
     SimulationParameters params = std::move(SimulationParameters::ParseCmdLine(argc, argv));
+    Print(std::cout, "Parameters have been parsed!");
 
     switch (params.type)
     {

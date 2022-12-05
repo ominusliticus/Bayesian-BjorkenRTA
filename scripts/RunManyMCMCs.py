@@ -44,6 +44,90 @@ def convert_hydro_name_to_int(name: str) -> int:
             return 5
 
 
+def get_navier_stokes_ic(
+        energy_density: float, mass: float, eta_s: float, tau: float
+        ) -> Tuple[float, float]:
+    from scipy.special import kn
+    from scipy.integrate import quad
+
+    # calculate energy density given temperature and mass
+    def e(temp, mass):
+        z = mass / temp
+        result = (z ** 2 * kn(2, z) / 2 + z ** 3 * kn(1, z) / 6)
+        return 3 * temp ** 4 * result / np.pi ** 2
+
+    # calculate equilibrium pressure given temperature and mass
+    def p(temp, mass):
+        z = mass / temp
+        return z ** 2 * temp ** 4 * kn(2, z) / (2 * np.pi ** 2)
+
+    # invert given energy density
+    t_min = 0.001 / 0.197
+    t_max = 2.0 / 0.197
+    x_1 = t_min
+    x_2 = t_max
+
+    n = 0
+    flag = 0
+    copy = 0
+    while flag != 1 and n <= 2000:
+        mid = (x_1 + x_2) / 2.0
+        e_mid = e(mid, mass)
+        e_1 = e(x_1, mass)
+
+        if np.abs(e_mid - energy_density) < 1e-6:
+            break
+
+        if (e_mid - energy_density) * (e_1 - e_mid) <= 0.0:
+            x_2 = mid
+        else:
+            x_1 = mid
+
+        n += 1
+        if n == 1:
+            copy = mid
+
+        if n > 4:
+            if np.abs(copy - mid) < 1e-6:
+                flag = 1
+            copy = mid
+
+    # Function needed to calculate beta_pi
+    def I_42_1(temp, mass):
+        def k0n(z):
+            return quad(
+                lambda th: np.exp(- z * np.cosh(th)) / np.cosh(th),
+                0, np.inf)[0]
+        z = mass / temp
+        result = (kn(5, z) - 7 * kn(3, z) + 2 * kn(1, z)) / 16 - k0n(z)
+        return temp ** 5 * z ** 5 * result / (30 * np.pi ** 2)
+
+    # define quantities necessary to calculate eta and zeta
+    beta = 1 / mid
+    m_e = energy_density
+    m_p = p(mid, mass)
+    m_s = (energy_density + m_p) / mid
+    z = mass / mid
+    cs2 = (m_e + m_p) / (3 * m_e + (3 + z ** 2) * m_p)
+    beta_pi = beta * I_42_1(mid, mass)
+    beta_Pi = (5 / 3) * beta_pi - (m_e + m_p) * cs2
+    print(f'm_p: {m_p}')
+    print(f'beta_pi: {beta_pi}')
+    print(f'beta_Pi: {beta_Pi}')
+
+    # calculate eta and zeta
+    eta = eta_s * m_s
+    zeta = beta_Pi * eta / beta_pi
+    print(f'eta: {eta}')
+    print(f'zeta: {zeta}')
+
+    # calculate P_L and P_T for navier-stokes initial conditions
+    pt = m_p + ((2 / 3) * eta - zeta) / tau
+    pl = m_p - ((4 / 3) * eta + zeta) / tau
+
+    return pt, pl
+
+
 def fit_and_plot_posterior(xdata: np.ndarray,
                            ydata: np.ndarray,
                            points: np.ndarray,
@@ -494,20 +578,38 @@ def analyze_saved_runs(hydro_names: List[str],
 
 
 if __name__ == "__main__":
+    # local_params = {
+    #     'tau_0': 0.1,
+    #     'e0': 12.4991,
+    #     'pt0': 6.0977,
+    #     'pl0': 0.0090,
+    #     'tau_f': 12.1,
+    #     'mass': 0.2 / 0.197,
+    #     'C': 5 / (4 * np.pi),
+    #     'hydro_type': 0
+    # }
+
+    # Navier-Stokes Initial Conditions
+    e0 = 12.4991
+    tau_0 = 0.1
+    eta_s = 5 / (4 * np.pi)
+    mass = 0.2 / 0.197
+    pt0, pl0 = get_navier_stokes_ic(e0, mass, eta_s, tau_0)
+    print(f"pt0: {pt0}, pl0: {pl0}")
     local_params = {
-        'tau_0': 0.1,
-        'e0': 12.4991,
-        'pt0': 6.0977,
-        'pl0': 0.0090,
+        'tau_0': e0,
+        'e0': e0,
+        'pt0': pt0,
+        'pl0': pl0,
         'tau_f': 12.1,
-        'mass': 0.2 / 0.197,
-        'C': 5 / (4 * np.pi),
+        'mass': mass,
+        'C': eta_s,
         'hydro_type': 0
     }
 
     total_runs = 10
     # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'Mass_run_6'
+    output_folder = 'Mass_run_NS'
 
     exact_pseudo, pseudo_error = SampleObservables(
         error_level=0.05,
