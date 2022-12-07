@@ -29,6 +29,7 @@
 #include "ExactSolution.hpp"
 #include "Integration.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -66,6 +67,11 @@ namespace exact {
     const int    max_depth  = 0;
     const int    max_depth2 = 1;
 
+    ExactSolution::ExactSolution(SP& params)
+    {
+        D.resize(params.steps);
+    }
+
     ////////////////////////////////////////////////////////////
     ///        Code need by all subsequent functions         ///
     ////////////////////////////////////////////////////////////
@@ -75,7 +81,11 @@ namespace exact {
         double tau_0     = params.tau_0;
         double step_size = params.step_size;
 
-        int    n      = (int)floor((z - tau_0) / step_size);
+        int n = (int)floor((z - tau_0) / step_size);
+        // Hack added to to avoid  a heap-overflow identified by -fsanitize=address
+        // Previous to this, we were just accessing memory we weren't allowed to, but without a
+        // segmentation fault, probably because the vector owned the next slot in memory anyway.
+        if (n >= params.steps - 1) { n = params.steps - 2; }
         double z_frac = (z - tau_0) / step_size - (double)n;
 
         return 1.0 / ((1.0 - z_frac) * D[n] + z_frac * D[n + 1]);

@@ -61,6 +61,7 @@ namespace exact {
 
     struct ExactSolution {
         ExactSolution() = default;
+        ExactSolution(SP& params);
 
         // Get temperature based current time step
         double GetTemperature(double z, SP& params);
