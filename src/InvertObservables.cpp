@@ -140,7 +140,6 @@ void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_
             return;
         }
         ++n;
-        if (n > 3) exit(-10);
     }
     Print(std::cerr, "Failed to converge within steps");
     Print(std::cout, "Failed to converge: convergence should not fail. Try increasing N_max");
