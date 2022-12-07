@@ -115,16 +115,12 @@ void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_
     bool      converged        = false;
     // for (size_t n = 0; n < 10000; ++n)
     size_t n = 0;
-    Print(std::cout, hydro_fields);
-    Print(std::cout, F);
     while (!converged)
     {
-        mat J = evo.ComputeJacobian(mass, aniso_vars);
-        Print(std::cout, "The Jacobian probkem", J);
+        mat J            = evo.ComputeJacobian(mass, aniso_vars);
         delta_aniso_vars = -J.i() * F;
         // rescale if difference is too large
         double mag_delta_aniso_vars = arma::norm(delta_aniso_vars, 2);
-        Print(std::cout, "The magnitude of the vector", mag_delta_aniso_vars);
         if (mag_delta_aniso_vars > step_max)
         {
             for (auto& x : delta_aniso_vars)
@@ -132,11 +128,9 @@ void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_
             mag_delta_aniso_vars = step_max;
         }
         double step_adj = LineBackTrack(hydro_fields, aniso_vars, delta_aniso_vars, mass);
-        Print(std::cout, "sted_adj", step_adj);
         // Update aniso variables
         aniso_vars = aniso_vars + step_adj * delta_aniso_vars;
         F          = ComputeF(hydro_fields, mass, aniso_vars);
-        Print(std::cout, F);
         if (aniso_vars(0) < 0.0 || aniso_vars(1) < 0.0 || aniso_vars(2) < -1.0)
             Print(std::cout, "Variable inversion gave unphysical anisotropic parameters.");
         // Check for convergence

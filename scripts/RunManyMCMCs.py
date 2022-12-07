@@ -591,7 +591,8 @@ if __name__ == "__main__":
 
     # Navier-Stokes Initial Conditions
     e0 = 12.4991
-    tau_0 = 0.1
+    tau_0 = 5.0
+    tau_f = 25.0
     eta_s = 5 / (4 * np.pi)
     mass = 0.2 / 0.197
     pt0, pl0 = get_navier_stokes_ic(e0, mass, eta_s, tau_0)
@@ -601,7 +602,7 @@ if __name__ == "__main__":
         'e0': e0,
         'pt0': pt0,
         'pl0': pl0,
-        'tau_f': 12.1,
+        'tau_f': tau_f,
         'mass': mass,
         'C': eta_s,
         'hydro_type': 0
