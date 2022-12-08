@@ -111,15 +111,10 @@ def get_navier_stokes_ic(
     cs2 = (m_e + m_p) / (3 * m_e + (3 + z ** 2) * m_p)
     beta_pi = beta * I_42_1(mid, mass)
     beta_Pi = (5 / 3) * beta_pi - (m_e + m_p) * cs2
-    print(f'm_p: {m_p}')
-    print(f'beta_pi: {beta_pi}')
-    print(f'beta_Pi: {beta_Pi}')
 
     # calculate eta and zeta
     eta = eta_s * m_s
     zeta = beta_Pi * eta / beta_pi
-    print(f'eta: {eta}')
-    print(f'zeta: {zeta}')
 
     # calculate P_L and P_T for navier-stokes initial conditions
     pt = m_p + ((2 / 3) * eta - zeta) / tau
@@ -173,10 +168,11 @@ def SampleObservables(error_level: float,
                                    design_point=[true_params[key] for key in
                                                  parameter_names],
                                    use_PT_PL=True)
-    tau_start = 0.1
+    tau_start = true_params['tau_0']
     delta_tau = tau_start / 20.0
     observ_indices = (simulation_taus
                       - np.full_like(simulation_taus, tau_start)) / delta_tau
+
 
     E = np.array([output[int(i)-1, 1] for i in observ_indices])
     pt = np.array([output[int(i)-1, 2] for i in observ_indices])
@@ -207,11 +203,14 @@ def RunManyMCMCRuns(hydro_names: List[str],
                     local_params: Dict[str, float],
                     points_per_feat: int,
                     n: int,
-                    start: int = 0) -> None:
+                    start: int = 0
+                    use_existing_runs: bool=False) -> None:
     '''
     Runs the entire analysis suite, including the emulator fiiting `n` times
     and saves MCMC chains in file indexed by the iteration number
     '''
+    if use_existing_runs:
+        return
     code_api = HCA(str(Path(f'{output_dir}/swap').absolute()))
     parameter_names = ['C']
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
@@ -408,6 +407,9 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
                   + '/for_analytic_hydro_output.pkl', 'rb') as f:
             for_analytic_hydro_output = pickle.load(f)
 
+        if np.any(np.isnan(for_analytic_hydro_output)):
+            print('NaN detected in anaylitcally calculated posterior')
+            return None, None
         fig, ax = make_plot(for_analytic_hydro_output)
         lines = ax.get_lines()
         for k, line in enumerate(lines):
@@ -423,7 +425,8 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
         # Scan parameter space for hydro models
         manager = Manager()
         for_analytic_hydro_output = manager.dict()
-        tau_start, delta_tau = 0.1, 0.1 / 20.0
+        tau_start = local_params['tau_0']
+        delta_tau = tau_start / 20.0
         observ_indices = (simulation_taus
                           - np.full_like(simulation_taus,
                                          tau_start)) / delta_tau
@@ -454,6 +457,9 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
                   + '/for_analytic_hydro_output.pkl', 'wb') as f:
             pickle.dump(for_analytic_hydro_output, f)
 
+        if np.any(np.isnan(for_analytic_hydro_output)):
+            print('NaN detected in anaylitcally calculated posterior')
+            return None, None
         fig, ax = make_plot(for_analytic_hydro_output)
         lines = ax.get_lines()
         for k, line in enumerate(lines):
@@ -596,7 +602,6 @@ if __name__ == "__main__":
     eta_s = 5 / (4 * np.pi)
     mass = 0.2 / 0.197
     pt0, pl0 = get_navier_stokes_ic(e0, mass, eta_s, tau_0)
-    print(f"pt0: {pt0}, pl0: {pl0}")
     local_params = {
         'tau_0': e0,
         'e0': e0,
@@ -637,10 +642,13 @@ if __name__ == "__main__":
     #      [0.0147574,  0.00480543, 0.00352685],
     #      [0.01325973, 0.00427459, 0.00319652]]
     # )
+    print(exact_pseudo)
+    print(pseudo_error)
 
     hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
 
     if True:
+        use_existing = True
         RunManyMCMCRuns(hydro_names=hydro_names,
                         exact_pseudo=exact_pseudo,
                         pseudo_error=pseudo_error,
@@ -648,7 +656,8 @@ if __name__ == "__main__":
                         local_params=local_params,
                         points_per_feat=20,
                         n=total_runs,
-                        start=0)
+                        start=0,
+                        use_existing_runs=use_existing)
 
         AverageManyRuns(hydro_names=hydro_names,
                         output_dir=f'./pickle_files/{output_folder}',
@@ -663,8 +672,10 @@ if __name__ == "__main__":
             pseudo_data=exact_pseudo,
             pseudo_error=pseudo_error,
             path_to_output=f'./pickle_files/{output_folder}',
-            use_existing_run=False)
+            use_existing_run=use_existing)
 
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(10, 10))
         analyze_saved_runs(hydro_names=hydro_names,
                            path_to_output=f'./pickle_files/{output_folder}',
                            number_of_runs=total_runs,
