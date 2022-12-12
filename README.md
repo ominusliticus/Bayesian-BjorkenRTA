@@ -152,13 +152,16 @@ Assuming that you have already run the `make` command in the top directory of th
 project, an example parameter estimation workflow would look something like this
 ```python
 from numpy import array, pi, linspace
+import pickle
 import HydroCodeAPI as HCA
 import HydroEmulation as HE
 import HydroBayesianAnalysis as HBA
 # some setup
-output_path = './'
+hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
+output_path = './output'
 parameter_names = ['C']
 parameter_ranges = array([[1 / (4 * pi), [10 / (4 * pi)]])
+# times when we "collect" data
 simulation_taus = linspace(5.1, 12.1, 8, endpoint=True)
 # instantiate HydroCodeAPI
 code_api = HCA(str(Path(f'{output_path}/swap').absolute()))
@@ -169,27 +172,30 @@ emulator_class = HE(
     parameter_names=parameter_names,
     parameter_ranges=parameter_ranges,
     simulation_taus=simulation_taus,
-    hydro_names=code_api.hydro_names,
+    hydro_names=hydro_names,
     use_existing_emulators=False,
     use_PT_PL=True,
-    output_dir=output_dir,
-    samples_per_feature=points_per_feat)
+    output_path=output_dir,
+    samples_per_feature=20)
 # Instantiate HydroBayesianAnalysis
 ba_class = HBA(
+    hydro_names=hydro_names,
     default_params=local_params,
     parameter_names=parameter_names,
     parameter_ranges=parameter_ranges,
     simulation_taus=simulation_taus)
 # Run MCMC sampler
 ba_class.RunMCMC(
-    nsteps=number_steps,
-    nburn=50,
+    nsteps=400,
+    nburn=100,
     ntemps=20,
     exact_observables=exact_pseudo,
     exact_error=pseudo_error,
     GP_emulators=emulator_class.GP_emulators,
     output_path=str(Path(f'{output_path}/swap').absolute()),
     read_from_file=False)
+with open(f'{output_dir}/mcmc_chains.pkl, 'wb') as f:
+    pickle.dump(ba_class.MCM_chains, f)
 ```
 
 # How to cite
