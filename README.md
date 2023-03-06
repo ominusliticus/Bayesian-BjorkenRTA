@@ -123,9 +123,10 @@ The `hydro_type`'s are as follows
 | :---           | :--: |
 | Chapman-Enskog | 0 |
 | DNMR           | 1 |
-| VAH            | 2 |
-| Modified VAH   | 3 |
-| Exact RTA Soln | 4 |  
+| MIS		 | 2 |
+| VAH            | 3 |
+| Modified VAH   | 4 |
+| Exact RTA Soln | 5 |  
 
 The `hydro_type` field is automatically modified by `HydroCodeAPI`, in
 accordance with which hydro name you give it.  
