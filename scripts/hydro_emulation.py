@@ -41,7 +41,7 @@ from sklearn.gaussian_process import kernels as krnl
 import pickle
 
 # To interface with Hydro code
-from HydroCodeAPI import HydroCodeAPI
+from hydro_code_api import HydroCodeAPI
 
 # For plotting residuals
 import matplotlib.pyplot as plt
@@ -104,7 +104,7 @@ class HydroEmulator:
         try:
             cmd(['mkdir', '-p', output_path]).check_returncode()
         except (CalledProcessError):
-            print(f'Failed to creat dir {output_path}')
+            print(f'Failed to create dir {output_path}')
 
         self.GP_emulators = dict((key, None) for key in hydro_names)
         if use_existing_emulators:
@@ -158,12 +158,12 @@ class HydroEmulator:
                             f.write(f'{entry} ')
                         f.write('\n')
 
-                hca.RunHydro(params_dict=params_dict,
-                             parameter_names=parameter_names,
-                             design_points=design_points,
-                             simulation_taus=simulation_taus,
-                             hydro_names=hydro_names,
-                             use_PT_PL=use_PT_PL)
+                hca.run_hydro(params_dict=params_dict,
+                              parameter_names=parameter_names,
+                              design_points=design_points,
+                              simulation_taus=simulation_taus,
+                              hydro_names=hydro_names,
+                              use_PT_PL=use_PT_PL)
 
                 hydro_simulations = dict((key, []) for key in hydro_names)
                 for k, name in enumerate(hydro_names):
@@ -305,18 +305,18 @@ class HydroEmulator:
             f_emulator_scores.close()
             f_pickle_emulators.close()
 
-    def TestEmulator(self,
-                     hca: HydroCodeAPI,
-                     params_dict: Dict[str, float],
-                     parameter_names: List[str],
-                     parameter_ranges: np.ndarray,
-                     simulation_taus: np.ndarray,
-                     hydro_names: List[str],
-                     use_existing_emulators: bool,
-                     use_PT_PL: bool,
-                     output_statistics: bool,
-                     plot_emulator_vs_test_points: bool,
-                     output_path: str) -> None:
+    def test_emulator(self,
+                      hca: HydroCodeAPI,
+                      params_dict: Dict[str, float],
+                      parameter_names: List[str],
+                      parameter_ranges: np.ndarray,
+                      simulation_taus: np.ndarray,
+                      hydro_names: List[str],
+                      use_existing_emulators: bool,
+                      use_PT_PL: bool,
+                      output_statistics: bool,
+                      plot_emulator_vs_test_points: bool,
+                      output_path: str) -> None:
         '''
         This function takes a given set of emulators and tests
         them for how accurately they run\n
@@ -340,11 +340,11 @@ class HydroEmulator:
                       format(output_path, len(parameter_names)), 'rb') as f:
                 hydro_simulations = pickle.load(f)
         else:
-            hca.RunHydro(params_dict=params_dict,
-                         parameter_names=parameter_names,
-                         design_points=self.test_points,
-                         simulation_taus=simulation_taus,
-                         use_PT_PL=use_PT_PL)
+            hca.run_hydro(params_dict=params_dict,
+                          parameter_names=parameter_names,
+                          design_points=self.test_points,
+                          simulation_taus=simulation_taus,
+                          use_PT_PL=use_PT_PL)
 
             hydro_simulations = dict((key, []) for key in hydro_names)
             for k, name in enumerate(hydro_names):
@@ -377,7 +377,8 @@ class HydroEmulator:
         if plot_emulator_vs_test_points:
             C = np.linspace(1 / (4 * np.pi), 10 / (4 * np.pi), 1000)
             feats = np.linspace(parameter_ranges[:, 0],
-                                parameter_ranges[:, 1], 1000)
+                                parameter_ranges[:, 1],
+                                1000)
             fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(3 * 7, 7))
             fig.patch.set_facecolor('white')
             cmap = get_cmap(10, 'tab10')

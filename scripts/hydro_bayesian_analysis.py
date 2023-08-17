@@ -81,7 +81,7 @@ class HydroBayesianAnalysis(object):
         self.MCMC_chains = {}   # Dict[str, np.ndarray]
         self.evidence = {}      # Dict[str, float]
 
-    def LogPrior(self,
+    def log_prior(self,
                  evaluation_point: np.ndarray,
                  parameter_ranges: np.ndarray) -> float:
         '''
@@ -103,7 +103,7 @@ class HydroBayesianAnalysis(object):
         else:
             return -np.inf
 
-    def LogLikelihood(self,
+    def loglikelihood(self,
                       evaluation_point: np.ndarray,
                       true_observables: np.ndarray,
                       true_errors: np.ndarray,
@@ -127,10 +127,10 @@ class HydroBayesianAnalysis(object):
         -----------
         Float - log-likelihood
         '''
-        def PredictObservable(evaluation_points: np.ndarray,
-                              hydro_name: str,
-                              tau_index: int,
-                              GP_emulator: Dict) -> np.ndarray:
+        def predict_observable(evaluation_points: np.ndarray,
+                               hydro_name: str,
+                               tau_index: int,
+                               GP_emulator: Dict) -> np.ndarray:
             """
             Function takes in the emulators list, and tau_index corresponding
             to the observation to be evaluated at and returns the predicted
@@ -167,9 +167,9 @@ class HydroBayesianAnalysis(object):
         running_log_likelihood = 0
         for k in range(true_observables.shape[0]):
             emulation_values, emulation_variance = \
-                 PredictObservable(evaluation_point,
-                                   hydro_name,
-                                   k, GP_emulator)
+                 predict_observable(evaluation_point,
+                                    hydro_name,
+                                    k, GP_emulator)
 
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
@@ -196,15 +196,15 @@ class HydroBayesianAnalysis(object):
 
         return running_log_likelihood
 
-    def RunMCMC(self,
-                nsteps: int,
-                nburn: int,
-                ntemps: int,
-                exact_observables: np.ndarray,
-                exact_error: np.ndarray,
-                GP_emulators: Dict,
-                output_path: str,
-                read_from_file: bool = False) -> Dict:
+    def run_mcmc(self,
+                 nsteps: int,
+                 nburn: int,
+                 ntemps: int,
+                 exact_observables: np.ndarray,
+                 exact_error: np.ndarray,
+                 GP_emulators: Dict,
+                 output_path: str,
+                 read_from_file: bool = False) -> Dict:
         """
         Parameters:
         --------------
@@ -249,8 +249,8 @@ class HydroBayesianAnalysis(object):
                                           ntemps=ntemps,
                                           Tmax=10,
                                           threads=4,
-                                          logl=self.LogLikelihood,
-                                          logp=self.LogPrior,
+                                          logl=self.loglikelihood,
+                                          logp=self.log_prior,
                                           loglargs=[exact_observables[:, 1:4],
                                                     exact_error,
                                                     name,
@@ -292,7 +292,7 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/evidence.pkl', 'wb') as f:
                 pickle.dump(self.evidence, f)
 
-    def CalculateBayesFactor(self, hydro1: str, hydro2: str) -> float:
+    def calculate_bayes_factor(self, hydro1: str, hydro2: str) -> float:
         """
         Parameters:
         -------------
@@ -305,7 +305,7 @@ class HydroBayesianAnalysis(object):
         """
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
-    def PlotPosteriors(self, output_dir: str, axis_names: List[str]):
+    def plot_posteriors(self, output_dir: str, axis_names: List[str]):
         # TODO: Add true and MAP values to plot
         dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
         # pallette = sns.color_palette('Colorblind')

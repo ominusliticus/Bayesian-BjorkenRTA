@@ -5,7 +5,7 @@ echo pwd
 mkdir -p 3rd_party
 cd 3rd_party
 
-if [[ ! -d aramadillo ]]
+if [ -d aramadillo ];
 then 
     echo "armadillo library exists"
 else

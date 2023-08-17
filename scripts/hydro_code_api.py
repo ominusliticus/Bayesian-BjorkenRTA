@@ -65,9 +65,9 @@ class HydroCodeAPI:
             print(f'Failed to create dir {output_path}')
         # data slots for storing hydro runs
 
-    def PrintCommandLineArgs(self,
-                             params_dict: Dict[str, float]
-                             ) -> List[str]:
+    def print_commandline_args(self,
+                               params_dict: Dict[str, float]
+                               ) -> List[str]:
         '''
         Function ouputs file "params.txt" to the Code/util folder to
         be used by the Code/build/exact_solution.x program
@@ -81,15 +81,15 @@ class HydroCodeAPI:
             return_val += f' {keys[i]} {values[i]}'
         return return_val.split()
 
-    def ExecuteHydroCode(self,
-                         params_dict: Dict[str, float],
-                         which_hydro: int) -> None:
+    def execute_hydro_code(self,
+                           params_dict: Dict[str, float],
+                           which_hydro: int) -> None:
         '''
         Function calls the C++ excecutable that run hydro calculations
         '''
         cd('../')
         cmd_list = ['./build/exact_solution.x',
-                    *self.PrintCommandLineArgs(params_dict),
+                    *self.print_commandline_args(params_dict),
                     f'{which_hydro}',
                     self.output_path]
         try:
@@ -99,17 +99,17 @@ class HydroCodeAPI:
         cd('scripts/')
         return None
 
-    def ConvertToPTandPL(self,
-                         p: np.ndarray,
-                         pi: np.ndarray,
-                         Pi: np.ndarray) -> np.ndarray:
+    def convert_to_PL_and_PT(self,
+                             p: np.ndarray,
+                             pi: np.ndarray,
+                             Pi: np.ndarray) -> np.ndarray:
         pt = Pi + pi / 2 + p
         pl = Pi - pi + p
         return pt, pl
 
-    def GetFromOutputFiles(self,
-                           params_dict: Dict[str, float],
-                           use_PT_PL: bool) -> np.ndarray:
+    def get_from_output_files(self,
+                              params_dict: Dict[str, float],
+                              use_PT_PL: bool) -> np.ndarray:
         '''
         Opens outputted files from C++ programs and extracts relevant points
         '''
@@ -146,7 +146,11 @@ class HydroCodeAPI:
                                 f_pi[i].split()[1], f_Pi[i].split()[1],\
                                 f_e[i].split()[2]
             if use_PT_PL:
-                p1, p2 = self.ConvertToPTandPL(float(p), float(pi), float(Pi))
+                p1, p2 = self.convert_to_PL_and_PT(
+                    float(p),
+                    float(pi),
+                    float(Pi)
+                )
             else:
                 p1, p2 = float(pi), float(Pi)
 
@@ -158,8 +162,8 @@ class HydroCodeAPI:
 
         return np.array(out_list)
 
-    def GetExactResults(self,
-                        params_dict: Dict[str, float]) -> np.ndarray:
+    def get_exact_results(self,
+                          params_dict: Dict[str, float]) -> np.ndarray:
         '''
         Open output file from running Boltzmann RTA solution
         '''
@@ -174,30 +178,30 @@ class HydroCodeAPI:
                                for line in f_exact.readlines()])
             return output
 
-    def ProcessHydro(self,
-                     params_dict: Dict[str, float],
-                     parameter_names: List[str],
-                     design_point: np.ndarray,
-                     use_PT_PL: bool = True) -> np.ndarray:
+    def process_hydro(self,
+                      params_dict: Dict[str, float],
+                      parameter_names: List[str],
+                      design_point: np.ndarray,
+                      use_PT_PL: bool = True) -> np.ndarray:
         '''
         Helper function to facilitate code running and file reading step
         '''
         for i, name in enumerate(parameter_names):
             params_dict[name] = design_point[i]
-        self.ExecuteHydroCode(params_dict, params_dict['hydro_type'])
+        self.execute_hydro_code(params_dict, params_dict['hydro_type'])
         if params_dict['hydro_type'] == 5:
-            return np.array(self.GetExactResults(params_dict))
+            return np.array(self.get_exact_results(params_dict))
         else:
-            return np.array(self.GetFromOutputFiles(params_dict,
-                                                    use_PT_PL))
+            return np.array(self.get_from_output_files(params_dict,
+                                                       use_PT_PL))
 
-    def RunHydro(self,
-                 params_dict: Dict[str, float],
-                 parameter_names: List[str],
-                 design_points: np.ndarray,
-                 simulation_taus: np.ndarray,
-                 hydro_names: List[str],
-                 use_PT_PL: bool = True) -> None:
+    def run_hydro(self,
+                  params_dict: Dict[str, float],
+                  parameter_names: List[str],
+                  design_points: np.ndarray,
+                  simulation_taus: np.ndarray,
+                  hydro_names: List[str],
+                  use_PT_PL: bool = True) -> None:
         '''
         Run multiple hydro code for multiple design points
         Executes in each hydro theory in parallel
@@ -208,6 +212,21 @@ class HydroCodeAPI:
         hydro_output = manager.dict()
         for name in hydro_names:
             hydro_output[name] = None
+
+        def map_hydro_to_number(hydro: str) -> int:
+            match hydro:
+                case 'ce':
+                    return 0
+                case 'dnmr':
+                    return 1
+                case 'mis':
+                    return 2
+                case 'vah':
+                    return 3
+                case 'mvah':
+                    return 4
+                case 'exact':
+                    return 5
 
         def for_multiprocessing(params_dict: Dict[str, float],
                                 parameter_names: List[str],
@@ -232,7 +251,7 @@ class HydroCodeAPI:
 
             params_dict['hydro_type'] = itr
             output = np.array(
-                [self.ProcessHydro(
+                [self.process_hydro(
                         params_dict,
                         parameter_names,
                         design_point,
@@ -247,13 +266,13 @@ class HydroCodeAPI:
         # This seems like a programming pattern that I can extract to another
         # function
         if 'Darwin' in uname():
-            for i, name in enumerate(hydro_names):
+            for name in hydro_names:
                 for_multiprocessing(params_dict=params_dict,
                                     parameter_names=parameter_names,
                                     design_points=design_points,
                                     output_dict=hydro_output,
                                     key=name,
-                                    itr=i)
+                                    itr=map_hydro_to_number(name))
         else:
             jobs = [Process(target=for_multiprocessing,
                             args=(params_dict,

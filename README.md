@@ -76,7 +76,7 @@ the `-lopenblas` and `-llapack` flags, or provide the direct path to the static 
 and include directories.
 
 ## Python Setup
-The python version should be higher than 3.0 (preferably >3.8).
+The python version should be >= 3.10.
 The libraries you need to run the python code are
 (these libraries are fairly version stable)
 |                   |                 |

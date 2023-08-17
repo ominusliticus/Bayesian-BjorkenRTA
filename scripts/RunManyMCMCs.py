@@ -1,8 +1,8 @@
 #!/bin/python3
 # My code
-from HydroBayesianAnalysis import HydroBayesianAnalysis as HBA
-from HydroCodeAPI import HydroCodeAPI as HCA
-from HydroEmulation import HydroEmulator as HE
+from hydro_bayesian_analysis import HydroBayesianAnalysis as HBA
+from hydro_code_api import HydroCodeAPI as HCA
+from hydro_emulation import HydroEmulator as HE
 from my_plotting import costumize_axis, get_cmap
 
 import pickle
@@ -163,11 +163,11 @@ def SampleObservables(error_level: float,
 
     # Generate experimental data
     true_params['hydro_type'] = convert_hydro_name_to_int('exact')
-    output = code_api.ProcessHydro(params_dict=true_params,
-                                   parameter_names=parameter_names,
-                                   design_point=[true_params[key] for key in
-                                                 parameter_names],
-                                   use_PT_PL=True)
+    output = code_api.process_hydro(params_dict=true_params,
+                                    parameter_names=parameter_names,
+                                    design_point=[true_params[key] for key in
+                                                  parameter_names],
+                                    use_PT_PL=True)
     tau_start = true_params['tau_0']
     delta_tau = tau_start / 20.0
     observ_indices = (simulation_taus
@@ -203,7 +203,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
                     local_params: Dict[str, float],
                     points_per_feat: int,
                     n: int,
-                    start: int = 0
+                    start: int = 0,
                     use_existing_runs: bool=False) -> None:
     '''
     Runs the entire analysis suite, including the emulator fiiting `n` times
@@ -232,7 +232,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.RunMCMC(
+        ba_class.run_mcmc(
             nsteps=400,
             nburn=100,
             ntemps=20,
@@ -271,7 +271,7 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                         use_PT_PL=True,
                         output_path=output_dir,
                         samples_per_feature=points_per_feat)
-    emulator_class.TestEmulator(
+    emulator_class.test_emulator(
         hca=code_api,
         params_dict=local_params,
         parameter_names=parameter_names,
@@ -288,18 +288,18 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                    parameter_names=parameter_names,
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
-    ba_class.RunMCMC(nsteps=number_steps,
-                     nburn=50,
-                     ntemps=20,
-                     exact_observables=exact_pseudo,
-                     exact_error=pseudo_error,
-                     GP_emulators=emulator_class.GP_emulators,
-                     read_from_file=False)
+    ba_class.run_mcmc(nsteps=number_steps,
+                      nburn=50,
+                      ntemps=20,
+                      exact_observables=exact_pseudo,
+                      exact_error=pseudo_error,
+                      GP_emulators=emulator_class.GP_emulators,
+                      read_from_file=False)
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
-    ba_class.PlotPosteriors(output_dir=output_dir,
-                            axis_names=[r'$\mathcal C$'])
+    ba_class.plot_posteriors(output_dir=output_dir,
+                             axis_names=[r'$\mathcal C$'])
 
 
 def PlotAnalyticPosteriors(hydro_names: List[str],
@@ -433,7 +433,7 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
 
         def for_multiprocessing(dic: Dict, key: str, itr: int):
             local_params['hydro_type'] = convert_hydro_name_to_int(key)
-            output = np.array([[code_api.ProcessHydro(
+            output = np.array([[code_api.process_hydro(
                                     params_dict=local_params,
                                     parameter_names=parameter_names,
                                     design_point=[C],
@@ -612,6 +612,7 @@ if __name__ == "__main__":
         'C': eta_s,
         'hydro_type': 0
     }
+    print(local_params)
 
     total_runs = 10
     # output_folder = 'very_large_mcmc_run_1'
@@ -621,7 +622,8 @@ if __name__ == "__main__":
         error_level=0.05,
         true_params=local_params,
         parameter_names=['C'],
-        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True))
+        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True)
+    )
     # exact_pseudo = np.array(
     #     [[5.1,  0.75470255, 0.27463283, 0.1588341],
     #      [6.1,  0.6216813,  0.21947875, 0.14180029],
@@ -647,8 +649,9 @@ if __name__ == "__main__":
 
     hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
 
-    if True:
-        use_existing = True
+    if True:  # Do averaging over many runs if True
+        #     # Just run very large MCMC if False
+        use_existing = False
         RunManyMCMCRuns(hydro_names=hydro_names,
                         exact_pseudo=exact_pseudo,
                         pseudo_error=pseudo_error,
