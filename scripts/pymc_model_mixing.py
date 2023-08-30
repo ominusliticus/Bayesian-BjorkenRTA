@@ -1,5 +1,3 @@
-#  Copyright 2023 Kevin Ingles
-#
 #  Permission is hereby granted, free of charge, to any person obtaining
 #  a copy of this software and associated documentation files (the
 #  "Software"), to deal in the Software without restriction, including
@@ -39,6 +37,8 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Type
+from typing import Iterable
 
 from pathlib import Path
 
@@ -85,7 +85,7 @@ def generate_emulator_training_points(
     # latin hyper cube sample parameter space
     unit = lhs(
         n=len(hydro_inference_parameters),
-        samples=40 * len(hydro_inference_parameters),
+        samples=10 * len(hydro_inference_parameters),
         criterion='maximin',
     )
     design_points = hydro_inference_parameters_ranges[:, 0] + \
@@ -201,10 +201,10 @@ def sequential_calibration(
 
 
 def simultaneous_calibration(
-    local_parameters: Dict[str, Any],
     hydro_names: List[str],
-    hyrdo_inference_parameters: List[str],
+    hydro_inference_parameters: List[str],
     hydro_inference_parameters_ranges: np.ndarray,
+    observation_times: np.ndarray,
     observation_data: np.ndarray,
     observation_error: np.ndarray,
     emulator_training_data: Dict[str, np.ndarray],
@@ -227,37 +227,119 @@ def simultaneous_calibration(
         # the function prior (this gp.marginal_likelihood function call)
         # To predict, you can then use the stored gp and call the .predict
         # or .condtional methods and pass the new point
-        emulators = dict((key, []) for key in hydro_names)
-        for name in hydro_names:
-            for i, training_data in enumerate(emulator_training_data[name]):
-                observable_emulators = []
-                for j, observable in enumerate(['e', 'pi', 'Pi']):
-                    observable_emulators.append(
-                        pm.gp.Marginal(cov_func=cov_func)
-                    )
-                    observable_emulators[-1].marginal_likelihood(
-                        name=f'{name}_{observable}_{i}',
-                        X=emulator_design_points,
-                        y=training_data[:, j + 1],
-                        sigma=0,
-                    )
-                emulators[name].append(observable_emulators)
+        # emulators = dict((key, []) for key in hydro_names)
+        # for name in hydro_names:
+        #     for i, training_data in enumerate(emulator_training_data[name]):
+        #         observable_emulators = []
+        #         for j, observable in enumerate(['e', 'pi', 'Pi']):
+        #             observable_emulators.append(
+        #                 pm.gp.Marginal(cov_func=cov_func)
+        #             )
+        #             observable_emulators[-1].marginal_likelihood(
+        #                 name=f'{name}_{observable}_{i}',
+        #                 X=emulator_design_points,
+        #                 y=training_data[:, j + 1],
+        #                 sigma=0,
+        #             )
+        #         emulators[name].append(observable_emulators)
 
-    x_new = np.linspace(
-        start=hydro_inference_parameters_ranges[:, 0],
-        stop=hydro_inference_parameters_ranges[:, 1],
-        num=10
-    ).reshape(10, len(hydro_inference_parameters))
-    with gp_emulators:
-        prediction = emulators['mvah'][0][0].predict(
-            Xnew=x_new
-        )
+    # To make predictions
+    # x_new = np.linspace(
+    #     start=hydro_inference_parameters_ranges[:, 0],
+    #     stop=hydro_inference_parameters_ranges[:, 1],
+    #     num=10,
+    # ).reshape(-1, len(hydro_inference_parameters))
+    # with gp_emulators:
+    #     prediction = emulators['mvah'][0][0].predict(Xnew=x_new)
+    # print(prediction)
 
     # I have verified for myself that the emulators look good, but it would
     # be nice to have a bit of code here that does the checking and plotting
 
     # Use PyMC for simulatneous calibrations (probably simpler)
     # return NotImplemented
+
+    print(emulator_training_data['ce'].shape)
+    print(observation_data.shape)
+
+
+    with pm.Model() as inference_model:
+        inference_vars = pm.Uniform(
+            'hydro_inference_vars',
+            lower=hydro_inference_parameters_ranges[:, 0],
+            upper=hydro_inference_parameters_ranges[:, 1],
+            shape=(len(hydro_inference_parameters), 1)
+        )
+
+        for i, tau in enumerate(observation_times):
+            # comp_dists = [
+            #     prod([
+            #         # use costum dist here?
+            #         pm.Normal.dist(
+            #             # mu=emulators[name][i][j].predict(
+            #             #     Xnew=sample,
+            #             #     diag=True,
+            #             # )[0],
+            #             # sigma=np.sqrt(
+            #             #     emulators[name][i][j].predict(
+            #             #         Xnew=sample,
+            #             #         # diag=True,
+            #             #     )[1]
+            #             #     +
+            #             #     observation_error[i, j] ** 2
+            #             # ),
+            #             mu=pm.gp.Marginal(cov_func=cov_func).conditional(
+            #                 name=f'{name}_{observable}_{i}',
+            #                 Xnew=inference_vars,
+            #                 given={
+            #                     'X': emulator_design_points,
+            #                     'y': emulator_training_data[name][i, :, j + 1],
+            #                     'sigma': 0
+            #                 },
+            #                 shape=(len(hydro_inference_parameters), 1)
+            #             ),
+            #             sigma=observation_error[i, j],
+            #         )
+            #         for j, observable in enumerate(['e', 'pi', 'Pi'])
+            #     ])
+            #     for name in hydro_names
+            # ]
+            comp_dists = [
+                pm.MvNormal.dist(
+                    mu=[
+                        pm.gp.Marginal(cov_func=cov_func).conditional(
+                           name=f'{name}_{observable}_{i}',
+                           Xnew=inference_vars,
+                           given={
+                               'X': emulator_design_points,
+                               'y': emulator_training_data[name][i, :, j + 1],
+                               'sigma': 0
+                           },
+                           shape=(len(hydro_inference_parameters),)
+                        )
+                        for j, observable in enumerate(['e', 'pi', 'Pi'])
+                    ],
+                    cov=np.diag(observation_error[i]),
+                )
+                for name in hydro_names
+            ]
+
+            alpha = pm.Lognormal(
+                f'alpha_{i}',
+                mu=0.0,
+                sigma=1.0,
+                shape=len(hydro_names)
+            )
+            weights = pm.Dirichlet(f'Dirichlet_{i}', a=alpha)
+            pm.Mixture(
+                f'mix_{i}',
+                w=weights,
+                comp_dists=comp_dists,
+                observed=observation_data[i, 1:].reshape(-1,1),
+            )
+
+    with inference_model:
+        pm.sample(1_000_000)
 
 
 if __name__ == "__main__":
@@ -286,16 +368,16 @@ if __name__ == "__main__":
         observation_times=simulation_taus,
     )
 
-    print(emulator_training_data['ce'].shape)
+    print('\n\n\n\n')
 
     # sequential calibration
 
     # simultaneous calibration
     simultaneous_calibration(
-        local_parameters=local_params,
         hydro_names=hydro_names,
-        hyrdo_inference_parameters=hydro_inference_parameters,
+        hydro_inference_parameters=hydro_inference_parameters,
         hydro_inference_parameters_ranges=hydro_inference_parameters_ranges,
+        observation_times=simulation_taus,
         observation_data=data,
         observation_error=error_bar,
         emulator_training_data=emulator_training_data,
