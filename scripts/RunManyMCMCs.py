@@ -691,7 +691,7 @@ if __name__ == "__main__":
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
                          points_per_feat=40,
-                         number_steps=400)
+                         number_steps=4000)
 
     # analyze_saved_runs_hist(path_to_output=f'./pickle_files/{output_folder}',
     #                         number_of_runs=total_runs,

@@ -907,6 +907,9 @@ namespace hydro {
 
         for (size_t n = 0; n < steps; ++n)
         {
+            // For when recursing through RK4Update so that the evaluation time is accurate
+            t += n * dt;
+
             // First order
             // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
             mat M = ComputeJacobian(m, X1);
