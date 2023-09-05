@@ -56,7 +56,7 @@ namespace std {
 // TODO: Make easily parallelizable for python
 
 namespace hydro {
-    const double tol       = 1e-15;
+    const double tol       = 1e-8;
     const int    max_depth = 1;
 
     // utility fuction for quick exponentiation
@@ -621,7 +621,7 @@ namespace hydro {
             double Pi = (2.0 * pt1 + pl1) / 3.0 - p1;
             xi        = InvertShearToXi(e1, p1, pi);
 
-            Print(e_plot, t, e1, p1, pl1, pt1, xi);
+            Print(e_plot, t, e1, p1, pt1, pl1, xi);
             Print(bulk_plot, t, Pi, tc.zetaBar_zT);
             Print(shear_plot, t, pi, tc.zetaBar_zL);
 
@@ -901,9 +901,9 @@ namespace hydro {
 
         // RK4 with updating anisotropic variables
         // Note all dynamic variables are declared as member variables
-        X1        = X_current;
-        vec dummy = { 0.0, 0.0, 0.0 };
-        dX        = dummy;
+        X1  = X_current;
+        _dX = { 0.0, 0.0, 0.0 };
+        if (steps > 1) Print(std::cout, t);
 
         for (size_t n = 0; n < steps; ++n)
         {
@@ -981,9 +981,11 @@ namespace hydro {
             qt4  = M.i() * psi4;
 
             dX4 = dt * qt4;
-            if (X1(2) + dX4(2) < -0.999) RK4Update(X4, dummy, dX4, t, dt / 10.0, T, 10, tc, params);
+            if (X1(2) + dX4(2) < -0.999)
+                RK4Update(X4, _X, dX4, t, dt / 10.0, T, 10, tc, params);    //< _X is a member variable solely for being a place holder
+                                                                            // here
 
-            dX += (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
+            _dX += (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
             X1 = X1 + (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
 
             // update first order values
@@ -995,6 +997,7 @@ namespace hydro {
         }
 
         X_update = X1;
+        dX       = _dX;
     }
 
     // -----------------------------------------
@@ -1049,7 +1052,7 @@ namespace hydro {
         double Lambda1 = params.Lambda_0;
         double xi1     = params.xi_0;
 
-        X1 = { alpha1, Lambda1, xi1 };
+        vec X1 = { alpha1, Lambda1, xi1 };
 
         pt1 = params.pt0;
         pl1 = params.pl0;
@@ -1071,6 +1074,7 @@ namespace hydro {
             Print(bulk_plot, t, Pi, tc.zetaBar_zT);
             Print(shear_plot, t, pi, tc.zetaBar_zL);
 
+            dX = vec{ 0.0, 0.0, 0.0 };
             RK4Update(X_old, X, dX, t, dt, T, 1, tc, params);
             e  = IntegralJ(2, 0, 0, 0, m, X) / X(0);
             pt = IntegralJ(2, 0, 1, 0, m, X) / X(0);

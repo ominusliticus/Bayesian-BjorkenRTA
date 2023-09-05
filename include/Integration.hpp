@@ -31,6 +31,8 @@
 #include <cmath>
 #include <numeric>
 
+#include "Errors.hpp"
+
 constexpr double inf = std::numeric_limits<double>::infinity();
 
 // Choice to generalize code to calculate number of points to use
@@ -65,7 +67,11 @@ template <typename Functor, typename... Args>
 double GausQuadAux(Functor&& func, double _low, double _high, double result, double tol, int depth, bool improper_top, Args&&... args)
 {
     // Quick check to ensure that we should do calculation
-    if (depth <= 0) return result;
+    if (depth < 0)
+    {
+        // Print_Error(std::cerr, "Failed to converge for function:", get_var_name(func));
+        return result;
+    }
 
     double high = _high;
     double low  = _low;

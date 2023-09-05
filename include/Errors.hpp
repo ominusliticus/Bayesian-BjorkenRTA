@@ -29,6 +29,8 @@
 #include <fmt/format.h>
 #include <iostream>
 
+#define get_var_name(x) #x
+
 // TODO: switch to using fmt library...
 template <typename... Args>
 void Print(std::ostream& out, Args&&... args)

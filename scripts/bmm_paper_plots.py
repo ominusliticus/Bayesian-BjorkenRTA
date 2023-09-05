@@ -48,7 +48,7 @@ def extract_numbers_from_file(
     Pi = (2 * pt + pl) / 3 - p
     h = e + p
 
-    return np.array([tau, e / e[0], pi / h, Pi / h])
+    return np.array([tau / tau[0], e / e[0], pi / h, Pi / h])
 
 
 if __name__ == "__main__":
@@ -86,6 +86,7 @@ if __name__ == "__main__":
                 y_title=y_axis
             )
             ax[j].legend(fontsize=20)
+            ax[j].set_xscale('log')
     ax[0].set_yscale('log')
     fig.tight_layout()
     fig.savefig('./plots/hydro_compare_1.pdf')

@@ -168,7 +168,7 @@ namespace hydro {
                        double                 t,
                        double                 dt,
                        double                 T,
-                       size_t                 step,
+                       size_t                 steps,
                        TransportCoefficients& tc,
                        const SP&              params);
 
@@ -194,6 +194,8 @@ namespace hydro {
         vec dX1, dX2, dX3, dX4;
         vec psi1, psi2, psi3, psi4;
         vec qt1, qt2, qt3, qt4;
+
+        vec _X, _dX;
 
         // Simulation information
         double T0;    // Starting temperature in fm^{-1}
