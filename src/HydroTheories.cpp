@@ -58,6 +58,7 @@ namespace std {
 namespace hydro {
     const double tol       = 1e-8;
     const int    max_depth = 1;
+    const double Tmax      = 1000.0;
 
     // utility fuction for quick exponentiation
     double pow(double base, double exp)
@@ -255,7 +256,7 @@ namespace hydro {
     {
         double x1, x2, mid;
         double T_min = .001 / .197;
-        double T_max = 2.0 / .197;
+        double T_max = Tmax / .197;
         x1           = T_min;
         x2           = T_max;
 
@@ -701,7 +702,7 @@ namespace hydro {
     {
         double x1, x2, mid;
         double T_min = .001 / .197;
-        double T_max = 2.0 / .197;
+        double T_max = Tmax / .197;
         x1           = T_min;
         x2           = T_max;
 
@@ -1108,7 +1109,7 @@ namespace hydro {
     {
         double x1, x2, mid;
         double T_min = .001 / .197;
-        double T_max = 2.0 / .197;
+        double T_max = Tmax / .197;
         x1           = T_min;
         x2           = T_max;
 

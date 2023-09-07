@@ -183,6 +183,19 @@ void SimulationParameters::SetParameters(double _tau_0, double _e0, double _pt0,
 
 // ----------------------------------------
 
+void SimulationParameters::SetInitialConditions()
+{
+    hydro::AltAnisoHydroEvolution mvah;
+
+    vec X = { alpha_0, Lambda_0, xi_0 };
+    e0    = mvah.IntegralJ(2, 0, 0, 0, mass, X) / X(0);
+    pt0   = mvah.IntegralJ(2, 0, 1, 0, mass, X) / X(0);
+    pl0   = mvah.IntegralJ(2, 2, 0, 0, mass, X) / X(0);
+    SetInitialTemperature();
+}
+
+// ----------------------------------------
+
 void SimulationParameters::SetInitialTemperature()
 {
     hydro::AltAnisoHydroEvolution mvah;

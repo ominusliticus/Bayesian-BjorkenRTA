@@ -580,7 +580,7 @@ namespace exact {
     {
         double x1, x2, mid;
         double T_min = .001 / .197;
-        double T_max = 2.0 / .197;
+        double T_max = 1000.0 / .197;
         x1           = T_min;
         x2           = T_max;
 

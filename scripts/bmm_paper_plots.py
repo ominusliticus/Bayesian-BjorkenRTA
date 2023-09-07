@@ -61,7 +61,7 @@ if __name__ == "__main__":
     for i, hydro_name in enumerate(hydro_names):
         output = extract_numbers_from_file(
             hydro_name=hydro_name,
-            path_to_output='../output/test',
+            path_to_output='../output/mvah_debug',
             mass=0.200 / 0.197,
         )
         for j, y_axis in enumerate([

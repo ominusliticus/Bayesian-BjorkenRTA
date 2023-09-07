@@ -43,6 +43,7 @@ struct SimulationParameters {
 
     void SetParameter(const char* name, double value);
     void SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _eta_s);
+    void SetInitialConditions();
     void SetInitialTemperature();
     void SetAnisotropicVariables();
 
