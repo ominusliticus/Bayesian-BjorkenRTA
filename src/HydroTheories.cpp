@@ -57,7 +57,7 @@ namespace std {
 
 namespace hydro {
     const double tol       = 1e-8;
-    const int    max_depth = 1;
+    const int    max_depth = 3;
     const double Tmax      = 1000.0;
 
     // utility fuction for quick exponentiation
@@ -888,22 +888,22 @@ namespace hydro {
     // Function does in intermittent RK step and checks if xi > -1
     // If not, it calls itself with a subdivision of the current interval
     // (t,t+dt) to improve the "convergence" (not sure what to call it)
-    void AltAnisoHydroEvolution::RK4Update(vec&                   X_current,
-                                           vec&                   X_update,
-                                           vec&                   dX,
-                                           double                 t,
-                                           double                 dt,
-                                           double                 T,
-                                           size_t                 steps,
-                                           TransportCoefficients& tc,
-                                           const SP&              params)
+    vec AltAnisoHydroEvolution::RK4Update(vec&                   X_current,
+                                          double                 t,
+                                          double                 dt,
+                                          double                 T,
+                                          size_t                 steps,
+                                          TransportCoefficients& tc,
+                                          const SP&              params)
     {
         double m = params.mass;
 
         // RK4 with updating anisotropic variables
         // Note all dynamic variables are declared as member variables
         X1  = X_current;
-        _dX = { 0.0, 0.0, 0.0 };
+        _dX = vec{ 0.0, 0.0, 0.0 };
+        mat M;
+
         if (steps > 1) Print(std::cout, t);
 
         for (size_t n = 0; n < steps; ++n)
@@ -913,7 +913,7 @@ namespace hydro {
 
             // First order
             // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
-            mat M = ComputeJacobian(m, X1);
+            M = ComputeJacobian(m, X1);
 
             // compute transport coefficients to calculate evolution of
             // (E,PT,PL) and store in vector
@@ -1060,10 +1060,9 @@ namespace hydro {
 
         // Begin simulation
         TransportCoefficients tc = CalculateTransportCoefficients(T0, pt1, pl1, X1, params);
-        double                t;
+        double                t{ t0 };
         double                T = T0;
-        mat                   M;
-        vec                   X{ X1 }, X_old{ X1 }, dX{ X1 };
+        vec                   X{ X1 }, X_old{ X1 }, dX{ X1 }, x{ X1 };
         double                e{ e1 }, pt{ pt1 }, pl{ pl1 }, p{ p1 };
         for (int n = 0; n < params.steps; n++)
         {
@@ -1169,7 +1168,7 @@ namespace hydro {
         double norm    = std::pow(alpha_T, 2 * q + 2) * std::pow(alpha_L, r + 1) * std::pow(Lambda, n + s + 2)
                       / (4.0 * PI * PI * DoubleFactorial(2.0 * q));
 
-        auto Rnrq = [=](double p_bar)
+        auto Rnrq = [n, r, q, alpha_L, alpha_T, m_bar](double p_bar)
         {
             double w  = std::sqrt(alpha_L * alpha_L + std::pow(m_bar / p_bar, 2.0));
             double w3 = w * w * w;
@@ -1180,7 +1179,7 @@ namespace hydro {
             else if (z < 0) t = std::atanh(std::sqrt(-z)) / std::sqrt(-z);
             else t = std::atan(std::sqrt(z)) / std::sqrt(z);
 
-            if (std::fabs(z) < 0.1)
+            if (std::fabs(z) < tol)
             {
                 if (n == 2 && r == 0 && q == 0) { return 2.0 * w * (1.0 + z / 3.0 - z2 / 15.0 + z3 / 35.0 - z4 / 63.0 + z5 / 99.0); }
                 else if (n == 2 && r == 0 && q == 1)
@@ -1228,10 +1227,11 @@ namespace hydro {
                     return (-(3.0 + 5.0 * z) + 3.0 * (1.0 + z) * (1.0 + z) * t) / (4.0 * z * z * w);    // I calculated by hand
                 else assert("Unsupported choice");
             }
+            assert("Unreachable");
             return -inf;
         };
 
-        auto integrand = [=](double p_bar)
+        auto integrand = [n, s, Rnrq, m_bar](double p_bar)
         {
             return std::pow(p_bar, n + s + 1) * std::pow(1.0 + std::pow(m_bar / p_bar, 2.0), (double)s / 2.0) * Rnrq(p_bar)
                    * std::exp(-std::sqrt(p_bar * p_bar + m_bar * m_bar));

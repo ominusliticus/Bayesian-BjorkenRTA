@@ -154,12 +154,9 @@ void SimulationParameters::SetParameter(const char* name, double value)
     else if (var_name.compare("pl0") == 0) pl0 = value;
     else if (var_name.compare("pt0") == 0) pt0 = value;
 
-    if (var_name.compare("tau_0") == 0 || var_name.compare("tau_f") == 0 || var_name.compare("steps") == 0)
-    {
-        step_size = tau_0 / 20;
-        steps     = std::ceil((tau_f - tau_0) / step_size);
-    }
     if (var_name.compare("e0") == 0 || var_name.compare("mass") == 0) SetInitialTemperature();
+    step_size = std::min(tau_0 / 20, 5.0 * C / T0);
+    steps     = std::ceil((tau_f - tau_0) / step_size);
 }
 
 // ----------------------------------------

@@ -115,7 +115,7 @@ void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_
     bool      converged        = false;
     // for (size_t n = 0; n < 10000; ++n)
     size_t n = 0;
-    while (!converged && n < 20)
+    while (!converged)
     {
         mat J            = evo.ComputeJacobian(mass, aniso_vars);
         delta_aniso_vars = -J.i() * F;

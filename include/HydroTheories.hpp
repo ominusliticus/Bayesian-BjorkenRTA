@@ -162,21 +162,13 @@ namespace hydro {
         };
 
         // Implement adaptive time step integration of evolution equations
-        void RK4Update(vec&                   X_current,
-                       vec&                   X_update,
-                       vec&                   dX,
-                       double                 t,
-                       double                 dt,
-                       double                 T,
-                       size_t                 steps,
-                       TransportCoefficients& tc,
-                       const SP&              params);
+        vec RK4Update(vec& X_current, double t, double dt, double T, size_t steps, TransportCoefficients& tc, const SP& params);
 
         TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, const SP& params);
         // Calculate Jacobian matrix to switch between hydro fields and anisotropic variables
         mat ComputeJacobian(double mass, const vec& X);
         // Functions used to calcualte the transport coefficients
-        double IntegralJ(int n, int q, int r, int s, double mass, const vec& X);
+        double IntegralJ(int n, int r, int q, int s, double mass, const vec& X);
 
         // Evolution equations
         double dedt(double e, double pl, double tau);

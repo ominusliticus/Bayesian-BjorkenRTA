@@ -41,18 +41,20 @@ int main(int argc, char** argv)
     // params.SetParameter("xi_0", -0.949);
     // params.SetParameter("Lambda_0", params.mass / 10.89);
     // params.SetParameter("alpha_0", 2.5e-8);
+    // params.SetInitialConditions();
 
     // Maroon
-    // params.SetParameter("xi_0", 1208.05);
-    // params.SetParameter("Lambda_0", params.mass / 0.294);
-    // params.SetParameter("alpha_0", 0.078);
+    params.SetParameter("xi_0", 1208.05);
+    params.SetParameter("Lambda_0", params.mass / 0.294);
+    params.SetParameter("alpha_0", 0.078);
+    params.SetInitialConditions();
 
     // Blue
-    params.SetParameter("xi_0", -0.832);
-    params.SetParameter("Lambda_0", params.mass / 0.616);
-    params.SetParameter("alpha_0", 0.655);
+    // params.SetParameter("xi_0", -0.832);
+    // params.SetParameter("Lambda_0", params.mass / 0.616);
+    // params.SetParameter("alpha_0", 0.655);
+    // params.SetInitialConditions();
 
-    params.SetInitialConditions();
     Print(std::cout, params);
 
     switch (params.type)
