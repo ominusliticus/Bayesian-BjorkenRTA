@@ -55,13 +55,15 @@ if __name__ == "__main__":
     hydro_names = ['ce', 'dnmr', 'mis', 'vah', 'mvah', 'exact']
     colors = mp.get_cmap(10, 'tab10')
 
-    fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(7, 3 * 7))
+    fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(1.61 * 5, 3 * 5))
     fig.patch.set_facecolor('white')
 
     for i, hydro_name in enumerate(hydro_names):
         output = extract_numbers_from_file(
             hydro_name=hydro_name,
-            path_to_output='../output/mvah_debug',
+            # path_to_output='../output/magenta',
+            path_to_output='../output/maroon',
+            # path_to_output='../output/blue',
             mass=0.200 / 0.197,
         )
         for j, y_axis in enumerate([
@@ -82,11 +84,12 @@ if __name__ == "__main__":
             )
             mp.costumize_axis(
                 ax=ax[j],
-                x_title=r'$\tau / \tau_0$',
+                x_title=r'$\tau / \tau_0$' if j == 2 else None,
                 y_title=y_axis
             )
-            ax[j].legend(fontsize=20)
+            ax[j].set_xlim(1, 1000)
             ax[j].set_xscale('log')
+    ax[0].legend(fontsize=20)
     ax[0].set_yscale('log')
     fig.tight_layout()
     fig.savefig('./plots/hydro_compare_1.pdf')

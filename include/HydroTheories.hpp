@@ -162,7 +162,7 @@ namespace hydro {
         };
 
         // Implement adaptive time step integration of evolution equations
-        vec RK4Update(vec& X_current, double t, double dt, double T, size_t steps, TransportCoefficients& tc, const SP& params);
+        vec RK4Update(vec& X_current, double t, double dt, double T, TransportCoefficients& tc, const SP& params);
 
         TransportCoefficients CalculateTransportCoefficients(double T, double pt, double pl, vec& X, const SP& params);
         // Calculate Jacobian matrix to switch between hydro fields and anisotropic variables
@@ -176,7 +176,6 @@ namespace hydro {
         double dptdt(double p, double pt, double pl, double tau, TransportCoefficients& tc);
 
         // Dynamic variables for RK4: allocate here to make sure CPU has to constantly allocate new memory
-        // TO DO: Correct operations of class
         double e1, e2, e3, e4;
         double p1, p2, p3, p4;
         double pt1, pt2, pt3, pt4;

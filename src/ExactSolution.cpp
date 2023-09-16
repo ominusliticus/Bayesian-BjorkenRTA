@@ -64,8 +64,8 @@ namespace exact {
     // const int max_depth = 5;
     // const int max_depth2 = 5;
     const double tol        = eps;    // eps;
-    const int    max_depth  = 0;
-    const int    max_depth2 = 1;
+    const int    max_depth  = 3;
+    const int    max_depth2 = 3;
 
     ExactSolution::ExactSolution(SP& params)
     {

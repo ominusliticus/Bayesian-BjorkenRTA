@@ -24,9 +24,9 @@
 
 import numpy as np
 
-import pickle
+# import pickle
 
-from tqdm import tqdm
+# from tqdm import tqdm
 
 from pyDOE import lhs
 
@@ -37,26 +37,26 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Type
-from typing import Iterable
+# from typing import Type
+# from typing import Iterable
 
 from pathlib import Path
 
-from multiprocessing import Manager
-from multiprocessing import Process
+# from multiprocessing import Manager
+# from multiprocessing import Process
 
-from subprocess import run as cmd
-from subprocess import CalledProcessError
+# from subprocess import run as cmd
+# from subprocess import CalledProcessError
 
-from pytensor.tensor import TensorVariable
-import pytensor.tensor as at
+# from pytensor.tensor import TensorVariable
+# import pytensor.tensor as at
 
 import pymc as pm
 
-import arviz as az
+# import arviz as az
 
-import matplotlib.pyplot as plt
-import my_plotting as mp
+# import matplotlib.pyplot as plt
+# import my_plotting as mp
 
 local_params = {
     'tau_0': 0.1,
@@ -272,38 +272,6 @@ def simultaneous_calibration(
         )
 
         for i, tau in enumerate(observation_times):
-            # comp_dists = [
-            #     prod([
-            #         # use costum dist here?
-            #         pm.Normal.dist(
-            #             # mu=emulators[name][i][j].predict(
-            #             #     Xnew=sample,
-            #             #     diag=True,
-            #             # )[0],
-            #             # sigma=np.sqrt(
-            #             #     emulators[name][i][j].predict(
-            #             #         Xnew=sample,
-            #             #         # diag=True,
-            #             #     )[1]
-            #             #     +
-            #             #     observation_error[i, j] ** 2
-            #             # ),
-            #             mu=pm.gp.Marginal(cov_func=cov_func).conditional(
-            #                 name=f'{name}_{observable}_{i}',
-            #                 Xnew=inference_vars,
-            #                 given={
-            #                     'X': emulator_design_points,
-            #                     'y': emulator_training_data[name][i, :, j + 1],
-            #                     'sigma': 0
-            #                 },
-            #                 shape=(len(hydro_inference_parameters), 1)
-            #             ),
-            #             sigma=observation_error[i, j],
-            #         )
-            #         for j, observable in enumerate(['e', 'pi', 'Pi'])
-            #     ])
-            #     for name in hydro_names
-            # ]
             comp_dists = [
                 pm.MvNormal.dist(
                     mu=[
@@ -335,7 +303,7 @@ def simultaneous_calibration(
                 f'mix_{i}',
                 w=weights,
                 comp_dists=comp_dists,
-                observed=observation_data[i, 1:].reshape(-1,1),
+                observed=observation_data[i, 1:].reshape(-1, 1),
             )
 
     with inference_model:

@@ -204,7 +204,6 @@ void SimulationParameters::SetAnisotropicVariables()
     double x = std::log10(pt0 / pl0);
     vec    X = { 1.0, T0, 2.0 * std::pow(10.0, x) };
     FindAnisoVariables(e0, pt0, pl0, mass, X);
-    Print(std::cout, X);
     alpha_0  = X(0);
     Lambda_0 = X(1);
     xi_0     = X(2);

@@ -34,6 +34,7 @@
 #include <fstream>
 #include <iomanip>
 #include <tuple>
+#include <vector>
 
 #if __APPLE__
 namespace std {
@@ -888,117 +889,81 @@ namespace hydro {
     // Function does in intermittent RK step and checks if xi > -1
     // If not, it calls itself with a subdivision of the current interval
     // (t,t+dt) to improve the "convergence" (not sure what to call it)
-    vec AltAnisoHydroEvolution::RK4Update(vec&                   X_current,
-                                          double                 t,
-                                          double                 dt,
-                                          double                 T,
-                                          size_t                 steps,
-                                          TransportCoefficients& tc,
-                                          const SP&              params)
+    vec AltAnisoHydroEvolution::RK4Update(vec& X_current, double t, double dt, double T, TransportCoefficients& tc, const SP& params)
     {
         double m = params.mass;
 
         // RK4 with updating anisotropic variables
         // Note all dynamic variables are declared as member variables
-        X1  = X_current;
-        _dX = vec{ 0.0, 0.0, 0.0 };
+        X1 = X_current;
         mat M;
 
-        if (steps > 1) Print(std::cout, t);
+        e1  = IntegralJ(2, 0, 0, 0, m, X1) / X1(0);
+        pt1 = IntegralJ(2, 0, 1, 0, m, X1) / X1(0);
+        pl1 = IntegralJ(2, 2, 0, 0, m, X1) / X1(0);
+        T   = InvertEnergyDensity(e1, m);
+        p1  = ThermalPressure(T, m);
 
-        for (size_t n = 0; n < steps; ++n)
-        {
-            // For when recursing through RK4Update so that the evaluation time is accurate
-            t += n * dt;
+        // First order
+        // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
+        M = ComputeJacobian(m, X1);
 
-            // First order
-            // Calculate Jacobian matrix for (E, PT, PL) -> (alpha, Lambda, xi)
-            M = ComputeJacobian(m, X1);
+        // compute transport coefficients to calculate evolution of
+        // (E,PT,PL) and store in vector
+        tc   = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
+        psi1 = { dedt(e1, pl1, t), dptdt(p1, pt1, pl1, t, tc), dpldt(p1, pt1, pl1, t, tc) };
 
-            // compute transport coefficients to calculate evolution of
-            // (E,PT,PL) and store in vector
-            tc   = CalculateTransportCoefficients(T, pt1, pl1, X1, params);
-            psi1 = { dedt(e1, pl1, t), dptdt(p1, pt1, pl1, t, tc), dpldt(p1, pt1, pl1, t, tc) };
+        // Convert evolution vector to (alpha, Lambda, xi) coordinates
+        qt1 = M.i() * psi1;
 
-            // Convert evolution vector to (alpha, Lambda, xi) coordinates
-            qt1 = M.i() * psi1;
+        // Calculate update step
+        dX1 = dt * qt1;
+        X2  = X1 + 0.5 * dX1;
 
-            // Calculate update step
-            dX1 = dt * qt1;
-            X2  = X1 + 0.5 * dX1;
+        // Second order
+        e2   = IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
+        pt2  = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
+        pl2  = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
+        T    = InvertEnergyDensity(e2, m);
+        p2   = ThermalPressure(T, m);
+        M    = ComputeJacobian(m, X2);
+        tc   = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
+        psi2 = { dedt(e2, pl2, t + dt / 2.0), dptdt(p2, pt2, pl2, t + dt / 2.0, tc), dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
+        qt2  = M.i() * psi2;
 
-            // Second order
-            if (X2(2) < -0.999)    // Check if xi < -1.0
-                RK4Update(X1,
-                          X2,
-                          dX1,
-                          t,
-                          dt / 10.0,
-                          T,
-                          10,
-                          tc,
-                          params);    // Poorly placed but best I could come up
-                                      // with to implement recursion
-            e2   = IntegralJ(2, 0, 0, 0, m, X2) / X2(0);
-            pt2  = IntegralJ(2, 0, 1, 0, m, X2) / X2(0);
-            pl2  = IntegralJ(2, 2, 0, 0, m, X2) / X2(0);
-            T    = InvertEnergyDensity(e2, m);
-            p2   = ThermalPressure(T, m);
-            M    = ComputeJacobian(m, X2);
-            tc   = CalculateTransportCoefficients(T, pt2, pl2, X2, params);
-            psi2 = { dedt(e2, pl2, t + dt / 2.0), dptdt(p2, pt2, pl2, t + dt / 2.0, tc), dpldt(p2, pt2, pl2, t + dt / 2.0, tc) };
-            qt2  = M.i() * psi2;
+        dX2 = dt * qt2;
+        X3  = X1 + 0.5 * dX2;
 
-            dX2 = dt * qt2;
-            X3  = X1 + 0.5 * dX2;
+        // Third order
+        e3   = IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
+        pt3  = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
+        pl3  = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
+        T    = InvertEnergyDensity(e3, m);
+        p3   = ThermalPressure(T, m);
+        M    = ComputeJacobian(m, X3);
+        tc   = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
+        psi3 = { dedt(e3, pl3, t + dt / 2.0), dptdt(p3, pt3, pl3, t + dt / 2.0, tc), dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
+        qt3  = M.i() * psi3;
 
-            // Third order
-            if (X3(2) < -0.999) RK4Update(X2, X3, dX2, t, dt / 20.0, T, 10, tc, params);
+        dX3 = dt * qt3;
+        X4  = X1 + dX3;
 
-            e3   = IntegralJ(2, 0, 0, 0, m, X3) / X3(0);
-            pt3  = IntegralJ(2, 0, 1, 0, m, X3) / X3(0);
-            pl3  = IntegralJ(2, 2, 0, 0, m, X3) / X3(0);
-            T    = InvertEnergyDensity(e3, m);
-            p3   = ThermalPressure(T, m);
-            M    = ComputeJacobian(m, X3);
-            tc   = CalculateTransportCoefficients(T, pt3, pl3, X3, params);
-            psi3 = { dedt(e3, pl3, t + dt / 2.0), dptdt(p3, pt3, pl3, t + dt / 2.0, tc), dpldt(p3, pt3, pl3, t + dt / 2.0, tc) };
-            qt3  = M.i() * psi3;
+        // Fourth order
+        e4   = IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
+        pt4  = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
+        pl4  = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
+        T    = InvertEnergyDensity(e4, m);
+        p4   = ThermalPressure(T, m);
+        M    = ComputeJacobian(m, X4);
+        tc   = CalculateTransportCoefficients(T, pt4, pl4, X4, params);
+        psi4 = { dedt(e4, pl4, t + dt), dptdt(p4, pt4, pl4, t + dt, tc), dpldt(p4, pt4, pl4, t + dt, tc) };
+        qt4  = M.i() * psi4;
 
-            dX3 = dt * qt3;
-            X4  = X1 + dX3;
+        dX4 = dt * qt4;
 
-            // Fourth order
-            if (X4(2) < -0.999) RK4Update(X3, X4, dX3, t, dt / 20.0, T, 10, tc, params);
+        _dX = (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
 
-            e4   = IntegralJ(2, 0, 0, 0, m, X4) / X4(0);
-            pt4  = IntegralJ(2, 0, 1, 0, m, X4) / X4(0);
-            pl4  = IntegralJ(2, 2, 0, 0, m, X4) / X4(0);
-            T    = InvertEnergyDensity(e4, m);
-            p4   = ThermalPressure(T, m);
-            M    = ComputeJacobian(m, X4);
-            tc   = CalculateTransportCoefficients(T, pt4, pl4, X4, params);
-            psi4 = { dedt(e4, pl4, t + dt), dptdt(p4, pt4, pl4, t + dt, tc), dpldt(p4, pt4, pl4, t + dt, tc) };
-            qt4  = M.i() * psi4;
-
-            dX4 = dt * qt4;
-            if (X1(2) + dX4(2) < -0.999)
-                RK4Update(X4, _X, dX4, t, dt / 10.0, T, 10, tc, params);    //< _X is a member variable solely for being a place holder
-                                                                            // here
-
-            _dX += (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
-            X1 = X1 + (dX1 + 2.0 * dX2 + 2.0 * dX3 + dX4) / 6.0;
-
-            // update first order values
-            e1  = IntegralJ(2, 0, 0, 0, m, X1) / X1(0);
-            pt1 = IntegralJ(2, 0, 1, 0, m, X1) / X1(0);
-            pl1 = IntegralJ(2, 2, 0, 0, m, X1) / X1(0);
-            T   = InvertEnergyDensity(e1, m);
-            p1  = ThermalPressure(T, m);
-        }
-
-        X_update = X1;
-        dX       = _dX;
+        return X_current + _dX;
     }
 
     // -----------------------------------------
@@ -1058,31 +1023,61 @@ namespace hydro {
         pt1 = params.pt0;
         pl1 = params.pl0;
 
+        // variables that will facilitate recursion
+        // recursion is necessary when the gradients for the initial kinetic theory parameters are too large
+        bool             print_output    = true;
+        int              recursion_level = 0;
+        std::vector<int> recursion_steps;
+
         // Begin simulation
         TransportCoefficients tc = CalculateTransportCoefficients(T0, pt1, pl1, X1, params);
         double                t{ t0 };
         double                T = T0;
-        vec                   X{ X1 }, X_old{ X1 }, dX{ X1 }, x{ X1 };
+        vec                   X{ X1 }, X_old{ X1 };
         double                e{ e1 }, pt{ pt1 }, pl{ pl1 }, p{ p1 };
-        for (int n = 0; n < params.steps; n++)
+        int                   n{ 0 };
+        while (n < params.steps)
         {
-            t = t0 + n * dt;
+            if (print_output)    // if we are not recursing, print output
+            {
+                double pi = 2.0 * (pt - pl) / 3.0;
+                double Pi = (2.0 * pt + pl) / 3.0 - p;
 
-            double pi = 2.0 * (pt - pl) / 3.0;
-            double Pi = (2.0 * pt + pl) / 3.0 - p;
-            Print(e_plot, t, e, p, pt, pl, X(2));
-            Print(bulk_plot, t, Pi, tc.zetaBar_zT);
-            Print(shear_plot, t, pi, tc.zetaBar_zL);
+                Print(e_plot, t, e, p, pt, pl, X(2));
+                Print(bulk_plot, t, Pi, tc.zetaBar_zT);
+                Print(shear_plot, t, pi, tc.zetaBar_zL);
+                ++n;
+            }
 
-            dX = vec{ 0.0, 0.0, 0.0 };
-            RK4Update(X_old, X, dX, t, dt, T, 1, tc, params);
-            e  = IntegralJ(2, 0, 0, 0, m, X) / X(0);
-            pt = IntegralJ(2, 0, 1, 0, m, X) / X(0);
-            pl = IntegralJ(2, 2, 0, 0, m, X) / X(0);
-            T  = InvertEnergyDensity(e, m);
-            p  = ThermalPressure(T, m);
+            // Check if we are still recursing, else reset most recent recursion parameters
+            if (!recursion_steps.empty() && recursion_steps.back() < 1)
+            {
+                print_output = true;
+                dt           = std::pow(10.0, recursion_level) * dt;
+                recursion_steps.pop_back();
+                --recursion_level;
+            }
+            else if (!recursion_steps.empty()) --recursion_steps.back();
 
-            X_old = X;
+            X = RK4Update(X_old, t, dt, T, tc, params);
+            if (X(2) < -0.999 || std::isnan(X(2)) || std::isinf(X(2)))
+            {
+                ++recursion_level;
+                print_output = false;
+                dt           = std::pow(10.0, -recursion_level) * dt;
+                recursion_steps.push_back(static_cast<int>(std::pow(10.0, recursion_level)));
+            }
+            else
+            {
+                e  = IntegralJ(2, 0, 0, 0, m, X) / X(0);
+                pt = IntegralJ(2, 0, 1, 0, m, X) / X(0);
+                pl = IntegralJ(2, 2, 0, 0, m, X) / X(0);
+                T  = InvertEnergyDensity(e, m);
+                p  = ThermalPressure(T, m);
+
+                X_old = X;
+                t += dt;
+            }
 
         }    // End simulation loop
 
