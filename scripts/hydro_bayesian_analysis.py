@@ -82,8 +82,8 @@ class HydroBayesianAnalysis(object):
         self.evidence = {}      # Dict[str, float]
 
     def log_prior(self,
-                 evaluation_point: np.ndarray,
-                 parameter_ranges: np.ndarray) -> float:
+                  evaluation_point: np.ndarray,
+                  parameter_ranges: np.ndarray) -> float:
         '''
         Parameters:
         ------------
