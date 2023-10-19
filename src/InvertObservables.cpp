@@ -72,8 +72,8 @@ double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& 
     double mag_F2_prev    = mag_F2;
     for (int i = 0; i < 10; ++i)
     {
-        if (step_adj * mag_dX <= tol_dX) return step_adj;                        // Check if converged
-        else if (mag_F2 <= g0 + step_adj * alpha * g0_prime) return step_adj;    // Check if converging fast enough
+        if (step_adj * mag_dX <= tol_dX) return step_adj;                                // Check if converged
+        else if (mag_F2_current <= g0 + step_adj * alpha * g0_prime) return step_adj;    // Check if converging fast enough
         else
         {
             double a = (mag_F2_current - g0 - step_adj * g0_prime) / (step_adj * step_adj);
