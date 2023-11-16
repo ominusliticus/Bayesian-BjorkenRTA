@@ -103,18 +103,18 @@ class HydroBayesianAnalysis(object):
         else:
             return -np.inf
 
-    def loglikelihood(self,
-                      evaluation_point: np.ndarray,
-                      true_observables: np.ndarray,
-                      true_errors: np.ndarray,
-                      hydro_name: str,
-                      GP_emulator: Dict) -> np.ndarray:
+    def log_likelihood(self,
+                       evaluation_point: np.ndarray,
+                       true_observables: np.ndarray,
+                       true_errors: np.ndarray,
+                       hydro_name: str,
+                       GP_emulator: Dict) -> np.ndarray:
         '''
         Parameters:
         ------------
         evaluation_points    - 1d-array like (1, num_params) \n
-        true_observables     - data
-        true_error           - data error
+        true_observables     - data \n
+        true_error           - data error \n
         hydro_name           - string containing hydro theory: 'ce', 'dnmr',
                                                                'vah', 'mvah'\n
         GP_emulator          - dictionary(hydro_name: emulator_list), \n
@@ -196,15 +196,17 @@ class HydroBayesianAnalysis(object):
 
         return running_log_likelihood
 
-    def run_mcmc(self,
-                 nsteps: int,
-                 nburn: int,
-                 ntemps: int,
-                 exact_observables: np.ndarray,
-                 exact_error: np.ndarray,
-                 GP_emulators: Dict,
-                 output_path: str,
-                 read_from_file: bool = False) -> Dict:
+    def run_calibration(
+            self,
+            nsteps: int,
+            nburn: int,
+            ntemps: int,
+            exact_observables: np.ndarray,
+            exact_error: np.ndarray,
+            GP_emulators: Dict,
+            output_path: str,
+            read_from_file: bool = False
+            ) -> Dict:
         """
         Parameters:
         --------------
@@ -249,7 +251,7 @@ class HydroBayesianAnalysis(object):
                                           ntemps=ntemps,
                                           Tmax=10,
                                           threads=4,
-                                          logl=self.loglikelihood,
+                                          logl=self.log_likelihood,
                                           logp=self.log_prior,
                                           loglargs=[exact_observables[:, 1:4],
                                                     exact_error,
@@ -342,3 +344,6 @@ class HydroBayesianAnalysis(object):
             print(f"Could not create dir {output_dir}/plots")
         g.savefig(
             f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
+
+    # Expand to included Bayesian Model mixing for paper (will migrate 
+    # everything to Taweret later) 

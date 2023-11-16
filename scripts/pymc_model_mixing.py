@@ -99,7 +99,7 @@ def generate_emulator_training_points(
         design_points=design_points,
         simulation_taus=observation_times,
         hydro_names=hydro_names,
-        use_PT_PL=False,
+        use_PL_PT=False,
     )
 
     # extract the observables from the respective files

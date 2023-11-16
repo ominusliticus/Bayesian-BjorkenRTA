@@ -96,7 +96,7 @@ class HydroEmulator:
                  simulation_taus: np.ndarray,
                  hydro_names: List[str],
                  use_existing_emulators: bool,
-                 use_PT_PL: bool,
+                 use_PL_PT: bool,
                  output_path: str,
                  samples_per_feature: int = 20
                  ):
@@ -163,7 +163,7 @@ class HydroEmulator:
                               design_points=design_points,
                               simulation_taus=simulation_taus,
                               hydro_names=hydro_names,
-                              use_PT_PL=use_PT_PL)
+                              use_PL_PT=use_PL_PT)
 
                 hydro_simulations = dict((key, []) for key in hydro_names)
                 for k, name in enumerate(hydro_names):
@@ -313,7 +313,7 @@ class HydroEmulator:
                       simulation_taus: np.ndarray,
                       hydro_names: List[str],
                       use_existing_emulators: bool,
-                      use_PT_PL: bool,
+                      use_PL_PT: bool,
                       output_statistics: bool,
                       plot_emulator_vs_test_points: bool,
                       output_path: str) -> None:
@@ -328,6 +328,10 @@ class HydroEmulator:
         ----------
         None
         '''
+        try:
+            cmd(['mkdir', '-p', f'{output_path}/plots']).check_returncode()
+        except (CalledProcessError):
+            print(f'Failed to create dir {output_path}')
         if use_existing_emulators:
             with open('{}/testing_points_n={}.dat'.
                       format(output_path, len(parameter_names)), 'r') as f:
@@ -341,10 +345,11 @@ class HydroEmulator:
                 hydro_simulations = pickle.load(f)
         else:
             hca.run_hydro(params_dict=params_dict,
+                          hydro_names=hydro_names,
                           parameter_names=parameter_names,
                           design_points=self.test_points,
                           simulation_taus=simulation_taus,
-                          use_PT_PL=use_PT_PL)
+                          use_PL_PT=use_PL_PT)
 
             hydro_simulations = dict((key, []) for key in hydro_names)
             for k, name in enumerate(hydro_names):
@@ -369,8 +374,8 @@ class HydroEmulator:
                       format(output_path, len(parameter_names)), 'wb') as f:
                 pickle.dump(hydro_simulations, f)
 
-        p1_name = r'$R_{\mathcal P_T}$' if use_PT_PL else r'$R_\pi$'
-        p2_name = r'$R_{\mathcal P_L}$' if use_PT_PL else r'$R_\Pi$'
+        p1_name = r'$R_{\mathcal P_T}$' if use_PL_PT else r'$R_\pi$'
+        p2_name = r'$R_{\mathcal P_L}$' if use_PL_PT else r'$R_\Pi$'
 
         col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
         # Make plot of emulators and test points
@@ -497,7 +502,7 @@ class HydroEmulator:
                                 self.test_points,
                                 residuals_of_observables[name][k, :, i],
                                 lw=1,
-                                marker=markers[k],
+                                marker=markers[k % len(markers)],
                                 color=cmap(j))
             autoscale_y(ax=ax[0], margin=0.1)
             autoscale_y(ax=ax[1], margin=0.1)

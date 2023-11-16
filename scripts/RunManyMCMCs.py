@@ -157,7 +157,8 @@ def normalize_for_C(xdata: np.ndarray,
 def SampleObservables(error_level: float,
                       true_params: Dict[str, float],
                       parameter_names: List[str],
-                      simulation_taus: np.ndarray) -> np.ndarray:
+                      simulation_taus: np.ndarray,
+                      use_PL_PT: bool) -> np.ndarray:
     num_taus = simulation_taus.shape[0]
     code_api = HCA(str(Path('./swap').absolute()))
 
@@ -167,7 +168,7 @@ def SampleObservables(error_level: float,
                                     parameter_names=parameter_names,
                                     design_point=[true_params[key] for key in
                                                   parameter_names],
-                                    use_PT_PL=True)
+                                    use_PL_PT=use_PL_PT)
     tau_start = true_params['tau_0']
     delta_tau = tau_start / 20.0
     observ_indices = (simulation_taus
@@ -197,6 +198,7 @@ def SampleObservables(error_level: float,
 
 
 def RunManyMCMCRuns(hydro_names: List[str],
+                    simulation_taus: np.ndarray,
                     exact_pseudo: np.ndarray,
                     pseudo_error: np.ndarray,
                     output_dir: str,
@@ -214,7 +216,6 @@ def RunManyMCMCRuns(hydro_names: List[str],
     code_api = HCA(str(Path(f'{output_dir}/swap').absolute()))
     parameter_names = ['C']
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
-    simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
 
     for i in tqdm(np.arange(start, n), total=n):
         emulator_class = HE(hca=code_api,
@@ -224,7 +225,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
                             simulation_taus=simulation_taus,
                             hydro_names=hydro_names,
                             use_existing_emulators=False,
-                            use_PT_PL=True,
+                            use_PL_PT=True,
                             output_path=output_dir,
                             samples_per_feature=points_per_feat)
         ba_class = HBA(hydro_names=hydro_names,
@@ -232,7 +233,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
                        parameter_names=parameter_names,
                        parameter_ranges=parameter_ranges,
                        simulation_taus=simulation_taus)
-        ba_class.run_mcmc(
+        ba_class.run_calibration(
             nsteps=400,
             nburn=100,
             ntemps=20,
@@ -246,12 +247,15 @@ def RunManyMCMCRuns(hydro_names: List[str],
 
 
 def RunVeryLargeMCMC(hydro_names: List[str],
+                     simulation_taus: np.ndarray,
                      exact_pseudo: np.ndarray,
                      pseudo_error: np.ndarray,
                      output_dir: str,
                      local_params: Dict[str, float],
                      points_per_feat: int,
-                     number_steps: int) -> None:
+                     number_steps: int,
+                     use_existing_emulators: bool,
+                     use_PL_PT: bool) -> None:
     '''
     Runs the entire analysis suite, including the emulator fitting
     and saves MCMC chains and outputs plots
@@ -259,7 +263,6 @@ def RunVeryLargeMCMC(hydro_names: List[str],
     code_api = HCA(str(Path(output_dir + '/swap').absolute()))
     parameter_names = ['C']
     parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
-    simulation_taus = np.linspace(5.1, 12.1, 8, endpoint=True)
 
     emulator_class = HE(hca=code_api,
                         params_dict=local_params,
@@ -267,8 +270,8 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                         parameter_ranges=parameter_ranges,
                         simulation_taus=simulation_taus,
                         hydro_names=hydro_names,
-                        use_existing_emulators=False,
-                        use_PT_PL=True,
+                        use_existing_emulators=use_existing_emulators,
+                        use_PL_PT=use_PL_PT,
                         output_path=output_dir,
                         samples_per_feature=points_per_feat)
     emulator_class.test_emulator(
@@ -277,24 +280,25 @@ def RunVeryLargeMCMC(hydro_names: List[str],
         parameter_names=parameter_names,
         parameter_ranges=parameter_ranges,
         simulation_taus=simulation_taus,
-        hydro_names=code_api.hydro_names,
-        use_existing_emulators=False,
-        use_PT_PL=True,
+        hydro_names=hydro_names,
+        use_existing_emulators=use_existing_emulators,
+        use_PL_PT=use_PL_PT,
         output_statistics=True,
         plot_emulator_vs_test_points=True,
-        output_dir=output_dir)
+        output_path=output_dir)
     ba_class = HBA(hydro_names=hydro_names,
                    default_params=local_params,
                    parameter_names=parameter_names,
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
-    ba_class.run_mcmc(nsteps=number_steps,
-                      nburn=50,
-                      ntemps=20,
-                      exact_observables=exact_pseudo,
-                      exact_error=pseudo_error,
-                      GP_emulators=emulator_class.GP_emulators,
-                      read_from_file=False)
+    ba_class.run_calibration(nsteps=number_steps,
+                             nburn=50 * len(parameter_names),
+                             ntemps=20,
+                             exact_observables=exact_pseudo,
+                             exact_error=pseudo_error,
+                             GP_emulators=emulator_class.GP_emulators,
+                             read_from_file=False,
+                             output_path=output_dir)
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
@@ -305,7 +309,6 @@ def RunVeryLargeMCMC(hydro_names: List[str],
 def PlotAnalyticPosteriors(hydro_names: List[str],
                            local_params: Dict[str, float],
                            parameter_names: List[str],
-                           parameter_ranges: Dict[str, np.ndarray],
                            simulation_taus: np.ndarray,
                            pseudo_data: np.ndarray,
                            pseudo_error: np.ndarray,
@@ -437,7 +440,7 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
                                     params_dict=local_params,
                                     parameter_names=parameter_names,
                                     design_point=[C],
-                                    use_PT_PL=True)[int(i)-1]
+                                    use_PL_PT=True)[int(i)-1]
                                 for i in observ_indices]
                                for C in tqdm(Cs,
                                              desc=f'{key}: ',
@@ -584,45 +587,48 @@ def analyze_saved_runs(hydro_names: List[str],
 
 
 if __name__ == "__main__":
-    # local_params = {
-    #     'tau_0': 0.1,
-    #     'e0': 12.4991,
-    #     'pt0': 6.0977,
-    #     'pl0': 0.0090,
-    #     'tau_f': 12.1,
-    #     'mass': 0.2 / 0.197,
-    #     'C': 5 / (4 * np.pi),
-    #     'hydro_type': 0
-    # }
-
-    # Navier-Stokes Initial Conditions
-    e0 = 12.4991
-    tau_0 = 5.0
-    tau_f = 25.0
-    eta_s = 5 / (4 * np.pi)
-    mass = 0.2 / 0.197
-    pt0, pl0 = get_navier_stokes_ic(e0, mass, eta_s, tau_0)
     local_params = {
-        'tau_0': e0,
-        'e0': e0,
-        'pt0': pt0,
-        'pl0': pl0,
-        'tau_f': tau_f,
-        'mass': mass,
-        'C': eta_s,
+        'tau_0': 0.1,
+        'e0': 12.4991,
+        'pt0': 6.0977,
+        'pl0': 0.0090,
+        'tau_f': 12.1,
+        'mass': 0.2 / 0.197,
+        'C': 5 / (4 * np.pi),
         'hydro_type': 0
     }
-    print(local_params)
+
+    # Navier-Stokes Initial Conditions
+    # e0 = 12.4991
+    # tau_0 = 5.0
+    # tau_f = 25.0
+    # eta_s = 5 / (4 * np.pi)
+    # mass = 0.2 / 0.197
+    # pt0, pl0 = get_navier_stokes_ic(e0, mass, eta_s, tau_0)
+    # local_params = {
+    #     'tau_0': e0,
+    #     'e0': e0,
+    #     'pt0': pt0,
+    #     'pl0': pl0,
+    #     'tau_f': tau_f,
+    #     'mass': mass,
+    #     'C': eta_s,
+    #     'hydro_type': 0
+    # }
+    # print(local_params)
 
     total_runs = 10
     # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'Mass_run_NS'
+    output_folder = 'bmm_runs/no_bmm_yet'
+    use_PL_PT = False
+    simulation_taus=np.linspace(2.1, 3.1, 10, endpoint=True)
 
     exact_pseudo, pseudo_error = SampleObservables(
         error_level=0.05,
         true_params=local_params,
         parameter_names=['C'],
-        simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True)
+        simulation_taus=simulation_taus,
+        use_PL_PT=use_PL_PT,
     )
     # exact_pseudo = np.array(
     #     [[5.1,  0.75470255, 0.27463283, 0.1588341],
@@ -633,7 +639,7 @@ if __name__ == "__main__":
     #      [10.1, 0.30190729, 0.12180956, 0.07787765],
     #      [11.1, 0.30734799, 0.08858191, 0.07306867],
     #      [12.1, 0.25883392, 0.08667172, 0.06143159]]
-    # )
+    # )    
     # pseudo_error = np.array(
     #     [[0.0383127,  0.013715,   0.00803337],
     #      [0.03082207, 0.01079027, 0.00672129],
@@ -648,11 +654,13 @@ if __name__ == "__main__":
     print(pseudo_error)
 
     hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
+    # hydro_names = ['ce', 'dnmr', 'mvah']
 
-    if True:  # Do averaging over many runs if True
+    if False:  # Do averaging over many runs if True
         #     # Just run very large MCMC if False
         use_existing = False
         RunManyMCMCRuns(hydro_names=hydro_names,
+                        simulation_taus=simulation_taus,
                         exact_pseudo=exact_pseudo,
                         pseudo_error=pseudo_error,
                         output_dir=f'./pickle_files/{output_folder}',
@@ -670,7 +678,6 @@ if __name__ == "__main__":
             hydro_names=hydro_names,
             local_params=local_params,
             parameter_names=['C'],
-            parameter_ranges=np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]]),
             simulation_taus=np.linspace(5.1, 12.1, 8, endpoint=True),
             pseudo_data=exact_pseudo,
             pseudo_error=pseudo_error,
@@ -686,12 +693,15 @@ if __name__ == "__main__":
                            posterior_ax=ax)
     else:
         RunVeryLargeMCMC(hydro_names=hydro_names,
+                         simulation_taus=simulation_taus,
                          exact_pseudo=exact_pseudo,
                          pseudo_error=pseudo_error,
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
                          points_per_feat=40,
-                         number_steps=4000)
+                         number_steps=4000,
+                         use_existing_emulators=False,
+                         use_PL_PT=use_PL_PT,)
 
     # analyze_saved_runs_hist(path_to_output=f'./pickle_files/{output_folder}',
     #                         number_of_runs=total_runs,
