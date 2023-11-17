@@ -163,7 +163,8 @@ class HydroCodeAPI:
         return np.array(out_list)
 
     def get_exact_results(self,
-                          params_dict: Dict[str, float]) -> np.ndarray:
+                          params_dict: Dict[str, float],
+                          use_PL_PT: bool = True) -> np.ndarray:
         '''
         Open output file from running Boltzmann RTA solution
         '''
@@ -176,7 +177,19 @@ class HydroCodeAPI:
                                 float(entry)
                                 for entry in line.split()]
                                for line in f_exact.readlines()])
+            
+        if use_PL_PT:
             return output
+        else:
+            out_list = []
+            for i in range(output.shape[0]):
+                tau, e, pt, pl, p = output
+                pi = (2.0 / 3.0) * (pt - pl)
+                Pi = (pl + 2.0 * pt) / 3.0 - p
+
+                out_list.append([tau, e, pi, Pi, p])
+
+            return np.array(out_list)
 
     def process_hydro(self,
                       params_dict: Dict[str, float],
