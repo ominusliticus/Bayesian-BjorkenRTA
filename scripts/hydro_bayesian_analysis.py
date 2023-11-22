@@ -69,7 +69,7 @@ class HydroBayesianAnalysis(object):
             parameter_names: List[str],
             parameter_ranges: np.ndarray,
             simulation_taus: np.ndarray,
-            ) -> None:
+    ) -> None:
         print("Initializing Bayesian Analysis class")
         self.hydro_names = hydro_names
         self.params = default_params
@@ -154,9 +154,9 @@ class HydroBayesianAnalysis(object):
             variances = []
             for i in range(3):
                 prediction, error = \
-                 GP_emulator[hydro_name][tau_index][i].predict(
-                    np.array(evaluation_points).reshape(1, -1),
-                    return_std=True)
+                    GP_emulator[hydro_name][tau_index][i].predict(
+                        np.array(evaluation_points).reshape(1, -1),
+                        return_std=True)
                 mean = prediction.reshape(-1, 1)
                 std = error.reshape(-1,)
 
@@ -167,9 +167,9 @@ class HydroBayesianAnalysis(object):
         running_log_likelihood = 0
         for k in range(true_observables.shape[0]):
             emulation_values, emulation_variance = \
-                 predict_observable(evaluation_point,
-                                    hydro_name,
-                                    k, GP_emulator)
+                predict_observable(evaluation_point,
+                                   hydro_name,
+                                   k, GP_emulator)
 
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
@@ -206,7 +206,7 @@ class HydroBayesianAnalysis(object):
             GP_emulators: Dict,
             output_path: str,
             read_from_file: bool = False
-            ) -> Dict:
+    ) -> Dict:
         """
         Parameters:
         --------------
@@ -237,7 +237,7 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/pickle_files/evidence.pkl', 'rb') as f:
                 self.evidence = pickle.load(f)
         else:
-            nwalkers = 20 * self.num_params
+            nwalkers = 4 * self.num_params
 
             for i, name in enumerate(self.hydro_names):
                 print(f"Computing for hydro theory: {name}")
@@ -345,5 +345,5 @@ class HydroBayesianAnalysis(object):
         g.savefig(
             f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
 
-    # Expand to included Bayesian Model mixing for paper (will migrate 
-    # everything to Taweret later) 
+    # Expand to included Bayesian Model mixing for paper (will migrate
+    # everything to Taweret later)

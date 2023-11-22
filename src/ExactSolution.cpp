@@ -35,6 +35,11 @@
 #include <fstream>
 #include <iomanip>
 
+// For faster execution of moments calculation
+#include <future>
+#include <thread>
+#include <vector>
+
 #if __APPLE__
 namespace std {
     static double cyl_bessel_k(int n, double x)
@@ -689,13 +694,59 @@ namespace exact {
             exit(-3333);
         }
         fout << std::fixed << std::setprecision(16);
+        std::vector<std::thread> workers(4);
         for (int i = 0; i < params.steps; i++)
         {
-            double tau           = params.tau_0 + (double)i * params.step_size;
+            double tau = params.tau_0 + (double)i * params.step_size;
+#if USE_PARALLEL
+            std::promise<double> e_promise;
+            auto                 e_future = e_promise.get_future();
+            workers[0]                    = std::thread(
+                [this, tau, &params](auto promise)
+                {
+                    promise.set_value(GetMoments(tau, params, Moment::ED));
+                },
+                std::move(e_promise));
+
+            std::promise<double> pt_promise;
+            auto                 pt_future = pt_promise.get_future();
+            workers[1]                     = std::thread(
+                [this, tau, &params](auto promise)
+                {
+                    promise.set_value(GetMoments(tau, params, Moment::PT));
+                },
+                std::move(pt_promise));
+
+            std::promise<double> pl_promise;
+            auto                 pl_future = pl_promise.get_future();
+            workers[2]                     = std::thread(
+                [this, tau, &params](auto promise)
+                {
+                    promise.set_value(GetMoments(tau, params, Moment::PL));
+                },
+                std::move(pl_promise));
+
+            std::promise<double> peq_promise;
+            auto                 peq_future = peq_promise.get_future();
+            workers[3]                      = std::thread(
+                [this, tau, &params](auto promise)
+                {
+                    promise.set_value(GetMoments(tau, params, Moment::PEQ));
+                },
+                std::move(peq_promise));
+            double new_e_density = e_future.get();
+            double new_pT        = pt_future.get();
+            double new_pL        = pl_future.get();
+            double new_peq       = peq_future.get();
+
+            for (auto& worker : workers)
+                worker.join();
+#else
             double new_e_density = GetMoments(tau, params, Moment::ED);
             double new_pT        = GetMoments(tau, params, Moment::PT);
             double new_pL        = GetMoments(tau, params, Moment::PL);
             double new_peq       = GetMoments(tau, params, Moment::PEQ);
+#endif
             Print(fout, tau, new_e_density, new_pT, new_pL, new_peq);
         }
         fout.close();

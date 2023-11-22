@@ -16,7 +16,7 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 from multiprocessing import Process, Manager
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 
 from matplotlib import rc
@@ -46,7 +46,7 @@ def convert_hydro_name_to_int(name: str) -> int:
 
 def get_navier_stokes_ic(
         energy_density: float, mass: float, eta_s: float, tau: float
-        ) -> Tuple[float, float]:
+) -> Tuple[float, float]:
     from scipy.special import kn
     from scipy.integrate import quad
 
@@ -174,7 +174,8 @@ def SampleObservables(error_level: float,
     observ_indices = (simulation_taus
                       - np.full_like(simulation_taus, tau_start)) / delta_tau
 
-
+    # despite the poor variable choice name here, if `use_PL_PT` is False
+    # all instances of (pt, pl) variables should be interpreted as (pi, Pi)
     E = np.array([output[int(i)-1, 1] for i in observ_indices])
     pt = np.array([output[int(i)-1, 2] for i in observ_indices])
     pl = np.array([output[int(i)-1, 3] for i in observ_indices])
@@ -192,7 +193,7 @@ def SampleObservables(error_level: float,
     plx = np.random.normal(pl, np.fabs(pl_err))
 
     return np.array([(simulation_taus[i], Ex[i], ptx[i], plx[i])
-                     for i in range(num_taus)]),\
+                     for i in range(num_taus)]), \
         error_level * np.array([(E[i], pt[i], pl[i])
                                 for i in range(num_taus)])
 
@@ -206,7 +207,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
                     points_per_feat: int,
                     n: int,
                     start: int = 0,
-                    use_existing_runs: bool=False) -> None:
+                    use_existing_runs: bool = False) -> None:
     '''
     Runs the entire analysis suite, including the emulator fiiting `n` times
     and saves MCMC chains in file indexed by the iteration number
@@ -236,7 +237,7 @@ def RunManyMCMCRuns(hydro_names: List[str],
         ba_class.run_calibration(
             nsteps=400,
             nburn=100,
-            ntemps=20,
+            ntemps=10,
             exact_observables=exact_pseudo,
             exact_error=pseudo_error,
             GP_emulators=emulator_class.GP_emulators,
@@ -384,12 +385,12 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
                 temp = 1
                 for k in range(simulation_taus.size):
                     temp *= calculate_gaussian(
-                            e=(E_exp[i, k] - E_sim[name][i, k]),
-                            pt=(PT_exp[i, k] - PT_sim[name][i, k]),
-                            pl=(PL_exp[i, k] - PL_sim[name][i, k]),
-                            de=dE_exp[i, k],
-                            dpt=dPT_exp[i, k],
-                            dpl=dPL_exp[i, k])
+                        e=(E_exp[i, k] - E_sim[name][i, k]),
+                        pt=(PT_exp[i, k] - PT_sim[name][i, k]),
+                        pl=(PL_exp[i, k] - PL_sim[name][i, k]),
+                        de=dE_exp[i, k],
+                        dpt=dPT_exp[i, k],
+                        dpl=dPL_exp[i, k])
                 post[i] = temp
 
             post_norm = np.sum(np.diff(Cs)[0] * post)
@@ -437,14 +438,14 @@ def PlotAnalyticPosteriors(hydro_names: List[str],
         def for_multiprocessing(dic: Dict, key: str, itr: int):
             local_params['hydro_type'] = convert_hydro_name_to_int(key)
             output = np.array([[code_api.process_hydro(
-                                    params_dict=local_params,
-                                    parameter_names=parameter_names,
-                                    design_point=[C],
-                                    use_PL_PT=True)[int(i)-1]
-                                for i in observ_indices]
-                               for C in tqdm(Cs,
-                                             desc=f'{key}: ',
-                                             position=itr)])
+                params_dict=local_params,
+                parameter_names=parameter_names,
+                design_point=[C],
+                use_PL_PT=True)[int(i)-1]
+                for i in observ_indices]
+                for C in tqdm(Cs,
+                              desc=f'{key}: ',
+                              position=itr)])
             dic[key] = output
 
         jobs = [Process(target=for_multiprocessing,
@@ -586,6 +587,57 @@ def analyze_saved_runs(hydro_names: List[str],
     posterior_fig.savefig(f'{path_to_output}/plots/upper-lower.pdf')
 
 
+def plot_hydros(
+    hydro_names: List[str],
+    true_parameters: Dict[str, float],
+    parameter_names: List[str],
+    output_path: Union[str, Path],
+    use_PT_PL: bool = True,
+    best_fits: Optional[List[float]] = None,
+):
+    code_api = HCA(str(Path('./swap').absolute()))
+
+    fig, ax = plt.subplots(nrows=1, ncols=3,
+                           figsize=(3 * 7, 7))
+
+    hydros = [*hydro_names, 'exact']
+    colors = {'exact': 'black', 'ce': 'orange',
+              'dnmr': 'blue', 'mis': 'green', 'mvah': 'red'}
+    hydro_params = {**true_parameters}
+    best_fits = [*best_fits, hydro_params['C']] \
+        if best_fits is not None else \
+                [hydro_params['C'] for name in hydros]
+
+    for n, name in enumerate(hydros):
+        print(name)
+        true_parameters['hydro_type'] = convert_hydro_name_to_int(name)
+        output = code_api.process_hydro(params_dict=hydro_params,
+                                        parameter_names=parameter_names,
+                                        design_point=[best_fits[n]],
+                                        use_PL_PT=use_PL_PT)
+        for j in range(3):
+            m = j + 1
+            if j == 0:
+                ax[j].plot(output[:, 0], output[:, m] / output[0, m],
+                           ls='dashed' if name == 'exact' else 'solid',
+                           lw=2, color=colors[name], label=name)
+            else:
+                ax[j].plot(output[:, 0], output[:, m] / (output[:, 1] + output[:, 4]),
+                           ls='dashed' if name == 'exact' else 'solid',
+                           lw=2, color=colors[name])
+
+    p1_name = r'$R_{\mathcal P_T}$' if use_PL_PT else r'$R_\pi$'
+    p2_name = r'$R_{\mathcal P_L}$' if use_PL_PT else r'$R_\Pi$'
+    col_names = [r'$R_\mathcal{E}$', p1_name, p2_name]
+    ax[0].legend(fontsize=24)
+    for j in range(3):
+        costumize_axis(ax[j], r'$\tau$ [fm/c]', col_names[j])
+        ax[j].set_xscale('log')
+
+    fig.tight_layout()
+    fig.savefig(f'{output_path}/plots/all_hydros.pdf')
+
+
 if __name__ == "__main__":
     local_params = {
         'tau_0': 0.1,
@@ -597,6 +649,23 @@ if __name__ == "__main__":
         'C': 5 / (4 * np.pi),
         'hydro_type': 0
     }
+
+    total_runs = 10
+    # output_folder = 'very_large_mcmc_run_1'
+    output_folder = 'bmm_runs/no_bmm_yet'
+    use_PL_PT = False
+    hydro_names = ['ce', 'dnmr', 'mvah']
+    # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
+    best_fits = [0.342, 0.40, 0.08, 0.235]
+
+    # plot_hydros(
+    #     hydro_names=hydro_names,
+    #     true_parameters=local_params,
+    #     parameter_names=['C'],
+    #     output_path=f'./pickle_files/{output_folder}',
+    #     use_PT_PL=False,
+    #     best_fits=best_fits,
+    # )
 
     # Navier-Stokes Initial Conditions
     # e0 = 12.4991
@@ -617,43 +686,18 @@ if __name__ == "__main__":
     # }
     # print(local_params)
 
-    total_runs = 10
-    # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'bmm_runs/no_bmm_yet'
-    use_PL_PT = False
-    simulation_taus=np.linspace(2.1, 3.1, 10, endpoint=True)
+    simulation_taus = np.linspace(2.1, 3.1, 10, endpoint=True)
 
     exact_pseudo, pseudo_error = SampleObservables(
-        error_level=0.05,
+        error_level=0.0001,
         true_params=local_params,
         parameter_names=['C'],
         simulation_taus=simulation_taus,
         use_PL_PT=use_PL_PT,
     )
-    # exact_pseudo = np.array(
-    #     [[5.1,  0.75470255, 0.27463283, 0.1588341],
-    #      [6.1,  0.6216813,  0.21947875, 0.14180029],
-    #      [7.1,  0.51281854, 0.17400683, 0.11073481],
-    #      [8.1,  0.39545993, 0.14676481, 0.10393984],
-    #      [9.1,  0.40051311, 0.13026088, 0.09105533],
-    #      [10.1, 0.30190729, 0.12180956, 0.07787765],
-    #      [11.1, 0.30734799, 0.08858191, 0.07306867],
-    #      [12.1, 0.25883392, 0.08667172, 0.06143159]]
-    # )    
-    # pseudo_error = np.array(
-    #     [[0.0383127,  0.013715,   0.00803337],
-    #      [0.03082207, 0.01079027, 0.00672129],
-    #      [0.02560243, 0.00879639, 0.00574629],
-    #      [0.02177809, 0.00736298, 0.00499578],
-    #      [0.01886813, 0.00629024, 0.00440209],
-    #      [0.01658759, 0.00546173, 0.00392206],
-    #      [0.0147574,  0.00480543, 0.00352685],
-    #      [0.01325973, 0.00427459, 0.00319652]]
-    # )
     print(exact_pseudo)
     print(pseudo_error)
 
-    hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
     # hydro_names = ['ce', 'dnmr', 'mvah']
 
     if False:  # Do averaging over many runs if True
@@ -699,7 +743,7 @@ if __name__ == "__main__":
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
                          points_per_feat=40,
-                         number_steps=4000,
+                         number_steps=10_000,
                          use_existing_emulators=False,
                          use_PL_PT=use_PL_PT,)
 

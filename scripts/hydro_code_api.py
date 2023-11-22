@@ -182,8 +182,8 @@ class HydroCodeAPI:
             return output
         else:
             out_list = []
-            for i in range(output.shape[0]):
-                tau, e, pt, pl, p = output
+            for entry in output:
+                tau, e, pt, pl, p = entry
                 pi = (2.0 / 3.0) * (pt - pl)
                 Pi = (pl + 2.0 * pt) / 3.0 - p
 
@@ -203,7 +203,7 @@ class HydroCodeAPI:
             params_dict[name] = design_point[i]
         self.execute_hydro_code(params_dict, params_dict['hydro_type'])
         if params_dict['hydro_type'] == 5:
-            return np.array(self.get_exact_results(params_dict))
+            return np.array(self.get_exact_results(params_dict, use_PL_PT))
         else:
             return np.array(self.get_from_output_files(params_dict,
                                                        use_PL_PT))
