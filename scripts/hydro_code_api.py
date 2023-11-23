@@ -293,7 +293,7 @@ class HydroCodeAPI:
                                   design_points,
                                   hydro_output,
                                   key,
-                                  i))
+                                  self.map_hydro_to_number(key)))
                     for i, key in enumerate(hydro_names)]
 
             _ = [proc.start() for proc in jobs]
