@@ -180,7 +180,6 @@ def SampleObservables(error_level: float,
     pt = np.array([output[int(i)-1, 2] for i in observ_indices])
     pl = np.array([output[int(i)-1, 3] for i in observ_indices])
 
-    error_level = 0.05
     pt_err = error_level * pt
     pl_err = error_level * pl
     exact_pseudo = np.zeros((simulation_taus.shape[0], 4))
@@ -608,23 +607,29 @@ def plot_hydros(
         if best_fits is not None else \
                 [hydro_params['C'] for name in hydros]
 
-    for n, name in enumerate(hydros):
-        print(name)
-        true_parameters['hydro_type'] = convert_hydro_name_to_int(name)
-        output = code_api.process_hydro(params_dict=hydro_params,
-                                        parameter_names=parameter_names,
-                                        design_point=[best_fits[n]],
-                                        use_PL_PT=use_PL_PT)
-        for j in range(3):
-            m = j + 1
-            if j == 0:
-                ax[j].plot(output[:, 0], output[:, m] / output[0, m],
-                           ls='dashed' if name == 'exact' else 'solid',
-                           lw=2, color=colors[name], label=name)
-            else:
-                ax[j].plot(output[:, 0], output[:, m] / (output[:, 1] + output[:, 4]),
-                           ls='dashed' if name == 'exact' else 'solid',
-                           lw=2, color=colors[name])
+    Cs = np.linspace(1, 10, 10) / (4 * np.pi)
+    for p, C in enumerate(Cs):
+        for n, name in enumerate(hydros):
+            hydro_params['hydro_type'] = convert_hydro_name_to_int(name)
+            output = code_api.process_hydro(params_dict=hydro_params,
+                                            parameter_names=parameter_names,
+                                            design_point=[C],
+                                            use_PL_PT=use_PL_PT)
+            for j in range(3):
+                m = j + 1
+                if j == 0:
+                    if p == 0:
+                        ax[j].plot(output[:, 0], output[:, m] / output[0, m],
+                                ls='dashed' if name == 'exact' else 'solid',
+                                lw=2, color=colors[name], label=name)
+                    else:
+                        ax[j].plot(output[:, 0], output[:, m] / output[0, m],
+                                ls='dashed' if name == 'exact' else 'solid',
+                                lw=2, color=colors[name], alpha=(len(Cs) - p) / len(Cs))
+                else:
+                    ax[j].plot(output[:, 0], output[:, m] / (output[:, 1] + output[:, 4]),
+                            ls='dashed' if name == 'exact' else 'solid',
+                            lw=2, color=colors[name], alpha=(len(Cs) - p) / len(Cs))
 
     p1_name = r'$R_{\mathcal P_T}$' if use_PL_PT else r'$R_\pi$'
     p2_name = r'$R_{\mathcal P_L}$' if use_PL_PT else r'$R_\Pi$'
@@ -636,6 +641,47 @@ def plot_hydros(
 
     fig.tight_layout()
     fig.savefig(f'{output_path}/plots/all_hydros.pdf')
+
+
+
+def compare_all_emulators(
+        hydro_names: List[str],
+        simulation_taus: np.ndarray,
+        output_dir: str,
+        local_params: Dict[str, float],
+        points_per_feat: int,
+        use_PL_PT: bool
+    ) -> None:
+    '''
+    Runs the entire analysis suite, including the emulator fitting
+    and saves MCMC chains and outputs plots
+    '''
+    code_api = HCA(str(Path(output_dir + '/swap').absolute()))
+    parameter_names = ['C']
+    parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
+
+    emulator_class = HE(hca=code_api,
+                        params_dict=local_params,
+                        parameter_names=parameter_names,
+                        parameter_ranges=parameter_ranges,
+                        simulation_taus=simulation_taus,
+                        hydro_names=hydro_names,
+                        use_existing_emulators=False,
+                        use_PL_PT=use_PL_PT,
+                        output_path=output_dir,
+                        samples_per_feature=points_per_feat)
+    emulator_class.test_emulator(
+        hca=code_api,
+        params_dict=local_params,
+        parameter_names=parameter_names,
+        parameter_ranges=parameter_ranges,
+        simulation_taus=simulation_taus,
+        hydro_names=hydro_names,
+        use_existing_emulators=False,
+        use_PL_PT=use_PL_PT,
+        output_statistics=True,
+        plot_emulator_vs_test_points=True,
+        output_path=output_dir)
 
 
 if __name__ == "__main__":
@@ -651,12 +697,17 @@ if __name__ == "__main__":
     }
 
     total_runs = 10
+
     # output_folder = 'very_large_mcmc_run_1'
     output_folder = 'bmm_runs/no_bmm_yet'
+    
     use_PL_PT = False
     hydro_names = ['ce', 'dnmr', 'mvah']
     # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
+    # hydro_names = ['mvah']
+
     best_fits = [0.342, 0.40, 0.08, 0.235]
+    simulation_taus = np.linspace(2.1, 3.1, 10, endpoint=True)
 
     # plot_hydros(
     #     hydro_names=hydro_names,
@@ -666,6 +717,13 @@ if __name__ == "__main__":
     #     use_PT_PL=False,
     #     best_fits=best_fits,
     # )
+
+    # compare_all_emulators(hydro_names=hydro_names,
+    #                       simulation_taus=simulation_taus,
+    #                       output_dir=f'./pickle_files/{output_folder}',
+    #                       local_params=local_params,
+    #                       points_per_feat=10,
+    #                       use_PL_PT=use_PL_PT,)
 
     # Navier-Stokes Initial Conditions
     # e0 = 12.4991
@@ -685,8 +743,6 @@ if __name__ == "__main__":
     #     'hydro_type': 0
     # }
     # print(local_params)
-
-    simulation_taus = np.linspace(2.1, 3.1, 10, endpoint=True)
 
     exact_pseudo, pseudo_error = SampleObservables(
         error_level=0.0001,

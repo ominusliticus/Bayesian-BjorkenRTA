@@ -45,6 +45,12 @@ import pickle
 from subprocess import run as cmd
 from subprocess import CalledProcessError
 
+# maximize processes used
+from os import cpu_count
+
+# Run MCMC in parallel
+# from multiprocessing import Manager, Process
+
 
 class HydroBayesianAnalysis(object):
     """
@@ -239,6 +245,14 @@ class HydroBayesianAnalysis(object):
         else:
             nwalkers = 4 * self.num_params
 
+            # manager = Manager()
+            # sampler = manager.dict()
+            # for name in hydro_names:
+            #     sampler[name] = []
+
+            # def for_multiprocessing(sampler: Dict[str, float], name: str, **kwargs):
+            #     sampler[name] = ptemcee.Sampler(**kwargs)
+
             for i, name in enumerate(self.hydro_names):
                 print(f"Computing for hydro theory: {name}")
                 starting_guess = np.array(
@@ -249,8 +263,8 @@ class HydroBayesianAnalysis(object):
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
                                           dim=self.num_params,
                                           ntemps=ntemps,
-                                          Tmax=10,
-                                          threads=4,
+                                          Tmax=100,
+                                          threads=cpu_count(),
                                           logl=self.log_likelihood,
                                           logp=self.log_prior,
                                           loglargs=[exact_observables[:, 1:4],

@@ -233,7 +233,7 @@ class HydroEmulator:
                                 length_scale=np.diff(parameter_ranges),
                                 length_scale_bounds=bounds)
                         GPR = gpr(kernel=kernel,
-                                  n_restarts_optimizer=40,
+                                  n_restarts_optimizer=10,
                                   alpha=1e-8,
                                   normalize_y=True)
                         f_emulator_scores.write(

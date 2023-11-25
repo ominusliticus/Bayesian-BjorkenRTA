@@ -54,8 +54,6 @@ namespace std {
 }    // namespace std
 #endif
 
-// TODO: Make easily parallelizable for python
-
 namespace hydro {
     const double tol       = 1e-8;
     const int    max_depth = 3;
@@ -1285,4 +1283,3 @@ namespace hydro {
     // -----------------------------------------
 
 }    // namespace hydro
-

@@ -69,8 +69,8 @@ namespace exact {
     // const int max_depth = 5;
     // const int max_depth2 = 5;
     const double tol        = eps;    // eps;
-    const int    max_depth  = 3;
-    const int    max_depth2 = 3;
+    const int    max_depth  = 0;
+    const int    max_depth2 = 0;
 
     ExactSolution::ExactSolution(SP& params)
     {
@@ -163,7 +163,7 @@ namespace exact {
                 return sign * y / std::pow(x, 1.5) * (-std::sqrt(x * (y * y + z * z)) + (z * z + 2.0 * y * y - 1.0) * atanh_val);
 
             case Moment::PEQ :
-                Print(std::cout, "Invalid option");
+                Print_Error(std::cout, "Invalid option");
                 exit(-887);
         }
 
@@ -629,7 +629,7 @@ namespace exact {
         double e0 = InitialDistributionMoment(tau_0, params, Moment::ED);
         double T0 = InvertEnergyDensity(e0, params);
 
-        Print(std::cout, "Initialize temperatures");
+        // Print(std::cout, "Initialize temperatures");
         for (int i = 0; i < steps; i++)
         {
             double tau = tau_0 + (double)i * step_size;
@@ -641,7 +641,7 @@ namespace exact {
         double              err    = inf;
         double              last_D = 1.0 / T0;
         std::vector<double> e(steps);
-        Print(std::cout, "Calculating temperature evoluton.");
+        // Print(std::cout, "Calculating temperature evoluton.");
         do
         {
 #if USE_PARALLEL
@@ -663,7 +663,7 @@ namespace exact {
                 D[i]        = 1.0 / Temp;
             }
             err = std::abs(last_D - D[steps - 1]) / D[steps - 1];
-            Print(std::cout, fmt::format("n = {}, err = {}", n, err));
+            // Print(std::cout, fmt::format("n = {}, err = {}", n, err));
             last_D = D[steps - 1];
             n++;
         } while (err > eps);
@@ -675,7 +675,7 @@ namespace exact {
         //     Print(out, std::setprecision(16), tau, D[i], 1.0 / D[i] * 0.197);
         // }
         // out.close();
-        Print(std::cout, "Temperature evolution calculation terminated successfully.");
+        // Print(std::cout, "Temperature evolution calculation terminated successfully.");
     }
 
     //--------------------------------------
@@ -684,7 +684,7 @@ namespace exact {
     {
         std::filesystem::path file = file_path;
         file                       = file / fmt::format("exact_m={:.3f}GeV.dat", 0.197 * params.mass);
-        Print(std::cout, "Calculating moments of distribution function.");
+        // Print(std::cout, "Calculating moments of distribution function.");
         std::fstream fout(file, std::fstream::out);
         if (!fout.is_open())
         {

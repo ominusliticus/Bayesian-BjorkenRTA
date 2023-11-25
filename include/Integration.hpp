@@ -25,6 +25,9 @@
 //              Integration use adaptive 48-point Gaus-Legendre integration method and
 //              variadic templates to handle arbitrary function calls
 
+// TODO: Poor preformance on integrating log functions, and fails to integrate sinsuidals for
+//       frequenceies above approx. 250
+
 #ifndef INTEGRATION_HPP
 #define INTEGRATION_HPP
 

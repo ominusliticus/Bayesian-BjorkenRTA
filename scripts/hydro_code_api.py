@@ -245,8 +245,7 @@ class HydroCodeAPI:
                                 parameter_names: List[str],
                                 design_points: np.ndarray,
                                 output_dict: Dict[str, np.ndarray],
-                                key: str,
-                                itr: int):
+                                key: str,):
             # Calculate indices for observation times
             if 'tau_0' in parameter_names:
                 j = parameter_names.index('tau_0')
@@ -261,8 +260,9 @@ class HydroCodeAPI:
                     [[(tau_f / tau_0 - 1.0) * 20.0
                       for tau_f in simulation_taus]
                      for design_point in design_points])
-
-            params_dict['hydro_type'] = itr
+            
+            itr = hydro_names.index(key)
+            params_dict['hydro_type'] = self.map_hydro_to_number(key)
             output = np.array(
                 [self.process_hydro(
                         params_dict,
@@ -271,7 +271,7 @@ class HydroCodeAPI:
                         use_PL_PT)[observ_indices.astype(int)[i]-1]
                  for i, design_point in enumerate(
                      tqdm(design_points,
-                          desc=f'{hydro_names[itr]}: ',
+                          desc=f'{key}: ',
                           position=itr))])
             output_dict[key] = output
 
@@ -284,16 +284,14 @@ class HydroCodeAPI:
                                     parameter_names=parameter_names,
                                     design_points=design_points,
                                     output_dict=hydro_output,
-                                    key=name,
-                                    itr=self.map_hydro_to_number(name))
+                                    key=name,)
         else:
             jobs = [Process(target=for_multiprocessing,
                             args=(params_dict,
                                   parameter_names,
                                   design_points,
                                   hydro_output,
-                                  key,
-                                  self.map_hydro_to_number(key)))
+                                  key,))
                     for i, key in enumerate(hydro_names)]
 
             _ = [proc.start() for proc in jobs]
