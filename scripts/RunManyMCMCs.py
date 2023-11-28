@@ -182,10 +182,6 @@ def SampleObservables(error_level: float,
 
     pt_err = error_level * pt
     pl_err = error_level * pl
-    exact_pseudo = np.zeros((simulation_taus.shape[0], 4))
-
-    for i, tau in enumerate(simulation_taus):
-        exact_pseudo[i, 0] = tau
 
     Ex = np.fabs(np.random.normal(E, np.fabs(E * error_level)))
     ptx = np.random.normal(pt, np.fabs(pt_err))
@@ -753,7 +749,6 @@ if __name__ == "__main__":
     )
     print(exact_pseudo)
     print(pseudo_error)
-
     # hydro_names = ['ce', 'dnmr', 'mvah']
 
     if False:  # Do averaging over many runs if True

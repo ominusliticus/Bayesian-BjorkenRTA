@@ -243,7 +243,7 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/pickle_files/evidence.pkl', 'rb') as f:
                 self.evidence = pickle.load(f)
         else:
-            nwalkers = 4 * self.num_params
+            nwalkers = cpu_count() * self.num_params
 
             # manager = Manager()
             # sampler = manager.dict()
@@ -263,7 +263,7 @@ class HydroBayesianAnalysis(object):
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
                                           dim=self.num_params,
                                           ntemps=ntemps,
-                                          Tmax=100,
+                                          Tmax=1000,
                                           threads=cpu_count(),
                                           logl=self.log_likelihood,
                                           logp=self.log_prior,
