@@ -56,7 +56,7 @@ namespace std {
 
 namespace hydro {
     const double tol       = 1e-8;
-    const int    max_depth = 3;
+    const int    max_depth = 0;
     const double Tmax      = 1000.0;
 
     // utility fuction for quick exponentiation

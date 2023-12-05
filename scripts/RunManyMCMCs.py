@@ -714,12 +714,14 @@ if __name__ == "__main__":
     #     best_fits=best_fits,
     # )
 
-    # compare_all_emulators(hydro_names=hydro_names,
-    #                       simulation_taus=simulation_taus,
-    #                       output_dir=f'./pickle_files/{output_folder}',
-    #                       local_params=local_params,
-    #                       points_per_feat=10,
-    #                       use_PL_PT=use_PL_PT,)
+    hydro_names = ['ce', 'dnmr', 'mvah', 'exact']
+    compare_all_emulators(hydro_names=hydro_names,
+                          simulation_taus=simulation_taus,
+                          output_dir='./pickle_files/emulator_validation',
+                          local_params=local_params,
+                          points_per_feat=10,
+                          use_PL_PT=use_PL_PT,)
+    exit()
 
     # Navier-Stokes Initial Conditions
     # e0 = 12.4991
@@ -749,7 +751,6 @@ if __name__ == "__main__":
     )
     print(exact_pseudo)
     print(pseudo_error)
-    # hydro_names = ['ce', 'dnmr', 'mvah']
 
     if False:  # Do averaging over many runs if True
         #     # Just run very large MCMC if False
@@ -793,7 +794,7 @@ if __name__ == "__main__":
                          pseudo_error=pseudo_error,
                          output_dir=f'./pickle_files/{output_folder}',
                          local_params=local_params,
-                         points_per_feat=40,
+                         points_per_feat=10,
                          number_steps=10_000,
                          use_existing_emulators=False,
                          use_PL_PT=use_PL_PT,)
