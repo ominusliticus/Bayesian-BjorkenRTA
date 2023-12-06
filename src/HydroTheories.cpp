@@ -30,7 +30,7 @@
 
 #include <cassert>
 #include <cmath>
-#if __cplusplus > 201703    // Check if we can use filesystem
+#if __cplusplus > 201703L    // Check if we can use filesystem
 #  include <filesystem>
 #endif
 #include <fstream>

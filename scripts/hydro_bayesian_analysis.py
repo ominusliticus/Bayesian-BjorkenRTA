@@ -344,25 +344,26 @@ class HydroBayesianAnalysis(object):
 
     def plot_posteriors(self, output_dir: str, axis_names: List[str]):
         if self.bmm_MCMC_chains is not None:
-            n_models = len(self.hydro_names)            
-            weights = self.bmm_MCMC_chains[0].reshape(
+            n_models = len(self.hydro_names)
+            weights = self.weights[0].reshape(
                 -1,
-                self.bmm_MCMC_chains.shape[3:],
+                *self.weights.shape[-2:],
             )
             n_observation = weights.shape[-1]
-            assert n_observation == self.simulation_taus[0]
+            assert n_observation == self.simulation_taus.shape[0]
 
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7, 7))
             fig.patch.set_facecolor('white')
             cmap = mp.get_cmap(10, 'tab10')
             for i in range(n_models):
-                mean = np.mean(weights[:, i])
-                std = np.std(weights[:, i])
+                mean = np.mean(weights[:, i], axis=0)
+                std = np.std(weights[:, i], axis=0)
                 ax.plot(
                     self.simulation_taus,
                     mean,
                     lw=2,
                     color=cmap(i),
+                    label=self.hydro_names[i]
                 )
                 ax.fill_between(
                     self.simulation_taus,
@@ -372,13 +373,15 @@ class HydroBayesianAnalysis(object):
                     alpha=0.5,
                 )
             mp.costumize_axis(ax, r'$\tau$ [fm/c]', r'$w(\tau)$')
+            ax.set_ylim(bottom=0)
+            ax.legend(fontsize=20)
 
             try:
                 (cmd(['mkdir', '-p', f'{output_dir}/plots'])
                     .check_returncode())
             except (CalledProcessError):
                 print(f"Could not create dir {output_dir}/plots")
-            g.savefig(
+            fig.savefig(
                 f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
     
         # TODO: Add true and MAP values to plot
@@ -454,7 +457,7 @@ class HydroBayesianAnalysis(object):
         num_models = len(hydro_names)
         # log_ws will have shape (m_models, n_observation_times) after
         # transpose
-        log_ws = np.log(dirichlet(1 / evaluation_point[:num_models])
+        log_ws = np.log(dirichlet(np.abs(1 / evaluation_point[:num_models]))
                         .rvs(size=true_observables.shape[0])).T
 
         if fixed_evaluation_parameters_for_models is None:
@@ -532,9 +535,14 @@ class HydroBayesianAnalysis(object):
         self.do_calibration_simultaneous = do_calibration_simultaneous
         if read_from_file:
             print("Reading mcmc_chain from file")
-            with open(f'{output_path}/pickle_files/bmm_mcmc_chains.pkl',
+            with open(f'{output_path}/bmm_mcmc_chains.pkl',
                       'rb') as f:
                 self.bmm_MCMC_chains = pickle.load(f)
+            with open(f'{output_path}/bmm_mcmc_weights.pkl',
+                'rb') as f:
+                self.weights = pickle.load(f)
+
+            return self.bmm_MCMC_chains
         else:
             nwalkers = 20 * self.num_params
             n_models = len(self.hydro_names)
@@ -595,9 +603,6 @@ class HydroBayesianAnalysis(object):
             x = sampler.run_mcmc(p0=starting_guess,
                                     iterations=nburn,
                                     swap_ratios=True)
-            print("Mean acceptance fractions (in total {0} steps): "
-                  .format(ntemps * nwalkers * nburn))
-            print(x[3])
             print('Burn in completed.')
 
             sampler.reset()
@@ -607,9 +612,6 @@ class HydroBayesianAnalysis(object):
                                     iterations=nsteps,
                                     storechain=True,
                                     swap_ratios=True)
-            print("Mean acceptance fractions (in total {0} steps): "
-                  .format(ntemps * nwalkers * nsteps))
-            print(x[3])
 
             self.bmm_MCMC_chains = sampler.chain
             self.weights = sampler.weights
@@ -623,5 +625,10 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/bmm_mcmc_chains.pkl',
                       'wb') as f:
                 pickle.dump(self.bmm_MCMC_chains, f)
+                
+            with open(f'{output_path}/bmm_mcmc_weights.pkl',
+                      'wb') as f:
+                pickle.dump(self.weights, f)
+            
 
             return sampler.chain
