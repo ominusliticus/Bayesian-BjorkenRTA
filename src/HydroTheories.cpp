@@ -30,7 +30,9 @@
 
 #include <cassert>
 #include <cmath>
-#include <filesystem>
+#if __cplusplus >= 201703    // Check if we can use filesystem
+#  include <filesystem>
+#endif
 #include <fstream>
 #include <iomanip>
 #include <tuple>
@@ -104,9 +106,10 @@ namespace hydro {
         int decimal = -(int)std::log10(dt);
 
         // Opening output files
-        double                m    = params.mass;    // Note that the mass in already in units fm^{-1}
+        double       m = params.mass;    // Note that the mass in already in units fm^{-1}
+        std::fstream e_plot, shear_plot, bulk_plot;
+#ifdef __nothing    // __cpp_lib_filesystem
         std::filesystem::path file = file_path;
-        std::fstream          e_plot, shear_plot, bulk_plot;
         switch (theo)
         {
             case theory::CE :
@@ -131,6 +134,48 @@ namespace hydro {
                 bulk_plot  = std::fstream(file / fmt::format("mis_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
                 break;
         }
+#else
+        char file[1024];
+        switch (theo)
+        {
+            case theory::CE :
+                // Print(std::cout, "Calculting viscous hydro in Chapman-Enskog
+                // approximation");
+                sprintf(file, "%s/%s", file_path, fmt::format("ce_e_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                e_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("ce_shear_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                shear_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("ce_bulk_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                bulk_plot = std::fstream(file, std::ios::out);
+                break;
+            case theory::DNMR :
+                // Print(std::cout, "Calculting viscous hydro in DNMR 14-moment
+                // approximation");
+                sprintf(file, "%s/%s", file_path, fmt::format("dnmr_e_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                e_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("dnmr_shear_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                shear_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("dnmr_bulk_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                bulk_plot = std::fstream(file, std::ios::out);
+                break;
+            case theory::MIS :
+                // Print(std::cout, "Calculting viscous hydro in MIS 14-moment
+                // approximation");
+                sprintf(file, "%s/%s", file_path, fmt::format("mid_e_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                e_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("mid_shear_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                shear_plot = std::fstream(file, std::ios::out);
+
+                sprintf(file, "%s/%s", file_path, fmt::format("mid_bulk_m={:.3f}GeV.dat", 0.197 * m).c_str());
+                bulk_plot = std::fstream(file, std::ios::out);
+                break;
+        }
+#endif
         if (!e_plot.is_open() && !shear_plot.is_open() && !bulk_plot.is_open())
         {
             Print_Error(std::cerr,
@@ -562,11 +607,21 @@ namespace hydro {
         int decimal = -(int)std::log10(dt);
 
         // Opening output files
-        double                m    = params.mass;    // Note that the mass in already in units fm^{-1}
+        double m = params.mass;    // Note that the mass in already in units fm^{-1}
+#ifdef __cpp_lib_filesystem
         std::filesystem::path file = file_path;
         std::fstream          e_plot(file / fmt::format("vah_e_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         std::fstream          bulk_plot(file / fmt::format("vah_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         std::fstream          shear_plot(file / fmt::format("vah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
+#else
+        char file[1024];
+        sprintf(file, "%s/%s", file_path, fmt::format("vah_e_m={:.3f}GeV.dat", 0.197 * m), c_str());
+        std::fstream e_plot(file, std::ios::out);
+        sprintf(file, "%s/%s", file_path, fmt::format("vah_bulk_m={:.3f}GeV.dat", 0.197 * m), c_str());
+        std::fstream bulk_plot(file, std::ios::out);
+        sprintf(file, "%s/%s", file_path, fmt::format("vah_shear_m={:.3f}GeV.dat", 0.197 * m), c_str());
+        std::fstream shear_plot(file, std::ios::out);
+#endif
         if (!e_plot.is_open() && !bulk_plot.is_open() && !shear_plot.is_open())
         {
             Print_Error(std::cerr,

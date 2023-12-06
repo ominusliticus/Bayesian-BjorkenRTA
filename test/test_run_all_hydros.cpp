@@ -16,7 +16,9 @@
 #include "../include/Parameters.hpp"
 
 #include <chrono>
-#include <filesystem>
+#if __cplusplus >= 201703
+#  include <filesystem>
+#endif
 #include <string>
 
 void Run1MeV(void);
@@ -27,11 +29,16 @@ void Run1GeV(void);
 bool compare_floats_same(double, double);
 bool compare_output_and_expected(std::string);
 
-static double                tolerance         = 1e-8;
+static double tolerance = 1e-8;
+#ifdef __cpp_lib_filesystem
 static std::filesystem::path cwd               = std::filesystem::current_path() / "output/test";
 static std::string           output_dir_string = cwd.string();
-static const char*           output_dir        = cwd.c_str();
-static const char*           file_suffix       = ".dat";
+#else
+static std::string cwd               = "./output/test";
+static std::string output_dir_string = cwd;
+#endif
+static const char* output_dir  = cwd.c_str();
+static const char* file_suffix = ".dat";
 
 // Hydro strings
 [[maybe_unused]] static std::string ce_string   = "ce_";
@@ -105,47 +112,31 @@ void Run1MeV(void)
     Print(std::cout,
           fmt::format(
               "Time for exact solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start).count())));
     Print(std::cout,
           fmt::format(
               "Time for ansio solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Time for altaniso solution: {} sec",
-              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                             altaniso_end - altaniso_start)
-                                             .count())));
-    Print(
-        std::cout,
-        fmt::format(
-            "Time for ce solution: {} sec",
-            static_cast<long long int>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
+          fmt::format("Time for altaniso solution: {} sec",
+                      static_cast<long long int>(
+                          std::chrono::duration_cast<std::chrono::milliseconds>(altaniso_end - altaniso_start).count())));
+    Print(std::cout,
+          fmt::format("Time for ce solution: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
     Print(
         std::cout,
         fmt::format("Time for dnmr solution: {} sec",
-                    static_cast<long long int>(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start)
-                            .count())));
+                    static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start).count())));
     Print(std::cout,
           fmt::format("Time for mis solution: {} sec",
-                      static_cast<long long int>(
-                          std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start)
-                              .count())));
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Total simulation duraion: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
+          fmt::format("Total simulation duraion: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
 
     std::string mass_string = "m=0.001GeV";
-    if (compare_output_and_expected(mass_string))
-        Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
+    if (compare_output_and_expected(mass_string)) Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "Test hydros: Mass = 1 MeV: \033[1;31mFAILS!\033[0m");
 }
 
@@ -200,47 +191,31 @@ void Run50MeV(void)
     Print(std::cout,
           fmt::format(
               "Time for exact solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start).count())));
     Print(std::cout,
           fmt::format(
               "Time for ansio solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Time for altaniso solution: {} sec",
-              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                             altaniso_end - altaniso_start)
-                                             .count())));
-    Print(
-        std::cout,
-        fmt::format(
-            "Time for ce solution: {} sec",
-            static_cast<long long int>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
+          fmt::format("Time for altaniso solution: {} sec",
+                      static_cast<long long int>(
+                          std::chrono::duration_cast<std::chrono::milliseconds>(altaniso_end - altaniso_start).count())));
+    Print(std::cout,
+          fmt::format("Time for ce solution: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
     Print(
         std::cout,
         fmt::format("Time for dnmr solution: {} sec",
-                    static_cast<long long int>(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start)
-                            .count())));
+                    static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start).count())));
     Print(std::cout,
           fmt::format("Time for mis solution: {} sec",
-                      static_cast<long long int>(
-                          std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start)
-                              .count())));
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Total simulation duraion: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
+          fmt::format("Total simulation duraion: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
 
     std::string mass_string = "m=0.050GeV";
-    if (compare_output_and_expected(mass_string))
-        Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
+    if (compare_output_and_expected(mass_string)) Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "Test hydros: Mass = 1 MeV: \033[1;31mFAILS!\033[0m");
 }
 
@@ -295,47 +270,31 @@ void Run200MeV(void)
     Print(std::cout,
           fmt::format(
               "Time for exact solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start).count())));
     Print(std::cout,
           fmt::format(
               "Time for ansio solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Time for altaniso solution: {} sec",
-              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                             altaniso_end - altaniso_start)
-                                             .count())));
-    Print(
-        std::cout,
-        fmt::format(
-            "Time for ce solution: {} sec",
-            static_cast<long long int>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
+          fmt::format("Time for altaniso solution: {} sec",
+                      static_cast<long long int>(
+                          std::chrono::duration_cast<std::chrono::milliseconds>(altaniso_end - altaniso_start).count())));
+    Print(std::cout,
+          fmt::format("Time for ce solution: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
     Print(
         std::cout,
         fmt::format("Time for dnmr solution: {} sec",
-                    static_cast<long long int>(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start)
-                            .count())));
+                    static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start).count())));
     Print(std::cout,
           fmt::format("Time for mis solution: {} sec",
-                      static_cast<long long int>(
-                          std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start)
-                              .count())));
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Total simulation duraion: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
+          fmt::format("Total simulation duraion: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
 
     std::string mass_string = "m=0.200GeV";
-    if (compare_output_and_expected(mass_string))
-        Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
+    if (compare_output_and_expected(mass_string)) Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "Test hydros: Mass = 1 MeV: \033[1;31mFAILS!\033[0m");
 }
 
@@ -390,47 +349,31 @@ void Run1GeV(void)
     Print(std::cout,
           fmt::format(
               "Time for exact solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(exact_end - eaxct_start).count())));
     Print(std::cout,
           fmt::format(
               "Time for ansio solution: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start)
-                      .count())));
+              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(aniso_end - aniso_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Time for altaniso solution: {} sec",
-              static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                             altaniso_end - altaniso_start)
-                                             .count())));
-    Print(
-        std::cout,
-        fmt::format(
-            "Time for ce solution: {} sec",
-            static_cast<long long int>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
+          fmt::format("Time for altaniso solution: {} sec",
+                      static_cast<long long int>(
+                          std::chrono::duration_cast<std::chrono::milliseconds>(altaniso_end - altaniso_start).count())));
+    Print(std::cout,
+          fmt::format("Time for ce solution: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(ce_end - ce_start).count())));
     Print(
         std::cout,
         fmt::format("Time for dnmr solution: {} sec",
-                    static_cast<long long int>(
-                        std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start)
-                            .count())));
+                    static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(dnmr_end - dnmr_start).count())));
     Print(std::cout,
           fmt::format("Time for mis solution: {} sec",
-                      static_cast<long long int>(
-                          std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start)
-                              .count())));
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(mis_end - mis_start).count())));
     Print(std::cout,
-          fmt::format(
-              "Total simulation duraion: {} sec",
-              static_cast<long long int>(
-                  std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
+          fmt::format("Total simulation duraion: {} sec",
+                      static_cast<long long int>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count())));
 
     std::string mass_string = "m=1.000GeV";
-    if (compare_output_and_expected(mass_string))
-        Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
+    if (compare_output_and_expected(mass_string)) Print(std::cout, "Test hdyros: Mass = 1 MeV: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "Test hydros: Mass = 1 MeV: \033[1;31mFAILS!\033[0m");
 }
 
@@ -443,33 +386,34 @@ bool compare_floats_same(double lhs, double rhs)
 bool compare_output_and_expected(std::string mass_string)
 {
     std::vector<std::string> output_files = {
-        (ce_string + bulk_string + mass_string + file_suffix),
-        (ce_string + energy_string + mass_string + file_suffix),
-        (ce_string + shear_string + mass_string + file_suffix),
-        (dnmr_string + bulk_string + mass_string + file_suffix),
-        (dnmr_string + energy_string + mass_string + file_suffix),
-        (dnmr_string + shear_string + mass_string + file_suffix),
-        (mis_string + bulk_string + mass_string + file_suffix),
-        (mis_string + energy_string + mass_string + file_suffix),
-        (mis_string + shear_string + mass_string + file_suffix),
-        (vah_string + bulk_string + mass_string + file_suffix),
-        (vah_string + energy_string + mass_string + file_suffix),
-        (vah_string + shear_string + mass_string + file_suffix),
-        (mvah_string + bulk_string + mass_string + file_suffix),
-        (mvah_string + bulk_string + mass_string + file_suffix),
+        (ce_string + bulk_string + mass_string + file_suffix),     (ce_string + energy_string + mass_string + file_suffix),
+        (ce_string + shear_string + mass_string + file_suffix),    (dnmr_string + bulk_string + mass_string + file_suffix),
+        (dnmr_string + energy_string + mass_string + file_suffix), (dnmr_string + shear_string + mass_string + file_suffix),
+        (mis_string + bulk_string + mass_string + file_suffix),    (mis_string + energy_string + mass_string + file_suffix),
+        (mis_string + shear_string + mass_string + file_suffix),   (vah_string + bulk_string + mass_string + file_suffix),
+        (vah_string + energy_string + mass_string + file_suffix),  (vah_string + shear_string + mass_string + file_suffix),
+        (mvah_string + bulk_string + mass_string + file_suffix),   (mvah_string + bulk_string + mass_string + file_suffix),
         (mvah_string + energy_string + mass_string + file_suffix),
     };
 
     for (const auto& file_string : output_files)
     {
+#ifdef __cpp_lib_filesystem
         std::fstream calculation_file(cwd / file_string, std::fstream::in);
         std::fstream comparison_file(cwd / ("comp_" + file_string), std::fstream::in);
+#else
+        char file[1024];
+        sprintf(file, "%s/%s", cwd.c_str(), file_string.c_str(), std::fstream::in);
+        std::fstream calculation_file(cwd / file_string, std::fstream::in);
+
+        sprintf(file, "%s/%s", cwd.c_str(), ("comp_" + file_string).c_str(), std::fstream::in);
+        std::fstream comparison_file(file, std::fstream::in);
+#endif
 
         double tau_calc, observable_calc;
         double tau_comp, observable_comp;
         bool   comparison_result = true;
-        while ((calculation_file >> tau_calc >> observable_calc)
-               && (comparison_file >> tau_comp >> observable_comp))
+        while ((calculation_file >> tau_calc >> observable_calc) && (comparison_file >> tau_comp >> observable_comp))
         {
             comparison_result &= compare_floats_same(observable_comp, observable_calc);
             if (!comparison_result) [[unlikely]]
@@ -485,4 +429,3 @@ bool compare_output_and_expected(std::string mass_string)
     }        // for file list of files
     return true;
 }
-

@@ -31,7 +31,9 @@
 
 #include <cassert>
 #include <cmath>
-#include <filesystem>
+#if __cplusplus >= 201703L    // Check if we have support of filesystems
+#  include <filesystem>
+#endif
 #include <fstream>
 #include <iomanip>
 
@@ -682,8 +684,13 @@ namespace exact {
 
     void ExactSolution::OutputMoments(const char* file_path, SP& params)
     {
+#ifdef __cpp_lib_filesystem
         std::filesystem::path file = file_path;
         file                       = file / fmt::format("exact_m={:.3f}GeV.dat", 0.197 * params.mass);
+#else
+        char file[1024];
+        sprintf(file, "%s/exact_m=%.3fGeV.dat", file_path, 0.197 * params.mass);
+#endif
         // Print(std::cout, "Calculating moments of distribution function.");
         std::fstream fout(file, std::fstream::out);
         if (!fout.is_open())
