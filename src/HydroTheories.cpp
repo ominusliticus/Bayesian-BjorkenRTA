@@ -108,7 +108,7 @@ namespace hydro {
         // Opening output files
         double       m = params.mass;    // Note that the mass in already in units fm^{-1}
         std::fstream e_plot, shear_plot, bulk_plot;
-#ifdef __nothing    // __cpp_lib_filesystem
+#ifdef __cpp_lib_filesystem
         std::filesystem::path file = file_path;
         switch (theo)
         {
