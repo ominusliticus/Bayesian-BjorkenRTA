@@ -91,6 +91,7 @@ class HydroBayesianAnalysis(object):
         self.parameter_ranges = parameter_ranges
         self.simulation_taus = simulation_taus
         self.do_bmm = do_bmm
+        self.do_calibration_simultaneous = False
 
         self.MCMC_chains = None   # Dict[str, np.ndarray]
         self.evidence = None      # Dict[str, float]
@@ -210,8 +211,8 @@ class HydroBayesianAnalysis(object):
 
             if np.all(L.diagonal() > 0):
                 if self.do_bmm:
-                    running_log_likelihood.append(-0.5 * np.dot(y, b) - \
-                        np.log(L.diagonal()).sum())
+                    running_log_likelihood.append(-0.5 * np.dot(y, b) -
+                                                  np.log(L.diagonal()).sum())
                 else:
                     running_log_likelihood += -0.5 * np.dot(y, b) - \
                         np.log(L.diagonal()).sum()
@@ -258,8 +259,6 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
                       'rb') as f:
                 self.MCMC_chains = pickle.load(f)
-            with open(f'{output_path}/pickle_files/evidence.pkl', 'rb') as f:
-                self.evidence = pickle.load(f)
         else:
             nwalkers = 20 * self.num_params
 
@@ -313,7 +312,6 @@ class HydroBayesianAnalysis(object):
                 print(x[3])
 
                 self.MCMC_chains[name] = np.array(sampler.chain)
-                self.evidence[name] = sampler.log_evidence_estimate()
 
             try:
                 (cmd(['mkdir', '-p', f'{output_path}'])
@@ -324,10 +322,8 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/mcmc_chains.pkl',
                       'wb') as f:
                 pickle.dump(self.MCMC_chains, f)
-            with open(f'{output_path}/evidence.pkl', 'wb') as f:
-                pickle.dump(self.evidence, f)
 
-            return sampler.chain
+            return self.MCMC_chains
 
     def calculate_bayes_factor(self, hydro1: str, hydro2: str) -> float:
         """
@@ -383,34 +379,34 @@ class HydroBayesianAnalysis(object):
                 print(f"Could not create dir {output_dir}/plots")
             fig.savefig(
                 f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
-    
+
         # TODO: Add true and MAP values to plot
         # pallette = sns.color_palette('Colorblind')
         if self.MCMC_chains is not None:
             dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
             for i, name in enumerate(self.hydro_names):
                 data = self.MCMC_chains[name][0].reshape(-1,
-                                                        len(self.
-                                                            parameter_names))
+                                                         len(self.
+                                                             parameter_names))
                 df = pd.DataFrame(dict((name, data[:, i])
-                                for i, name in enumerate(axis_names)))
+                                       for i, name in enumerate(axis_names)))
                 g1 = sns.pairplot(data=df,
-                                corner=True,
-                                diag_kind='kde',
-                                kind='hist')
+                                  corner=True,
+                                  diag_kind='kde',
+                                  kind='hist')
                 g1.map_lower(sns.kdeplot, levels=4, color='black')
                 g1.tight_layout()
                 g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
-                        format(output_dir, name, self.num_params))
+                           format(output_dir, name, self.num_params))
 
                 df['hydro'] = name
                 dfs = pd.concat([dfs, df], ignore_index=True)
 
             g = sns.pairplot(data=dfs,
-                            corner=True,
-                            diag_kind='kde',
-                            kind='hist',
-                            hue='hydro')
+                             corner=True,
+                             diag_kind='kde',
+                             kind='hist',
+                             hue='hydro')
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
 
@@ -433,7 +429,7 @@ class HydroBayesianAnalysis(object):
         hydro_names: List[str],
         GP_emulator: Dict,
         fixed_evaluation_parameters_for_models: Dict[str, np.ndarray] = None
-    )-> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         '''
         Mixing mixing likelihood that combines the likelhood distributions for
         the models.
@@ -487,11 +483,11 @@ class HydroBayesianAnalysis(object):
                 )
                 for hydro_name in hydro_names
             ])
-        
 
         # The sampler is coded such that it expects the weights to have the shape
         # (n_models, n_observation_times)
-        ll = np.prod(np.logaddexp.reduce(log_ws + model_log_likelihoods, axis=1))
+        ll = np.prod(np.logaddexp.reduce(
+            log_ws + model_log_likelihoods, axis=1))
         ws = np.exp(log_ws)
         # print("From inside log_likelihood", ll, ws)
         return (ll, ws)
@@ -539,7 +535,7 @@ class HydroBayesianAnalysis(object):
                       'rb') as f:
                 self.bmm_MCMC_chains = pickle.load(f)
             with open(f'{output_path}/bmm_mcmc_weights.pkl',
-                'rb') as f:
+                      'rb') as f:
                 self.weights = pickle.load(f)
 
             return self.bmm_MCMC_chains
@@ -559,28 +555,28 @@ class HydroBayesianAnalysis(object):
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
                         np.random.rand(
-                            nwalkers, 
+                            nwalkers,
                             self.num_params + n_models
-                        ) * np.diff(self.parameter_ranges).reshape(-1,)
+                    ) * np.diff(self.parameter_ranges).reshape(-1,)
                         for _ in range(ntemps)])
             else:
                 starting_guess = np.array(
                     [self.parameter_ranges[:n_models, 0] +
                         np.random.rand(
-                            nwalkers, 
+                            nwalkers,
                             n_models
-                        ) * 
+                    ) *
                         np.diff(self.parameter_ranges[:n_models])
                         .reshape(-1,)
                         for _ in range(ntemps)])
-                
-            # TODO: For the case where the fixed evaluation points are not 
+
+            # TODO: For the case where the fixed evaluation points are not
             #       given, run the calibration and extract the MAP values
             #       from the posteriors
 
             sampler = ptemcee.Sampler(
                 nwalkers=nwalkers,
-                dim=(self.num_params 
+                dim=(self.num_params
                      if do_calibration_simultaneous else
                      n_models),
                 ntemps=ntemps, Tmax=1000,
@@ -593,25 +589,25 @@ class HydroBayesianAnalysis(object):
                           GP_emulators,
                           fixed_evaluation_points_models],
                 logpargs=([self.parameter_ranges]
-                         if do_calibration_simultaneous else
-                         [self.parameter_ranges[:n_models]]),
+                          if do_calibration_simultaneous else
+                          [self.parameter_ranges[:n_models]]),
                 do_bmm=True,
                 num_models=n_models,
                 num_observations=exact_observables.shape[0]
             )
             print('burn in sampling started')
             x = sampler.run_mcmc(p0=starting_guess,
-                                    iterations=nburn,
-                                    swap_ratios=True)
+                                 iterations=nburn,
+                                 swap_ratios=True)
             print('Burn in completed.')
 
             sampler.reset()
 
             print("Now running the samples")
             x = sampler.run_mcmc(p0=x[0],
-                                    iterations=nsteps,
-                                    storechain=True,
-                                    swap_ratios=True)
+                                 iterations=nsteps,
+                                 storechain=True,
+                                 swap_ratios=True)
 
             self.bmm_MCMC_chains = sampler.chain
             self.weights = sampler.weights
@@ -625,10 +621,9 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/bmm_mcmc_chains.pkl',
                       'wb') as f:
                 pickle.dump(self.bmm_MCMC_chains, f)
-                
+
             with open(f'{output_path}/bmm_mcmc_weights.pkl',
                       'wb') as f:
                 pickle.dump(self.weights, f)
-            
 
             return sampler.chain

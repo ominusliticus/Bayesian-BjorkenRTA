@@ -13,6 +13,9 @@ import pandas as pd
 from scipy.optimize import curve_fit
 
 from multiprocessing import Process, Manager
+from subprocess import run as cmd
+from subprocess import CalledProcessError
+
 from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 
@@ -168,7 +171,7 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                      points_per_feat: int,
                      number_steps: int,
                      use_existing_emulators: bool,
-                     use_PL_PT: bool) -> None:
+                     use_PL_PT: bool) -> Dict[str, np.ndarray]:
     '''
     Runs the entire analysis suite, including the emulator fitting
     and saves MCMC chains and outputs plots
@@ -204,34 +207,38 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                    parameter_names=parameter_names,
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
-    ba_class.run_calibration(nsteps=number_steps,
-                             nburn=50 * len(parameter_names),
-                             ntemps=20,
-                             exact_observables=exact_pseudo,
-                             exact_error=pseudo_error,
-                             GP_emulators=emulator_class.GP_emulators,
-                             read_from_file=False,
-                             output_path=output_dir)
+    mcmc_chains = ba_class.run_calibration(nsteps=number_steps,
+                                           nburn=50 * len(parameter_names),
+                                           ntemps=20,
+                                           exact_observables=exact_pseudo,
+                                           exact_error=pseudo_error,
+                                           GP_emulators=emulator_class.GP_emulators,
+                                           read_from_file=False,
+                                           output_path=output_dir)
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
     ba_class.plot_posteriors(output_dir=output_dir,
                              axis_names=[r'$\mathcal C$'])
 
+    return mcmc_chains
+
 
 def RunBMMMCMC(
-        hydro_names: List[str],
-        simulation_taus: np.ndarray,
-        exact_pseudo: np.ndarray,
-        pseudo_error: np.ndarray,
-        output_dir: str,
-        local_params: Dict[str, float],
-        points_per_feat: int,
-        number_steps: int,
-        use_existing_emulators: bool,
-        read_mcmc_from_file: bool,
-        use_PL_PT: bool
-    ) -> None:
+    hydro_names: List[str],
+    simulation_taus: np.ndarray,
+    exact_pseudo: np.ndarray,
+    pseudo_error: np.ndarray,
+    output_dir: str,
+    local_params: Dict[str, float],
+    points_per_feat: int,
+    number_steps: int,
+    fixed_values: Dict[str, float],
+    use_existing_emulators: bool,
+    read_mcmc_from_file: bool,
+    use_PL_PT: bool,
+    run_sequential: bool,
+) -> None:
     '''
     Runs the entire analysis suite, including the emulator fitting
     and saves MCMC chains and outputs plots
@@ -249,21 +256,21 @@ def RunBMMMCMC(
                         params_dict=local_params,
                         parameter_names=parameter_names,
                         parameter_ranges=parameter_ranges[len(hydro_names):]
-                                         .reshape(len(parameter_names),-1),
+                        .reshape(len(parameter_names), -1),
                         simulation_taus=simulation_taus,
                         hydro_names=hydro_names,
                         use_existing_emulators=use_existing_emulators,
                         use_PL_PT=use_PL_PT,
                         output_path=output_dir,
                         samples_per_feature=points_per_feat)
-    
+
     if not use_existing_emulators:
         emulator_class.test_emulator(
             hca=code_api,
             params_dict=local_params,
             parameter_names=parameter_names,
             parameter_ranges=parameter_ranges[len(hydro_names):]
-                            .reshape(len(parameter_names),-1),
+            .reshape(len(parameter_names), -1),
             simulation_taus=simulation_taus,
             hydro_names=hydro_names,
             use_existing_emulators=use_existing_emulators,
@@ -277,7 +284,7 @@ def RunBMMMCMC(
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus,
                    do_bmm=True)
-    
+
     ba_class.run_mixing(
         nsteps=number_steps,
         nburn=50 * len(parameter_names),
@@ -286,12 +293,8 @@ def RunBMMMCMC(
         exact_error=pseudo_error,
         GP_emulators=emulator_class.GP_emulators,
         read_from_file=read_mcmc_from_file,
-        do_calibration_simultaneous=False,
-        fixed_evaluation_points_models={
-                'ce': [0.34138],
-                'dnmr': [0.40024],
-                'mvah': [0.3853]
-        },
+        do_calibration_simultaneous=(not run_sequential),
+        fixed_evaluation_points_models=fixed_values,
         output_path=output_dir,
     )
     if not read_mcmc_from_file:
@@ -317,29 +320,37 @@ if __name__ == "__main__":
     total_runs = 10
 
     # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'bmm_runs/yes_bmm'
-    
+    output_folder = 'bmm_runs/simultaneous_error=0.05'
+
     use_PL_PT = False
-    generate_new_data = False
-    read_mcmc_from_file = True
+    generate_new_data = True
+    use_existing_emulators = False
+    read_mcmc_from_file = False
+    run_sequential = False
     hydro_names = ['ce', 'dnmr', 'mvah']
     # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
     # hydro_names = ['mvah']
 
     best_fits = [0.342, 0.40, 0.08, 0.235]
-    simulation_taus = np.linspace(2.1, 3.1, 10, endpoint=True)
+    simulation_taus = np.linspace(2.1, 3.1, 20, endpoint=True)
 
-    data_file_path = Path(f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
+    data_file_path = Path(
+        f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
+    try:
+        (cmd(['mkdir', '-p', str(data_file_path.parent)])
+            .check_returncode())
+    except (CalledProcessError):
+        print(f"Could not create dir {data_file_path}")
     if generate_new_data:
         with open(str(data_file_path), 'wb') as f:
             exact_pseudo, pseudo_error = SampleObservables(
-                error_level=0.0001,
+                error_level=0.05,
                 true_params=local_params,
                 parameter_names=['C'],
                 simulation_taus=simulation_taus,
                 use_PL_PT=use_PL_PT,
             )
-            pickle_output = (exact_pseudo, pseudo_error) 
+            pickle_output = (exact_pseudo, pseudo_error)
             pickle.dump(pickle_output, f)
     else:
         with open(str(data_file_path), 'rb') as f:
@@ -349,6 +360,24 @@ if __name__ == "__main__":
     print(exact_pseudo)
     print(pseudo_error)
 
+    if run_sequential:
+        mcmc_chains = RunVeryLargeMCMC(hydro_names=hydro_names,
+                                       simulation_taus=simulation_taus,
+                                       exact_pseudo=exact_pseudo,
+                                       pseudo_error=pseudo_error,
+                                       output_dir=f'./pickle_files/{output_folder}',
+                                       local_params=local_params,
+                                       points_per_feat=10,
+                                       number_steps=10_000,
+                                       use_existing_emulators=use_existing_emulators,
+                                       use_PL_PT=use_PL_PT,)
+        fixed_values = dict((name, np.mean(val[0]))
+                            for name, val in mcmc_chains.items())
+        # fixed_values = {
+        #     'ce': [0.34138],
+        #     'dnmr': [0.40024],
+        #     'mvah': [0.3853]
+        # }
     RunBMMMCMC(hydro_names=hydro_names,
                simulation_taus=simulation_taus,
                exact_pseudo=exact_pseudo,
@@ -356,7 +385,9 @@ if __name__ == "__main__":
                output_dir=f'./pickle_files/{output_folder}',
                local_params=local_params,
                points_per_feat=10,
-               number_steps=1_000,
+               number_steps=10,
+               fixed_values=fixed_values if run_sequential else None,
                use_existing_emulators=True,
                read_mcmc_from_file=read_mcmc_from_file,
-               use_PL_PT=use_PL_PT,)
+               use_PL_PT=use_PL_PT,
+               run_sequential=run_sequential,)
