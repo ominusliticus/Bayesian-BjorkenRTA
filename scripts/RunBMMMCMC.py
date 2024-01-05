@@ -214,7 +214,8 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                                            exact_error=pseudo_error,
                                            GP_emulators=emulator_class.GP_emulators,
                                            read_from_file=False,
-                                           output_path=output_dir)
+                                           output_path=output_dir,
+                                           run_parallel=True)
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
@@ -287,7 +288,7 @@ def RunBMMMCMC(
 
     ba_class.run_mixing(
         nsteps=number_steps,
-        nburn=50 * len(parameter_names),
+        nburn=1000 * len(parameter_ranges),
         ntemps=20,
         exact_observables=exact_pseudo,
         exact_error=pseudo_error,
@@ -323,8 +324,8 @@ if __name__ == "__main__":
     output_folder = 'bmm_runs/simultaneous_error=0.05'
 
     use_PL_PT = False
-    generate_new_data = True
-    use_existing_emulators = False
+    generate_new_data = False
+    use_existing_emulators = True
     read_mcmc_from_file = False
     run_sequential = False
     hydro_names = ['ce', 'dnmr', 'mvah']
@@ -344,7 +345,7 @@ if __name__ == "__main__":
     if generate_new_data:
         with open(str(data_file_path), 'wb') as f:
             exact_pseudo, pseudo_error = SampleObservables(
-                error_level=0.05,
+                error_level=0.00001,
                 true_params=local_params,
                 parameter_names=['C'],
                 simulation_taus=simulation_taus,
@@ -378,6 +379,10 @@ if __name__ == "__main__":
         #     'dnmr': [0.40024],
         #     'mvah': [0.3853]
         # }
+
+    # TODO:
+    #   - Add plotting for the posterior of the inference parameters when doing simultaneous calibration
+    #   - Add plotting routine that plots the predictive posterior giving the weight average of the hydrodynamic theories and the exact solutions
     RunBMMMCMC(hydro_names=hydro_names,
                simulation_taus=simulation_taus,
                exact_pseudo=exact_pseudo,
@@ -385,9 +390,9 @@ if __name__ == "__main__":
                output_dir=f'./pickle_files/{output_folder}',
                local_params=local_params,
                points_per_feat=10,
-               number_steps=10,
+               number_steps=10_000,
                fixed_values=fixed_values if run_sequential else None,
-               use_existing_emulators=True,
+               use_existing_emulators=use_existing_emulators,
                read_mcmc_from_file=read_mcmc_from_file,
                use_PL_PT=use_PL_PT,
                run_sequential=run_sequential,)

@@ -301,7 +301,8 @@ class Sampler(object):
     def sample(self, p0=None,
                iterations=1, thin=1,
                storechain=True, adapt=False,
-               swap_ratios=False):
+               swap_ratios=False,
+               desc=None, position=None):
         """
         Advance the chains ``iterations`` steps as a generator.
 
@@ -386,7 +387,7 @@ class Sampler(object):
         if storechain:
             isave = self._expand_chain(iterations // thin)
 
-        for i in tqdm(range(iterations)):
+        for i in tqdm(range(iterations), desc=desc, position=position):
             for j in [0, 1]:
                 # Get positions of walkers to be updated and walker to be sampled.
                 jupdate = j

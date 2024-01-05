@@ -52,10 +52,12 @@ from subprocess import CalledProcessError
 # maximize processes used
 from os import cpu_count
 
-# Run MCMC in parallel
-# from multiprocessing import Manager, Process
+# Run MCMC calibration in parallel
+from multiprocessing import Manager, Process
 
 from typing import Tuple
+from typing import Type
+from typing import Optional
 
 
 class HydroBayesianAnalysis(object):
@@ -230,7 +232,8 @@ class HydroBayesianAnalysis(object):
             exact_error: np.ndarray,
             GP_emulators: Dict,
             output_path: str,
-            read_from_file: bool = False
+            read_from_file: bool = False,
+            run_parallel: bool = False,
     ) -> Dict[str, np.ndarray]:
         """
         Parameters:
@@ -261,57 +264,70 @@ class HydroBayesianAnalysis(object):
                 self.MCMC_chains = pickle.load(f)
         else:
             nwalkers = 20 * self.num_params
-
-            # manager = Manager()
-            # sampler = manager.dict()
-            # for name in hydro_names:
-            #     sampler[name] = []
-
-            # def for_multiprocessing(sampler: Dict[str, float], name: str, **kwargs):
-            #     sampler[name] = ptemcee.Sampler(**kwargs)
-
-            self.MCMC_chains = {}
-            for i, name in enumerate(self.hydro_names):
-                print(f"Computing for hydro theory: {name}")
+            
+            def for_multiprocessing(
+                    hydro_name: str,
+                    output_dict: Type[Dict[str, np.ndarray]],
+                    itr: Optional[int] = None,
+            ):
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
-                     np.random.rand(nwalkers, self.num_params) *
-                     np.diff(self.parameter_ranges).reshape(-1,)
-                     for _ in range(ntemps)])
+                    np.random.rand(nwalkers, self.num_params) *
+                    np.diff(self.parameter_ranges).reshape(-1,)
+                    for _ in range(ntemps)])
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
-                                          dim=self.num_params,
-                                          ntemps=ntemps,
-                                          Tmax=1000,
-                                          threads=cpu_count(),
-                                          logl=self.log_likelihood,
-                                          logp=self.log_prior,
-                                          loglargs=[exact_observables[:, 1:4],
+                                        dim=self.num_params,
+                                        ntemps=ntemps,
+                                        Tmax=1000,
+                                        threads=cpu_count(),
+                                        logl=self.log_likelihood,
+                                        logp=self.log_prior,
+                                        loglargs=[exact_observables[:, 1:4],
                                                     exact_error,
-                                                    name,
+                                                    hydro_name,
                                                     GP_emulators],
-                                          logpargs=[self.parameter_ranges])
+                                        logpargs=[self.parameter_ranges])
+                
+                if itr is None:
+                    desc = None
+                else:
+                    desc = hydro_name
+                position = itr
 
-                print('burn in sampling started')
                 x = sampler.run_mcmc(p0=starting_guess,
-                                     iterations=nburn,
-                                     swap_ratios=True)
-                print("Mean acceptance fractions (in total {0} steps): "
-                      .format(ntemps*nwalkers*nburn))
-                print(x[3])
-                print('Burn in completed.')
-
+                                    iterations=nburn,
+                                    swap_ratios=True,
+                                    desc=desc,
+                                    position=position,)
                 sampler.reset()
-
-                print("Now running the samples")
                 x = sampler.run_mcmc(p0=x[0],
-                                     iterations=nsteps,
-                                     storechain=True,
-                                     swap_ratios=True)
-                print("Mean acceptance fractions (in total {0} steps): "
-                      .format(ntemps * nwalkers * nsteps))
-                print(x[3])
+                                    iterations=nsteps,
+                                    storechain=True,
+                                    swap_ratios=True,
+                                    desc=desc,
+                                    position=position,)
 
-                self.MCMC_chains[name] = np.array(sampler.chain)
+                output_dict[hydro_name] = np.array(sampler.chain)
+
+            if run_parallel:
+                manager = Manager()
+                self.MCMC_chains = manager.dict()
+                for name in self.hydro_names:
+                    self.MCMC_chains[name] = None
+
+                jobs = [Process(target=for_multiprocessing,
+                                args=(name,
+                                      self.MCMC_chains,
+                                      i))
+                        for i, name in enumerate(self.hydro_names)]
+                _ = [job.start() for job in jobs]
+                _ = [job.join() for job in jobs]
+
+                self.MCMC_chains = dict(self.MCMC_chains)                    
+            else:
+                self.MCMC_chains = {}
+                for i, name in enumerate(self.hydro_names):
+                    for_multiprocessing(name, self.MCMC_chains)
 
             try:
                 (cmd(['mkdir', '-p', f'{output_path}'])
@@ -576,7 +592,7 @@ class HydroBayesianAnalysis(object):
 
             sampler = ptemcee.Sampler(
                 nwalkers=nwalkers,
-                dim=(self.num_params
+                dim=(self.num_params + n_models
                      if do_calibration_simultaneous else
                      n_models),
                 ntemps=ntemps, Tmax=1000,
