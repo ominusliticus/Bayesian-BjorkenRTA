@@ -162,16 +162,19 @@ def SampleObservables(error_level: float,
                                 for i in range(num_taus)])
 
 
-def RunVeryLargeMCMC(hydro_names: List[str],
-                     simulation_taus: np.ndarray,
-                     exact_pseudo: np.ndarray,
-                     pseudo_error: np.ndarray,
-                     output_dir: str,
-                     local_params: Dict[str, float],
-                     points_per_feat: int,
-                     number_steps: int,
-                     use_existing_emulators: bool,
-                     use_PL_PT: bool) -> Dict[str, np.ndarray]:
+def RunVeryLargeMCMC(
+        hydro_names: List[str],
+        simulation_taus: np.ndarray,
+        exact_pseudo: np.ndarray,
+        pseudo_error: np.ndarray,
+        output_dir: str,
+        local_params: Dict[str, float],
+        points_per_feat: int,
+        number_steps: int,
+        use_existing_emulators: bool,
+        read_mcmc_from_file: bool,
+        use_PL_PT: bool
+    ) -> Dict[str, np.ndarray]:
     '''
     Runs the entire analysis suite, including the emulator fitting
     and saves MCMC chains and outputs plots
@@ -208,12 +211,12 @@ def RunVeryLargeMCMC(hydro_names: List[str],
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
     mcmc_chains = ba_class.run_calibration(nsteps=number_steps,
-                                           nburn=50 * len(parameter_names),
+                                           nburn=1000 * len(parameter_names),
                                            ntemps=20,
                                            exact_observables=exact_pseudo,
                                            exact_error=pseudo_error,
                                            GP_emulators=emulator_class.GP_emulators,
-                                           read_from_file=False,
+                                           read_from_file=read_mcmc_from_file,
                                            output_path=output_dir,
                                            run_parallel=True)
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
@@ -304,7 +307,14 @@ def RunBMMMCMC(
 
     ba_class.plot_posteriors(output_dir=output_dir,
                              axis_names=[r'$\mathcal C$'])
+    ba_class.plot_weights(output_dir=output_dir)
 
+
+def plot_predictive_posteriros_and_truth(
+        mcmc_chain: Union[np.ndarray, Dict[str, np.ndarray]],
+        weights: Optional[np.ndarray] = None
+) -> None:
+    NotImplemented
 
 if __name__ == "__main__":
     local_params = {
@@ -322,11 +332,12 @@ if __name__ == "__main__":
 
     # output_folder = 'very_large_mcmc_run_1'
     output_folder = 'bmm_runs/simultaneous_error=0.05'
+    # output_folder = 'bmm_runs/sequential_error=0.05'
 
     use_PL_PT = False
     generate_new_data = False
     use_existing_emulators = True
-    read_mcmc_from_file = False
+    read_mcmc_from_file = True
     run_sequential = False
     hydro_names = ['ce', 'dnmr', 'mvah']
     # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
@@ -345,7 +356,7 @@ if __name__ == "__main__":
     if generate_new_data:
         with open(str(data_file_path), 'wb') as f:
             exact_pseudo, pseudo_error = SampleObservables(
-                error_level=0.00001,
+                error_level=0.05,
                 true_params=local_params,
                 parameter_names=['C'],
                 simulation_taus=simulation_taus,
@@ -369,8 +380,9 @@ if __name__ == "__main__":
                                        output_dir=f'./pickle_files/{output_folder}',
                                        local_params=local_params,
                                        points_per_feat=10,
-                                       number_steps=10_000,
+                                       number_steps=20_000,
                                        use_existing_emulators=use_existing_emulators,
+                                       read_mcmc_from_file=read_mcmc_from_file,
                                        use_PL_PT=use_PL_PT,)
         fixed_values = dict((name, np.mean(val[0]))
                             for name, val in mcmc_chains.items())
@@ -383,6 +395,8 @@ if __name__ == "__main__":
     # TODO:
     #   - Add plotting for the posterior of the inference parameters when doing simultaneous calibration
     #   - Add plotting routine that plots the predictive posterior giving the weight average of the hydrodynamic theories and the exact solutions
+    #   - Split large MCMC chains into smaller ones, se 10_000 steps at a time, and them combine them after everything has been run calculating the 
+    #       various quantities by looping over the separately stored runs
     RunBMMMCMC(hydro_names=hydro_names,
                simulation_taus=simulation_taus,
                exact_pseudo=exact_pseudo,
@@ -390,7 +404,7 @@ if __name__ == "__main__":
                output_dir=f'./pickle_files/{output_folder}',
                local_params=local_params,
                points_per_feat=10,
-               number_steps=10_000,
+               number_steps=20_000,
                fixed_values=fixed_values if run_sequential else None,
                use_existing_emulators=use_existing_emulators,
                read_mcmc_from_file=read_mcmc_from_file,

@@ -259,9 +259,10 @@ class HydroBayesianAnalysis(object):
         """
         if read_from_file:
             print("Reading mcmc_chain from file")
-            with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
+            with open(f'{output_path}/mcmc_chains.pkl',
                       'rb') as f:
                 self.MCMC_chains = pickle.load(f)
+            return self.MCMC_chains
         else:
             nwalkers = 20 * self.num_params
             
@@ -355,6 +356,70 @@ class HydroBayesianAnalysis(object):
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
     def plot_posteriors(self, output_dir: str, axis_names: List[str]):
+        if self.MCMC_chains and self.bmm_MCMC_chains is None:
+            print("No chains to plot. Please run calibration")
+            return
+
+        # TODO: Add true and MAP values to plot
+        # pallette = sns.color_palette('Colorblind')
+        if self.do_calibration_simultaneous:
+            data = self.bmm_MCMC_chains.reshape(
+                -1,
+                len(self.parameter_names)
+            )
+            df = pd.DataFrame(dict((name, data[:, k])
+                                   for k, name in enumerate(axis_names)))
+            g = sns.pairplot(
+                data=df,
+                corner=True,
+                diag_kind='kde',
+                kind='hist'
+            )
+            g.map_lower(sns.kdeplot, levels=4, color='black')
+            g.tight_layout()
+            g.savefig('{}/plots/bmm_simultaneous_corner_plot_n={}.pdf'.
+                        format(output_dir, self.num_params))
+
+        else:
+            dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
+            for i, name in enumerate(self.hydro_names):
+                data = self.MCMC_chains[name][0].reshape(
+                    -1,
+                    len(self.parameter_names)
+                )
+                df = pd.DataFrame(dict((name, data[:, k])
+                                        for k, name in enumerate(axis_names)))
+                g1 = sns.pairplot(
+                    data=df,
+                    corner=True,
+                    diag_kind='kde',
+                    kind='hist'
+                )
+                g1.map_lower(sns.kdeplot, levels=4, color='black')
+                g1.tight_layout()
+                g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
+                            format(output_dir, name, self.num_params))
+
+                df['hydro'] = name
+                dfs = pd.concat([dfs, df], ignore_index=True)
+
+            g = sns.pairplot(data=dfs,
+                             corner=True,
+                             diag_kind='kde',
+                             kind='hist',
+                             hue='hydro')
+            g.map_lower(sns.kdeplot, levels=4, color='black')
+            g.tight_layout()
+
+            try:
+                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
+                    .check_returncode())
+            except (CalledProcessError):
+                print(f"Could not create dir {output_dir}/plots")
+            g.savefig(
+                f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
+
+    def plot_weights(self, output_dir: str) -> None:
         if self.bmm_MCMC_chains is not None:
             n_models = len(self.hydro_names)
             weights = self.weights[0].reshape(
@@ -396,43 +461,6 @@ class HydroBayesianAnalysis(object):
             fig.savefig(
                 f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
 
-        # TODO: Add true and MAP values to plot
-        # pallette = sns.color_palette('Colorblind')
-        if self.MCMC_chains is not None:
-            dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
-            for i, name in enumerate(self.hydro_names):
-                data = self.MCMC_chains[name][0].reshape(-1,
-                                                         len(self.
-                                                             parameter_names))
-                df = pd.DataFrame(dict((name, data[:, i])
-                                       for i, name in enumerate(axis_names)))
-                g1 = sns.pairplot(data=df,
-                                  corner=True,
-                                  diag_kind='kde',
-                                  kind='hist')
-                g1.map_lower(sns.kdeplot, levels=4, color='black')
-                g1.tight_layout()
-                g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
-                           format(output_dir, name, self.num_params))
-
-                df['hydro'] = name
-                dfs = pd.concat([dfs, df], ignore_index=True)
-
-            g = sns.pairplot(data=dfs,
-                             corner=True,
-                             diag_kind='kde',
-                             kind='hist',
-                             hue='hydro')
-            g.map_lower(sns.kdeplot, levels=4, color='black')
-            g.tight_layout()
-
-            try:
-                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
-                    .check_returncode())
-            except (CalledProcessError):
-                print(f"Could not create dir {output_dir}/plots")
-            g.savefig(
-                f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
 
     # Expand to included Bayesian Model mixing for paper (will migrate
     # everything to Taweret later)
@@ -546,13 +574,18 @@ class HydroBayesianAnalysis(object):
         '''
         self.do_calibration_simultaneous = do_calibration_simultaneous
         if read_from_file:
-            print("Reading mcmc_chain from file")
+            print("Reading bmm_mcmc_chain from file")
             with open(f'{output_path}/bmm_mcmc_chains.pkl',
                       'rb') as f:
                 self.bmm_MCMC_chains = pickle.load(f)
             with open(f'{output_path}/bmm_mcmc_weights.pkl',
                       'rb') as f:
                 self.weights = pickle.load(f)
+            
+            if not self.do_calibration_simultaneous:
+                with open(f'{output_path}/mcmc_chains.pkl',
+                          'rb') as f:
+                    self.MCMC_chains = pickle.load(f)
 
             return self.bmm_MCMC_chains
         else:
