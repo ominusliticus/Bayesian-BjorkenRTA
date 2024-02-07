@@ -130,6 +130,9 @@ if __name__ == "__main__":
                 x_title='',
                 y_title=y_axis
             )
+            ax[j].set_xscale('log')
+            ax[j].set_xlim(1, 1000)
+            ax[j].set_xticks([])
 
     for j, y_axis in enumerate([
         r'$\mathcal E / \mathcal E_0$',
@@ -143,7 +146,10 @@ if __name__ == "__main__":
             pad=0
         )
         ax[j].figure.add_axes(ax2)
+
         for i, hydro_name in enumerate(hydro_names):
+            if hydro_name == 'exact':
+                continue
             resids = return_residual(output[hydro_name], output['exact'])
             ax2.plot(
                 output[hydro_name][0],
@@ -151,17 +157,15 @@ if __name__ == "__main__":
                 color=colors(i),
                 lw=2
             )
+        ax2.set_xlim(1, 1000)
         mp.costumize_axis(
             ax=ax2,
             x_title=r'$\tau / \tau_0$',
             y_title=''
         ) 
         ax2.set_xscale('log')
-        ax[j].set_xscale('log')
-        ax2.set_xlim(1, 1000)
-        ax[j].set_xlim(1, 1000)
-        ax[j].set_xticks([])
         ax2.set_yscale('log')
+        ax2.locator_params('y', numticks=4)
 
     ax[0].legend(fontsize=16)
     ax[0].set_yscale('log')
