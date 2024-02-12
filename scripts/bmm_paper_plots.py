@@ -165,7 +165,7 @@ if __name__ == "__main__":
         ) 
         ax2.set_xscale('log')
         ax2.set_yscale('log')
-        ax2.locator_params('y', numticks=4)
+        ax2.locator_params('y', numticks=6)
 
     ax[0].legend(fontsize=16)
     ax[0].set_yscale('log')

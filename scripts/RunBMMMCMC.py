@@ -135,7 +135,7 @@ def run_hydro_from_posterior(
             )
             ax[i, j].plot(
                 exact_output[:, 0],
-                exact_output[:, j + 1],
+                exact_output[:, j + 1] * 0.197,
                 color='black',
                 lw=2,
             )
@@ -339,8 +339,8 @@ def RunVeryLargeMCMC(
     mcmc_chains = ba_class.run_calibration(nsteps=number_steps,
                                            nburn=1000 * len(parameter_names),
                                            ntemps=20,
-                                           exact_observables=exact_pseudo,
-                                           exact_error=pseudo_error,
+                                           true_observables=exact_pseudo,
+                                           true_error=pseudo_error,
                                            GP_emulators=emulator_class.GP_emulators,
                                            read_from_file=read_mcmc_from_file,
                                            output_path=output_dir,
