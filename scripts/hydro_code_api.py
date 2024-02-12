@@ -233,6 +233,8 @@ class HydroCodeAPI:
         '''
         Run multiple hydro code for multiple design points
         Executes in each hydro theory in parallel
+        Returns array with freezeout values corresponding to the freezeout
+        times `simulation_taus`
         '''
 
         # Multi-processing to run different hydros in sequence
@@ -296,6 +298,8 @@ class HydroCodeAPI:
 
             _ = [proc.start() for proc in jobs]
             _ = [proc.join() for proc in jobs]
+
+        hydro_output = dict(hydro_output)
 
         for k, name in enumerate(hydro_names):
             for j, tau in enumerate(simulation_taus):

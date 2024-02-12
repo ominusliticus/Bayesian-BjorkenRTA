@@ -110,19 +110,20 @@ def default_beta_ladder(ndim, ntemps=None, Tmax=None):
 
     return betas
 
-n = 0
 class LikePriorEvaluator(object):
     """
     Wrapper class for logl and logp.
 
     """
 
-    def __init__(self, logl, logp, do_bmm=False,
+    def __init__(self, logl, logp,
+                 do_bmm=False, num_models=1,
                  loglargs=[], logpargs=[],
                  loglkwargs={}, logpkwargs={}):
         self.logl = logl
         self.logp = logp
         self.do_bmm = do_bmm
+        self.num_models = num_models
         self.loglargs = loglargs
         self.logpargs = logpargs
         self.loglkwargs = loglkwargs
@@ -136,10 +137,10 @@ class LikePriorEvaluator(object):
         if lp == float('-inf'):
             # Can't return -inf, since this messes with beta=0 behaviour.
             ll = 0
+            if self.do_bmm:
+                _ , ws = self.logl(x, *self.loglargs, **self.loglkwargs)
         else:
             if self.do_bmm:
-                global n
-                n += 1
                 ll, ws = self.logl(x, *self.loglargs, **self.loglkwargs)
             else:
                 ll =  self.logl(x, *self.loglargs, **self.loglkwargs)
@@ -221,7 +222,10 @@ class Sampler(object):
         else:
             self._random = random
 
-        self._likeprior = LikePriorEvaluator(logl, logp, do_bmm, loglargs, logpargs, loglkwargs, logpkwargs)
+        self._likeprior = LikePriorEvaluator(
+            logl, logp, do_bmm, num_models, 
+            loglargs, logpargs, loglkwargs, logpkwargs
+        )
         self.a = a
         self.nwalkers = nwalkers
         self.dim = dim
@@ -297,7 +301,8 @@ class Sampler(object):
     def sample(self, p0=None,
                iterations=1, thin=1,
                storechain=True, adapt=False,
-               swap_ratios=False):
+               swap_ratios=False,
+               desc=None, position=None):
         """
         Advance the chains ``iterations`` steps as a generator.
 
@@ -382,7 +387,7 @@ class Sampler(object):
         if storechain:
             isave = self._expand_chain(iterations // thin)
 
-        for i in tqdm(range(iterations)):
+        for i in tqdm(range(iterations), desc=desc, position=position):
             for j in [0, 1]:
                 # Get positions of walkers to be updated and walker to be sampled.
                 jupdate = j
@@ -424,8 +429,9 @@ class Sampler(object):
                 logl[:, jupdate::2].reshape((-1,))[accepts] = \
                     qslogl.reshape((-1,))[accepts]
                 if self.do_bmm:
-                    ws[:, jupdate::2].reshape((-1,))[accepts] = \
-                        qsws.reshape((-1,))[accepts]
+                    weights_shape = qsws.shape[-2:]
+                    ws[:, jupdate::2].reshape((-1, *weights_shape))[accepts] = \
+                        qsws.reshape((-1, *weights_shape))[accepts]
 
                 accepts = accepts.reshape((self.ntemps, self.nwalkers//2))
 
@@ -469,18 +475,18 @@ class Sampler(object):
 
     def _evaluate(self, ps):
         mapf = map if self.pool is None else self.pool.map
-        # results = list(mapf(self._likeprior, ps.reshape((-1, self.dim))))
-
-        results = [self._likeprior(sample) 
-                   for sample in ps.reshape(-1, self.dim)]
-        print(results)
+        results = list(mapf(self._likeprior, ps.reshape((-1, self.dim))))
+        
         logl = np.fromiter((r[0] for r in results), float,
                         count=len(results)).reshape((self.ntemps, -1))
         logp = np.fromiter((r[1] for r in results), float,
                            count=len(results)).reshape((self.ntemps, -1))
         if self.do_bmm:
-            ws = np.fromiter((r[2] for r in results), np.ndarray,
-                            count=len(results)).reshape((self.ntemps, -1))
+            weights_shape = results[0][2].shape
+            ws = np.fromiter((r[2] for r in results), 
+                             dtype=np.dtype((float, weights_shape)),
+                             count=len(results)).reshape(
+                                (self.ntemps, -1, *weights_shape))
 
         if self.do_bmm:
             return logl, logp, ws

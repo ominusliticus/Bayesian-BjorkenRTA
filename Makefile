@@ -21,7 +21,7 @@ TST_INVERSION_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_INVERSION))
 UNAME_S := $(shell uname -s)
 $(info $$UNAME_S is [$(UNAME_S)])
 ifeq ($(UNAME_S),Linux)
-	CC = g++-11 -std=c++20 -Wall -Wextra -fsanitize=address #-g3
+	CC = g++ -std=c++20 -Wall -Wextra -fsanitize=address #-g3
 	OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 
 	# Armadillo instructions

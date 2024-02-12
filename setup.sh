@@ -22,3 +22,10 @@ echo "Done installing all dependencies."
 echo "Creating necessary directories"
 mkdir -p build
 
+echo "Be sure to install following packages:"
+echo "\ttexlive-latex-extra"
+echo "\ttexlive-fonts-extra"
+echo "\ttexlive-fonts-recommended"
+echo "\tdvipng"
+echo "\tcm-super"
+

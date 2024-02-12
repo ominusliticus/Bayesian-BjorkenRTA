@@ -31,7 +31,7 @@
 
 #include <cassert>
 #include <cmath>
-#if __cplusplus >= 201703L    // Check if we have support of filesystems
+#if __cplusplus > 201703L    // Check if we have support of filesystems
 #  include <filesystem>
 #endif
 #include <fstream>

@@ -52,10 +52,13 @@ from subprocess import CalledProcessError
 # maximize processes used
 from os import cpu_count
 
-# Run MCMC in parallel
-# from multiprocessing import Manager, Process
+# Run MCMC calibration in parallel
+from multiprocessing import Manager, Process
+from multiprocessing import current_process
 
 from typing import Tuple
+from typing import Type
+from typing import Optional
 
 
 class HydroBayesianAnalysis(object):
@@ -91,6 +94,7 @@ class HydroBayesianAnalysis(object):
         self.parameter_ranges = parameter_ranges
         self.simulation_taus = simulation_taus
         self.do_bmm = do_bmm
+        self.do_calibration_simultaneous = False
 
         self.MCMC_chains = None   # Dict[str, np.ndarray]
         self.evidence = None      # Dict[str, float]
@@ -172,7 +176,7 @@ class HydroBayesianAnalysis(object):
             """
             means = []
             variances = []
-            for i in range(3):
+            for i in range(self.n_observables):
                 prediction, error = \
                     GP_emulator[hydro_name][tau_index][i].predict(
                         np.array(evaluation_points).reshape(1, -1),
@@ -183,6 +187,8 @@ class HydroBayesianAnalysis(object):
                 means.append(mean)
                 variances.append(std ** 2)
             return np.hstack(means), np.diag(np.array(variances).flatten())
+
+        self.n_observables = true_observables.shape[-1]
 
         running_log_likelihood = [] if self.do_bmm else 0.0
         for k in range(true_observables.shape[0]):
@@ -210,8 +216,8 @@ class HydroBayesianAnalysis(object):
 
             if np.all(L.diagonal() > 0):
                 if self.do_bmm:
-                    running_log_likelihood.append(-0.5 * np.dot(y, b) - \
-                        np.log(L.diagonal()).sum())
+                    running_log_likelihood.append(-0.5 * np.dot(y, b) -
+                                                  np.log(L.diagonal()).sum())
                 else:
                     running_log_likelihood += -0.5 * np.dot(y, b) - \
                         np.log(L.diagonal()).sum()
@@ -225,11 +231,12 @@ class HydroBayesianAnalysis(object):
             nsteps: int,
             nburn: int,
             ntemps: int,
-            exact_observables: np.ndarray,
-            exact_error: np.ndarray,
+            true_observables: np.ndarray,
+            true_error: np.ndarray,
             GP_emulators: Dict,
             output_path: str,
-            read_from_file: bool = False
+            read_from_file: bool = False,
+            run_parallel: bool = False,
     ) -> Dict[str, np.ndarray]:
         """
         Parameters:
@@ -253,67 +260,80 @@ class HydroBayesianAnalysis(object):
         MCMC chain has the shape (ntemps, nwalkers, nsteps, num_params),
         where nwalkers = 20 * num_params
         """
+
+        self.n_observables = true_observables.shape[-1]      
         if read_from_file:
             print("Reading mcmc_chain from file")
-            with open(f'{output_path}/pickle_files/mcmc_chains.pkl',
+            with open(f'{output_path}/mcmc_chains.pkl',
                       'rb') as f:
                 self.MCMC_chains = pickle.load(f)
-            with open(f'{output_path}/pickle_files/evidence.pkl', 'rb') as f:
-                self.evidence = pickle.load(f)
+            return self.MCMC_chains
         else:
             nwalkers = 20 * self.num_params
-
-            # manager = Manager()
-            # sampler = manager.dict()
-            # for name in hydro_names:
-            #     sampler[name] = []
-
-            # def for_multiprocessing(sampler: Dict[str, float], name: str, **kwargs):
-            #     sampler[name] = ptemcee.Sampler(**kwargs)
-
-            self.MCMC_chains = {}
-            for i, name in enumerate(self.hydro_names):
-                print(f"Computing for hydro theory: {name}")
+            
+            def for_multiprocessing(
+                    hydro_name: str,
+                    output_dict: Type[Dict[str, np.ndarray]],
+                    itr: Optional[int] = None,
+            ):
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
-                     np.random.rand(nwalkers, self.num_params) *
-                     np.diff(self.parameter_ranges).reshape(-1,)
-                     for _ in range(ntemps)])
+                    np.random.rand(nwalkers, self.num_params) *
+                    np.diff(self.parameter_ranges).reshape(-1,)
+                    for _ in range(ntemps)])
                 sampler = ptemcee.Sampler(nwalkers=nwalkers,
-                                          dim=self.num_params,
-                                          ntemps=ntemps,
-                                          Tmax=1000,
-                                          threads=cpu_count(),
-                                          logl=self.log_likelihood,
-                                          logp=self.log_prior,
-                                          loglargs=[exact_observables[:, 1:4],
-                                                    exact_error,
-                                                    name,
+                                        dim=self.num_params,
+                                        ntemps=ntemps,
+                                        Tmax=1000,
+                                        threads=cpu_count(),
+                                        logl=self.log_likelihood,
+                                        logp=self.log_prior,
+                                        loglargs=[true_observables[:, 1:4],
+                                                    true_error,
+                                                    hydro_name,
                                                     GP_emulators],
-                                          logpargs=[self.parameter_ranges])
+                                        logpargs=[self.parameter_ranges])
+                
+                if itr is None:
+                    desc = None
+                else:
+                    desc = hydro_name
+                position = itr
 
-                print('burn in sampling started')
                 x = sampler.run_mcmc(p0=starting_guess,
-                                     iterations=nburn,
-                                     swap_ratios=True)
-                print("Mean acceptance fractions (in total {0} steps): "
-                      .format(ntemps*nwalkers*nburn))
-                print(x[3])
-                print('Burn in completed.')
-
+                                    iterations=nburn,
+                                    swap_ratios=True,
+                                    desc=desc,
+                                    position=position,)
                 sampler.reset()
-
-                print("Now running the samples")
                 x = sampler.run_mcmc(p0=x[0],
-                                     iterations=nsteps,
-                                     storechain=True,
-                                     swap_ratios=True)
-                print("Mean acceptance fractions (in total {0} steps): "
-                      .format(ntemps * nwalkers * nsteps))
-                print(x[3])
+                                    iterations=nsteps,
+                                    storechain=True,
+                                    swap_ratios=True,
+                                    desc=desc,
+                                    position=position,)
 
-                self.MCMC_chains[name] = np.array(sampler.chain)
-                self.evidence[name] = sampler.log_evidence_estimate()
+                output_dict[hydro_name] = np.array(sampler.chain)
+
+            if run_parallel:
+                manager = Manager()
+                self.MCMC_chains = manager.dict()
+                for name in self.hydro_names:
+                    self.MCMC_chains[name] = None
+
+                jobs = [Process(target=for_multiprocessing,
+                                args=(name,
+                                      self.MCMC_chains,
+                                      i))
+                        for i, name in enumerate(self.hydro_names)]
+                _ = [job.start() for job in jobs]
+                _ = [job.join() for job in jobs]
+
+                self.MCMC_chains = dict(self.MCMC_chains)                    
+            else:
+                self.MCMC_chains = {}
+                for i, name in enumerate(self.hydro_names):
+                    for_multiprocessing(name, self.MCMC_chains)
 
             try:
                 (cmd(['mkdir', '-p', f'{output_path}'])
@@ -324,10 +344,8 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/mcmc_chains.pkl',
                       'wb') as f:
                 pickle.dump(self.MCMC_chains, f)
-            with open(f'{output_path}/evidence.pkl', 'wb') as f:
-                pickle.dump(self.evidence, f)
 
-            return sampler.chain
+            return self.MCMC_chains
 
     def calculate_bayes_factor(self, hydro1: str, hydro2: str) -> float:
         """
@@ -343,71 +361,69 @@ class HydroBayesianAnalysis(object):
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
     def plot_posteriors(self, output_dir: str, axis_names: List[str]):
-        if self.bmm_MCMC_chains is not None:
-            n_models = len(self.hydro_names)            
-            weights = self.bmm_MCMC_chains[0].reshape(
-                -1,
-                self.bmm_MCMC_chains.shape[3:],
-            )
-            n_observation = weights.shape[-1]
-            assert n_observation == self.simulation_taus[0]
+        if not self.do_calibration_simultaneous and self.MCMC_chains is None:
+            print("Reading mcmc_chain from file")
+            with open(f'{output_dir}/mcmc_chains.pkl',
+                      'rb') as f:
+                self.MCMC_chains = pickle.load(f)
 
-            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7, 7))
-            fig.patch.set_facecolor('white')
-            cmap = mp.get_cmap(10, 'tab10')
-            for i in range(n_models):
-                mean = np.mean(weights[:, i])
-                std = np.std(weights[:, i])
-                ax.plot(
-                    self.simulation_taus,
-                    mean,
-                    lw=2,
-                    color=cmap(i),
-                )
-                ax.fill_between(
-                    self.simulation_taus,
-                    mean + std,
-                    mean - std,
-                    color=cmap(i),
-                    alpha=0.5,
-                )
-            mp.costumize_axis(ax, r'$\tau$ [fm/c]', r'$w(\tau)$')
+        if self.MCMC_chains is None:
+            if self.do_bmm and self.bmm_MCMC_chains is None:
+                print("No chains to plot. Please run calibration")
+                return
 
-            try:
-                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
-                    .check_returncode())
-            except (CalledProcessError):
-                print(f"Could not create dir {output_dir}/plots")
-            g.savefig(
-                f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
-    
         # TODO: Add true and MAP values to plot
         # pallette = sns.color_palette('Colorblind')
-        if self.MCMC_chains is not None:
+        
+        weights_offset = len(self.hydro_names)
+        if self.do_calibration_simultaneous:
+            data = self.bmm_MCMC_chains[0, ..., weights_offset:].reshape(
+                -1,
+                len(self.parameter_names)
+            )
+            
+            df = pd.DataFrame(dict((name, data[:, k])
+                                   for k, name in enumerate(axis_names)))
+            g = sns.pairplot(
+                data=df,
+                corner=True,
+                diag_kind='kde',
+                kind='hist'
+            )
+            g.map_lower(sns.kdeplot, levels=4, color='black')
+            g.tight_layout()
+            g.savefig('{}/plots/bmm_simultaneous_corner_plot_n={}.pdf'.
+                        format(output_dir, self.num_params))
+
+        else:
             dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
             for i, name in enumerate(self.hydro_names):
-                data = self.MCMC_chains[name][0].reshape(-1,
-                                                        len(self.
-                                                            parameter_names))
-                df = pd.DataFrame(dict((name, data[:, i])
-                                for i, name in enumerate(axis_names)))
-                g1 = sns.pairplot(data=df,
-                                corner=True,
-                                diag_kind='kde',
-                                kind='hist')
+                data = self.MCMC_chains[name][0].reshape(
+                    -1,
+                    len(self.parameter_names)
+                )
+                df = pd.DataFrame(dict((name, data[:, k])
+                                        for k, name in enumerate(axis_names)))
+                g1 = sns.pairplot(
+                    data=df,
+                    corner=True,
+                    diag_kind='kde',
+                    kind='hist'
+                )
                 g1.map_lower(sns.kdeplot, levels=4, color='black')
                 g1.tight_layout()
                 g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
-                        format(output_dir, name, self.num_params))
+                            format(output_dir, name, self.num_params))
 
                 df['hydro'] = name
                 dfs = pd.concat([dfs, df], ignore_index=True)
 
             g = sns.pairplot(data=dfs,
-                            corner=True,
-                            diag_kind='kde',
-                            kind='hist',
-                            hue='hydro')
+                             corner=True,
+                             diag_kind='kde',
+                             kind='hist',
+                             hue='hydro')
+            g.legend()
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
 
@@ -419,8 +435,118 @@ class HydroBayesianAnalysis(object):
             g.savefig(
                 f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
 
+    def plot_weights(self, output_dir: str, use_median: bool = False) -> None:
+        """
+        Plot the posterior predictive distributions of the weights
+
+        Parameters:
+        ===========
+        output_dir: str
+            path to where the MCMC runs are stored, and corresponding plots
+            are to be outputed
+        use_median: bool (default: False)
+            Calculate median (and quartiles), as opposed to mean (and 
+            standard deviation), for the posteriors
+        """
+        # TODO: We could make these density plots on log scale instead
+        if self.bmm_MCMC_chains is not None:
+            n_models = len(self.hydro_names)
+            weights = self.weights[0].reshape(
+                -1,
+                *self.weights.shape[-2:],
+            )
+            n_observation = weights.shape[-1]
+            assert n_observation == self.simulation_taus.shape[0]
+
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7, 7))
+            fig.patch.set_facecolor('white')
+            cmap = mp.get_cmap(10, 'tab10')
+            for i in range(n_models):
+                if use_median:
+                    q1, median, q2 = np.quantile(
+                        a=weights[:, i],
+                        q=(0.25, 0.50, 0.75)
+                    )
+                    ax.plot(
+                        self.simulation_taus,
+                        median,
+                        lw=2,
+                        color=cmap(i),
+                        label=self.hydro_names[i]
+                    )
+                    ax.fill_between(
+                        self.self.simulation_taus,
+                        q1,
+                        q2,
+                        color=cmap(i),
+                        alpha=0.5
+                    )
+                else:
+                    mean = np.mean(weights[:, i], axis=0)
+                    std = np.std(weights[:, i], axis=0)
+                    ax.plot(
+                        self.simulation_taus,
+                        mean,
+                        lw=2,
+                        color=cmap(i),
+                        label=self.hydro_names[i]
+                    )
+                    ax.fill_between(
+                        self.simulation_taus,
+                        mean + std,
+                        mean - std,
+                        color=cmap(i),
+                        alpha=0.5,
+                    )
+            mp.costumize_axis(ax, r'$\tau$ [fm/c]', r'$w(\tau)$')
+            ax.set_ylim(bottom=0)
+            ax.legend(fontsize=20)
+
+            try:
+                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
+                    .check_returncode())
+            except (CalledProcessError):
+                print(f"Could not create dir {output_dir}/plots")
+            fig.savefig(
+                f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
+
+
     # Expand to included Bayesian Model mixing for paper (will migrate
     # everything to Taweret later)
+
+    def get_weights(
+            self,
+            evaluation_point: np.ndarray,
+            x: Optional[np.ndarray] = None
+    ) -> np.ndarray:
+        """
+        Calculates the position-dependent weights with missing method 
+        `self.missing method`.
+        Supported mixing methods include:
+            - dirichlet
+            - gauss_process
+        Defaults to Dirichlet mixing 
+
+        Parameters:
+        ===========
+        evaluation_point: np.ndarray
+            The array containing the sampled parameters for the inferences
+        
+        x: Optional[np.ndarray] (default: None)
+            Location to evaluation weight
+        """
+        if self.mixing_method == 'dirichlet':
+            # log_ws will have shape (m_models, n_observations) after
+            # transpose
+            return np.log(
+                dirichlet(
+                    np.abs(1 / evaluation_point[:self.num_models])
+                ).rvs(size=self.true_observables.shape[0])).T
+        elif self.mixing_method == 'gauss_process':
+            pass
+        else:
+            print('mixing method not supported')
+
 
     def mixing_log_likelihood(
         self,
@@ -430,7 +556,7 @@ class HydroBayesianAnalysis(object):
         hydro_names: List[str],
         GP_emulator: Dict,
         fixed_evaluation_parameters_for_models: Dict[str, np.ndarray] = None
-    )-> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         '''
         Mixing mixing likelihood that combines the likelhood distributions for
         the models.
@@ -438,8 +564,10 @@ class HydroBayesianAnalysis(object):
         Parameters:
         -----------
         evaluation_points    - 1d-array like (1, num_params + num_models) \n
-        true_observables     - data \n
-        true_error           - data error \n
+        true_observables     - data should have shape
+                               (n_observations, n_observables) \n
+        true_error           - data error should have shape
+                               (n_observations, n_observables - 1) \n
         hydro_names          - list containing names of hydro being compared
         GP_emulator          - dictionary(hydro_name: emulator_list), \n
                                 emulator_list[0] - energery density \n
@@ -451,11 +579,14 @@ class HydroBayesianAnalysis(object):
         -----------
         Float - mixing log-likelihood, mixing weights
         '''
-        num_models = len(hydro_names)
+        self.num_models = len(hydro_names)
+        self.true_observables = true_observables
         # log_ws will have shape (m_models, n_observation_times) after
         # transpose
-        log_ws = np.log(dirichlet(1 / evaluation_point[:num_models])
-                        .rvs(size=true_observables.shape[0])).T
+        log_ws = self.get_weights(
+            evaluation_point=evaluation_point,
+            x=true_observables[:, 0]
+        )
 
         if fixed_evaluation_parameters_for_models is None:
             # log_likelihood will return an array of shape (n_observation_times,),
@@ -463,7 +594,7 @@ class HydroBayesianAnalysis(object):
             # (n_models, n_observation_times)
             model_log_likelihoods = np.array([
                 self.log_likelihood(
-                    evaluation_point=evaluation_point[num_models:],
+                    evaluation_point=evaluation_point[self.num_models:],
                     true_observables=true_observables,
                     true_errors=true_errors,
                     hydro_name=hydro_name,
@@ -472,6 +603,7 @@ class HydroBayesianAnalysis(object):
                 for hydro_name in hydro_names
             ])
         else:
+            # This should take the previous posteriors, not just the MAP values
             model_log_likelihoods = np.array([
                 self.log_likelihood(
                     evaluation_point=fixed_evaluation_parameters_for_models[
@@ -484,11 +616,11 @@ class HydroBayesianAnalysis(object):
                 )
                 for hydro_name in hydro_names
             ])
-        
 
         # The sampler is coded such that it expects the weights to have the shape
         # (n_models, n_observation_times)
-        ll = np.prod(np.logaddexp.reduce(log_ws + model_log_likelihoods, axis=1))
+        ll = np.prod(np.logaddexp.reduce(
+            log_ws + model_log_likelihoods, axis=1))
         ws = np.exp(log_ws)
         # print("From inside log_likelihood", ll, ws)
         return (ll, ws)
@@ -531,11 +663,17 @@ class HydroBayesianAnalysis(object):
         '''
         self.do_calibration_simultaneous = do_calibration_simultaneous
         if read_from_file:
-            print("Reading mcmc_chain from file")
-            with open(f'{output_path}/pickle_files/bmm_mcmc_chains.pkl',
+            print("Reading bmm_mcmc_chain from file")
+            with open(f'{output_path}/bmm_mcmc_chains.pkl',
                       'rb') as f:
                 self.bmm_MCMC_chains = pickle.load(f)
+            with open(f'{output_path}/bmm_mcmc_weights.pkl',
+                      'rb') as f:
+                self.weights = pickle.load(f)
+            
+            return self.bmm_MCMC_chains, self.weights
         else:
+
             nwalkers = 20 * self.num_params
             n_models = len(self.hydro_names)
 
@@ -551,28 +689,29 @@ class HydroBayesianAnalysis(object):
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
                         np.random.rand(
-                            nwalkers, 
+                            nwalkers,
                             self.num_params + n_models
-                        ) * np.diff(self.parameter_ranges).reshape(-1,)
+                    ) * np.diff(self.parameter_ranges).reshape(-1,)
                         for _ in range(ntemps)])
             else:
+                # only need to initialize walkers for the weights
                 starting_guess = np.array(
                     [self.parameter_ranges[:n_models, 0] +
                         np.random.rand(
-                            nwalkers, 
+                            nwalkers,
                             n_models
-                        ) * 
+                    ) *
                         np.diff(self.parameter_ranges[:n_models])
                         .reshape(-1,)
                         for _ in range(ntemps)])
-                
-            # TODO: For the case where the fixed evaluation points are not 
+
+            # TODO: For the case where the fixed evaluation points are not
             #       given, run the calibration and extract the MAP values
             #       from the posteriors
 
             sampler = ptemcee.Sampler(
                 nwalkers=nwalkers,
-                dim=(self.num_params 
+                dim=(self.num_params + n_models
                      if do_calibration_simultaneous else
                      n_models),
                 ntemps=ntemps, Tmax=1000,
@@ -585,31 +724,25 @@ class HydroBayesianAnalysis(object):
                           GP_emulators,
                           fixed_evaluation_points_models],
                 logpargs=([self.parameter_ranges]
-                         if do_calibration_simultaneous else
-                         [self.parameter_ranges[:n_models]]),
+                          if do_calibration_simultaneous else
+                          [self.parameter_ranges[:n_models]]),
                 do_bmm=True,
                 num_models=n_models,
                 num_observations=exact_observables.shape[0]
             )
             print('burn in sampling started')
             x = sampler.run_mcmc(p0=starting_guess,
-                                    iterations=nburn,
-                                    swap_ratios=True)
-            print("Mean acceptance fractions (in total {0} steps): "
-                  .format(ntemps * nwalkers * nburn))
-            print(x[3])
+                                 iterations=nburn,
+                                 swap_ratios=True)
             print('Burn in completed.')
 
             sampler.reset()
 
             print("Now running the samples")
             x = sampler.run_mcmc(p0=x[0],
-                                    iterations=nsteps,
-                                    storechain=True,
-                                    swap_ratios=True)
-            print("Mean acceptance fractions (in total {0} steps): "
-                  .format(ntemps * nwalkers * nsteps))
-            print(x[3])
+                                 iterations=nsteps,
+                                 storechain=True,
+                                 swap_ratios=True)
 
             self.bmm_MCMC_chains = sampler.chain
             self.weights = sampler.weights
@@ -624,4 +757,8 @@ class HydroBayesianAnalysis(object):
                       'wb') as f:
                 pickle.dump(self.bmm_MCMC_chains, f)
 
-            return sampler.chain
+            with open(f'{output_path}/bmm_mcmc_weights.pkl',
+                      'wb') as f:
+                pickle.dump(self.weights, f)
+
+            return self.bmm_MCMC_chains, self.weights
