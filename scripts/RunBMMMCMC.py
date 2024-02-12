@@ -16,12 +16,33 @@ from multiprocessing import Process, Manager
 from subprocess import run as cmd
 from subprocess import CalledProcessError
 
+from tqdm import tqdm
+
 from typing import Dict, List, Tuple, Optional, Union
 from pathlib import Path
 
 from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
+
+from matplotlib.cm import plasma
+
+
+def split_data_for_sequential_run(
+        data: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+    rng = np.random.RandomState()
+
+    entries = data.shape[0] 
+    training_indices_1 = rng.choice(
+        np.arange(entries),
+        size=entries // 2,
+        replace=False
+    )
+
+    training_indices_2 = training_indices_1 - 1
+
+    return data[training_indices_1], data[training_indices_2]
 
 
 def convert_hydro_name_to_int(name: str) -> int:
@@ -42,6 +63,112 @@ def convert_hydro_name_to_int(name: str) -> int:
             return 4
         case 'exact':
             return 5
+
+
+def run_hydro_from_posterior(
+        mcmc_chains: Union[Dict[str, np.ndarray], np.ndarray],
+        weights: np.ndarray,
+        params_names: List[str],
+        hydro_names: List[str],
+        params_dict: Dict[str, Union[float, str]],
+        ran_sequentially: bool,
+        use_PL_PT: bool,
+        output_dir: Path,
+) -> None:
+    code_api = HCA(str(Path('./swap').absolute()))
+    params_dict['hydro_type'] = convert_hydro_name_to_int('exact')
+    exact_output = code_api.process_hydro(
+        params_dict=params_dict,
+        parameter_names=params_names,
+        design_point=[params_dict[key] for key in params_names],
+        use_PL_PT=use_PL_PT
+    )
+
+    output_dict = dict((key, []) for key in hydro_names)
+    if ran_sequentially:
+        for name in hydro_names:
+            params_dict['hydro_type'] = convert_hydro_name_to_int(name)
+            for mcmc_step in tqdm(mcmc_chains[name]):
+                output = code_api.process_hydro(
+                    params_dict=params_dict,
+                    parameter_names=parameter_names,
+                    design_point=mcmc_step.reshape(-1,),
+                    use_PL_PT=use_PL_PT
+                )
+                output_dict[name].append(output)
+    else:
+        for name in hydro_names:
+            params_dict['hydro_type'] = convert_hydro_name_to_int(name)
+            for mcmc_step in tqdm(mcmc_chains[:, len(hydro_names):]):
+                output = code_api.process_hydro(
+                    params_dict=params_dict,
+                    parameter_names=parameter_names,
+                    design_point=mcmc_step,
+                    use_PL_PT=use_PL_PT
+                )
+                output_dict[name].append(output)
+
+    output_array = np.array([
+        output_dict[name] for name in hydro_names
+    ])
+    del output_dict
+
+    fig, ax = plt.subplots(nrows=3, ncols=3, figsize=(3 * 7, 3 * 7))
+    fig.patch.set_facecolor('white')
+
+    # fig2, ax2 = plt.subplots(nrows=1, ncols=3, figszie=(3 * 7, 7))
+    # fig2.patch.set_facecolor('white')
+
+    p1_name = r'${\mathcal P_T}$' if use_PL_PT else r'$\pi$'
+    p2_name = r'${\mathcal P_L}$' if use_PL_PT else r'$\Pi$'
+
+    col_names = [r'$\mathcal{E}$', p1_name, p2_name]
+    for j, col_name in enumerate(col_names):
+        for i, hydro_name in enumerate(hydro_names):
+            ax[i, j].hist2d(
+                output_array[i, ..., 0].reshape(-1,),
+                output_array[i, ..., j + 1].reshape(-1,) * 0.197,
+                bins=100,
+                cmap=plasma,
+                norm='log',
+                alpha=0.5,
+            )
+            ax[i, j].plot(
+                exact_output[:, 0],
+                exact_output[:, j + 1],
+                color='black',
+                lw=2,
+            )
+            costumize_axis(
+                ax=ax[i, j],
+                x_title=r'$\tau$ [fm/c]',
+                y_title=f'{col_name} [Gev/fm$^{-3}$]'
+            )
+
+        # ax2[j].hist2d(
+            # output_dict[0, :, 0].reshape(-1),
+            # (
+                # weights.transpose() * output_dict[..., j + 1]
+            # ).reshape(-1,),
+            # bins=100,
+            # cmap=plasma,
+            # norm='log'
+        # )
+        # ax2[j].plot(
+            # exact_output[:, 0],
+            # exact_output[:, j + 1],
+            # color='black',
+            # lw=2,
+        # )
+        # costumize_axis(
+            # ax=ax2[j],
+            # x_title=r'$\tau$ [fm/c]',
+            # y_title=f'{col_name} [gev/fm$^{-3}$]'
+        # )
+
+    fig.savefig(f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
+    # fig2.savefig(f'{output_dict}/plots/weight_average_of_hydro_runs_for_posteriors.pdf')
+
 
 
 def get_navier_stokes_ic(
@@ -111,7 +238,6 @@ def get_navier_stokes_ic(
     cs2 = (m_e + m_p) / (3 * m_e + (3 + z ** 2) * m_p)
     beta_pi = beta * I_42_1(mid, mass)
     beta_Pi = (5 / 3) * beta_pi - (m_e + m_p) * cs2
-
     # calculate eta and zeta
     eta = eta_s * m_s
     zeta = beta_Pi * eta / beta_pi
@@ -164,6 +290,8 @@ def SampleObservables(error_level: float,
 
 def RunVeryLargeMCMC(
         hydro_names: List[str],
+        parameter_names: List[str],
+        parameter_ranges: np.ndarray,
         simulation_taus: np.ndarray,
         exact_pseudo: np.ndarray,
         pseudo_error: np.ndarray,
@@ -180,8 +308,6 @@ def RunVeryLargeMCMC(
     and saves MCMC chains and outputs plots
     '''
     code_api = HCA(str(Path(output_dir + '/swap').absolute()))
-    parameter_names = ['C']
-    parameter_ranges = np.array([[1 / (4 * np.pi), 10 / (4 * np.pi)]])
 
     emulator_class = HE(hca=code_api,
                         params_dict=local_params,
@@ -230,6 +356,8 @@ def RunVeryLargeMCMC(
 
 def RunBMMMCMC(
     hydro_names: List[str],
+    parameter_names: List[str],
+    parameter_ranges: np.ndarray,
     simulation_taus: np.ndarray,
     exact_pseudo: np.ndarray,
     pseudo_error: np.ndarray,
@@ -248,13 +376,6 @@ def RunBMMMCMC(
     and saves MCMC chains and outputs plots
     '''
     code_api = HCA(str(Path(output_dir + '/swap').absolute()))
-    parameter_names = ['C']
-    parameter_ranges = np.array(
-        [
-            *[np.array([0, 10]) for _ in range(len(hydro_names))],
-            [1 / (4 * np.pi), 10 / (4 * np.pi)]
-        ]
-    )
 
     emulator_class = HE(hca=code_api,
                         params_dict=local_params,
@@ -263,7 +384,8 @@ def RunBMMMCMC(
                         .reshape(len(parameter_names), -1),
                         simulation_taus=simulation_taus,
                         hydro_names=hydro_names,
-                        use_existing_emulators=use_existing_emulators,
+                        use_existing_emulators=use_existing_emulators \
+                            and run_sequential,
                         use_PL_PT=use_PL_PT,
                         output_path=output_dir,
                         samples_per_feature=points_per_feat)
@@ -289,7 +411,7 @@ def RunBMMMCMC(
                    simulation_taus=simulation_taus,
                    do_bmm=True)
 
-    ba_class.run_mixing(
+    bmm_mcmc_chains, weights = ba_class.run_mixing(
         nsteps=number_steps,
         nburn=1000 * len(parameter_ranges),
         ntemps=20,
@@ -309,12 +431,8 @@ def RunBMMMCMC(
                              axis_names=[r'$\mathcal C$'])
     ba_class.plot_weights(output_dir=output_dir)
 
+    return bmm_mcmc_chains, weights
 
-def plot_predictive_posteriros_and_truth(
-        mcmc_chain: Union[np.ndarray, Dict[str, np.ndarray]],
-        weights: Optional[np.ndarray] = None
-) -> None:
-    NotImplemented
 
 if __name__ == "__main__":
     local_params = {
@@ -327,24 +445,32 @@ if __name__ == "__main__":
         'C': 5 / (4 * np.pi),
         'hydro_type': 0
     }
-
-    total_runs = 10
-
-    # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'bmm_runs/simultaneous_error=0.05'
-    # output_folder = 'bmm_runs/sequential_error=0.05'
-
-    use_PL_PT = False
-    generate_new_data = False
-    use_existing_emulators = True
-    read_mcmc_from_file = True
-    run_sequential = False
     hydro_names = ['ce', 'dnmr', 'mvah']
     # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
     # hydro_names = ['mvah']
 
+    # Weights parameters are not names explicitly   
+    # but we do explicitly includes the bounds for the wieghts
+    parameter_names = ['C']
+    parameter_ranges = np.array(
+        [
+            *[np.array([0, 10]) for _ in range(len(hydro_names))],
+            [1 / (4 * np.pi), 10 / (4 * np.pi)]
+        ]
+    )
+
+    # output_folder = 'very_large_mcmc_run_1'
+    # output_folder = 'bmm_runs_2/simultaneous_error=0.20'
+    output_folder = 'bmm_runs_2/sequential_error=0.20'
+
+    use_PL_PT = False
+    generate_new_data = True
+    use_existing_emulators = False
+    read_mcmc_from_file = False
+    run_sequential = True
+
     best_fits = [0.342, 0.40, 0.08, 0.235]
-    simulation_taus = np.linspace(2.1, 3.1, 20, endpoint=True)
+    simulation_taus = np.linspace(2.1, 4.1, 40, endpoint=True)
 
     data_file_path = Path(
         f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
@@ -358,7 +484,7 @@ if __name__ == "__main__":
             exact_pseudo, pseudo_error = SampleObservables(
                 error_level=0.05,
                 true_params=local_params,
-                parameter_names=['C'],
+                parameter_names=parameter_names,
                 simulation_taus=simulation_taus,
                 use_PL_PT=use_PL_PT,
             )
@@ -369,21 +495,34 @@ if __name__ == "__main__":
             pickle_input = pickle.load(f)
             exact_pseudo, pseudo_error = pickle_input
 
-    print(exact_pseudo)
-    print(pseudo_error)
+    # print(exact_pseudo)
+    # print(pseudo_error)
 
     if run_sequential:
-        mcmc_chains = RunVeryLargeMCMC(hydro_names=hydro_names,
-                                       simulation_taus=simulation_taus,
-                                       exact_pseudo=exact_pseudo,
-                                       pseudo_error=pseudo_error,
-                                       output_dir=f'./pickle_files/{output_folder}',
-                                       local_params=local_params,
-                                       points_per_feat=10,
-                                       number_steps=20_000,
-                                       use_existing_emulators=use_existing_emulators,
-                                       read_mcmc_from_file=read_mcmc_from_file,
-                                       use_PL_PT=use_PL_PT,)
+        simulation_taus_1, simulation_taus_2 = split_data_for_sequential_run(
+            simulation_taus
+        )
+        exact_pseudo_1, exact_pseudo_2 = split_data_for_sequential_run(
+            exact_pseudo
+        )
+        pseudo_error_1, pseudo_error_2 = split_data_for_sequential_run(
+            pseudo_error
+        )
+        mcmc_chains = RunVeryLargeMCMC(
+            hydro_names=hydro_names,
+            parameter_names=parameter_names,
+            parameter_ranges=parameter_ranges[len(hydro_names):],
+            simulation_taus=simulation_taus_1,
+          exact_pseudo=exact_pseudo_1,
+            pseudo_error=pseudo_error_1,
+            output_dir=f'./pickle_files/{output_folder}',
+            local_params=local_params.copy(),
+            points_per_feat=10,
+            number_steps=20_000,
+            use_existing_emulators=use_existing_emulators,
+            read_mcmc_from_file=read_mcmc_from_file,  # TODO: Return to variable
+            use_PL_PT=use_PL_PT,
+        )
         fixed_values = dict((name, np.mean(val[0]))
                             for name, val in mcmc_chains.items())
         # fixed_values = {
@@ -397,16 +536,57 @@ if __name__ == "__main__":
     #   - Add plotting routine that plots the predictive posterior giving the weight average of the hydrodynamic theories and the exact solutions
     #   - Split large MCMC chains into smaller ones, se 10_000 steps at a time, and them combine them after everything has been run calculating the 
     #       various quantities by looping over the separately stored runs
-    RunBMMMCMC(hydro_names=hydro_names,
-               simulation_taus=simulation_taus,
-               exact_pseudo=exact_pseudo,
-               pseudo_error=pseudo_error,
-               output_dir=f'./pickle_files/{output_folder}',
-               local_params=local_params,
-               points_per_feat=10,
-               number_steps=20_000,
-               fixed_values=fixed_values if run_sequential else None,
-               use_existing_emulators=use_existing_emulators,
-               read_mcmc_from_file=read_mcmc_from_file,
-               use_PL_PT=use_PL_PT,
-               run_sequential=run_sequential,)
+    bmm_mcmc_chains, weights  = RunBMMMCMC(
+        hydro_names=hydro_names,
+        simulation_taus=simulation_taus_2
+        if run_sequential else simulation_taus,
+        exact_pseudo=exact_pseudo_2
+        if run_sequential else exact_pseudo,
+        pseudo_error=pseudo_error_2
+        if run_sequential else pseudo_error,
+        parameter_names=parameter_names,
+        parameter_ranges=parameter_ranges,
+        output_dir=f'./pickle_files/{output_folder}',
+        local_params=local_params.copy(),
+        points_per_feat=10,
+        number_steps=20_000,
+        fixed_values=fixed_values if run_sequential else None,
+        use_existing_emulators=use_existing_emulators,
+        read_mcmc_from_file=read_mcmc_from_file,
+        use_PL_PT=use_PL_PT,
+        run_sequential=run_sequential,
+    )
+
+    if run_sequential:
+        mcmc_chains = dict(
+            (key, mcmc_chains[key][0].reshape(-1,))
+            for key in hydro_names
+        )
+    bmm_mcmc_chains = bmm_mcmc_chains[0].reshape(
+        -1,
+        bmm_mcmc_chains.shape[-1]
+    )
+    weights = weights[0] # This still needs to be figured out, as weights has
+                         # an extra dimension that keeps track of where the 
+                         # evaluation happened, ideally it'll promoted to a GP
+    points_to_keep = 100
+    run_hydro_from_posterior(
+        mcmc_chains=dict(
+            (
+                key,
+                mcmc_chains[key][
+                    ::(mcmc_chains[key].shape[0] // points_to_keep)
+                ]
+            )
+            for key in hydro_names
+        ) if run_sequential else bmm_mcmc_chains[
+            ::(bmm_mcmc_chains.shape[0] // points_to_keep)
+        ],
+        weights= 0,  # weights[::(weights.shape[1] // points_to_keep)],
+        params_names=parameter_names,
+        hydro_names=hydro_names,
+        params_dict=local_params.copy(),
+        ran_sequentially=run_sequential,
+        use_PL_PT=use_PL_PT,
+        output_dir=output_folder
+    )

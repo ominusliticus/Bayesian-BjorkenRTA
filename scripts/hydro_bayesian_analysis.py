@@ -54,6 +54,7 @@ from os import cpu_count
 
 # Run MCMC calibration in parallel
 from multiprocessing import Manager, Process
+from multiprocessing import current_process
 
 from typing import Tuple
 from typing import Type
@@ -356,17 +357,27 @@ class HydroBayesianAnalysis(object):
         return self.evidence[hydro1][0] / self.evidence[hydro2][0]
 
     def plot_posteriors(self, output_dir: str, axis_names: List[str]):
-        if self.MCMC_chains and self.bmm_MCMC_chains is None:
-            print("No chains to plot. Please run calibration")
-            return
+        if not self.do_calibration_simultaneous and self.MCMC_chains is None:
+            print("Reading mcmc_chain from file")
+            with open(f'{output_dir}/mcmc_chains.pkl',
+                      'rb') as f:
+                self.MCMC_chains = pickle.load(f)
+
+        if self.MCMC_chains is None:
+            if self.do_bmm and self.bmm_MCMC_chains is None:
+                print("No chains to plot. Please run calibration")
+                return
 
         # TODO: Add true and MAP values to plot
         # pallette = sns.color_palette('Colorblind')
+        
+        weights_offset = len(self.hydro_names)
         if self.do_calibration_simultaneous:
-            data = self.bmm_MCMC_chains.reshape(
+            data = self.bmm_MCMC_chains[0, ..., weights_offset:].reshape(
                 -1,
                 len(self.parameter_names)
             )
+            
             df = pd.DataFrame(dict((name, data[:, k])
                                    for k, name in enumerate(axis_names)))
             g = sns.pairplot(
@@ -515,6 +526,7 @@ class HydroBayesianAnalysis(object):
                 for hydro_name in hydro_names
             ])
         else:
+            # This should take the previous posteriors, not just the MAP values
             model_log_likelihoods = np.array([
                 self.log_likelihood(
                     evaluation_point=fixed_evaluation_parameters_for_models[
@@ -582,13 +594,9 @@ class HydroBayesianAnalysis(object):
                       'rb') as f:
                 self.weights = pickle.load(f)
             
-            if not self.do_calibration_simultaneous:
-                with open(f'{output_path}/mcmc_chains.pkl',
-                          'rb') as f:
-                    self.MCMC_chains = pickle.load(f)
-
-            return self.bmm_MCMC_chains
+            return self.bmm_MCMC_chains, self.weights
         else:
+
             nwalkers = 20 * self.num_params
             n_models = len(self.hydro_names)
 
@@ -609,6 +617,7 @@ class HydroBayesianAnalysis(object):
                     ) * np.diff(self.parameter_ranges).reshape(-1,)
                         for _ in range(ntemps)])
             else:
+                # only need to initialize walkers for the weights
                 starting_guess = np.array(
                     [self.parameter_ranges[:n_models, 0] +
                         np.random.rand(
@@ -675,4 +684,4 @@ class HydroBayesianAnalysis(object):
                       'wb') as f:
                 pickle.dump(self.weights, f)
 
-            return sampler.chain
+            return self.bmm_MCMC_chains, self.weights
