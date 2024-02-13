@@ -125,25 +125,42 @@ def run_hydro_from_posterior(
     col_names = [r'$\mathcal{E}$', p1_name, p2_name]
     for j, col_name in enumerate(col_names):
         for i, hydro_name in enumerate(hydro_names):
+            tau_R = np.array([
+                5 * params_dict['C'] / get_temp(
+                    energy_density=e,
+                    mass=params_dict['mass']
+                )
+                for e in output_array[i, ..., 1].reshape(-1,)
+            ])
             ax[i, j].hist2d(
-                output_array[i, ..., 0].reshape(-1,),
+                output_array[i, ..., 0].reshape(-1,) / tau_R,
                 output_array[i, ..., j + 1].reshape(-1,) * 0.197,
                 bins=100,
                 cmap=plasma,
                 norm='log',
                 alpha=0.5,
             )
+
+            tau_R = np.array([
+                5 * params_dict['C'] / get_temp(
+                    energy_density=e,
+                    mass=params_dict['mass']
+                )
+                for e in exact_output[i, ..., 1].reshape(-1,)
+            ])
             ax[i, j].plot(
-                exact_output[:, 0],
+                exact_output[:, 0] / tau_R,
                 exact_output[:, j + 1] * 0.197,
                 color='black',
                 lw=2,
             )
             costumize_axis(
                 ax=ax[i, j],
-                x_title=r'$\tau$ [fm/c]',
+                x_title=r'$\tau / \tau_R$ [fm/c]',
                 y_title=f'{col_name} [Gev/fm$^{-3}$]'
             )
+            ax[i, j].text(0.9, 0.95, f'{hydro_name}', ha='left', va='top',
+                          transform=ax[i, j].transAxes)
 
         # ax2[j].hist2d(
             # output_dict[0, :, 0].reshape(-1),
@@ -170,13 +187,12 @@ def run_hydro_from_posterior(
     # fig2.savefig(f'{output_dict}/plots/weight_average_of_hydro_runs_for_posteriors.pdf')
 
 
-
-def get_navier_stokes_ic(
-        energy_density: float, mass: float, eta_s: float, tau: float
-) -> Tuple[float, float]:
+def get_temp(
+        energy_density: float,
+        mass: float,
+) -> float:
     from scipy.special import kn
-    from scipy.integrate import quad
-
+    
     # calculate energy density given temperature and mass
     def e(temp, mass):
         z = mass / temp
@@ -218,6 +234,15 @@ def get_navier_stokes_ic(
             if np.abs(copy - mid) < 1e-6:
                 flag = 1
             copy = mid
+        
+    return mid
+
+def get_navier_stokes_ic(
+        energy_density: float, mass: float, eta_s: float, tau: float
+) -> Tuple[float, float]:
+    from scipy.special import kn
+    from scipy.integrate import quad
+
 
     # Function needed to calculate beta_pi
     def I_42_1(temp, mass):
@@ -230,6 +255,7 @@ def get_navier_stokes_ic(
         return temp ** 5 * z ** 5 * result / (30 * np.pi ** 2)
 
     # define quantities necessary to calculate eta and zeta
+    mid = get_temp(energy_density=energy_density, mass=mass)
     beta = 1 / mid
     m_e = energy_density
     m_p = p(mid, mass)
@@ -384,8 +410,7 @@ def RunBMMMCMC(
                         .reshape(len(parameter_names), -1),
                         simulation_taus=simulation_taus,
                         hydro_names=hydro_names,
-                        use_existing_emulators=use_existing_emulators \
-                            and run_sequential,
+                        use_existing_emulators=use_existing_emulators,
                         use_PL_PT=use_PL_PT,
                         output_path=output_dir,
                         samples_per_feature=points_per_feat)
@@ -460,17 +485,21 @@ if __name__ == "__main__":
     )
 
     # output_folder = 'very_large_mcmc_run_1'
-    # output_folder = 'bmm_runs_2/simultaneous_error=0.20'
-    output_folder = 'bmm_runs_2/sequential_error=0.20'
+    output_folder = 'bmm_runs/simultaneous_error=0.20'
+    # output_folder = 'bmm_runs_2/sequential_error=0.20'
 
     use_PL_PT = False
-    generate_new_data = True
-    use_existing_emulators = False
-    read_mcmc_from_file = False
-    run_sequential = True
+    generate_new_data = False
+    # TODO: Need to convert such that we only use one emulator for all runs
+    # also need to modify to make this an option, we can understand hwo 
+    # how emulation error really propagates (though error bars should account)
+    # for this ---------------v
+    use_existing_emulators = True
+    read_mcmc_from_file = True
+    run_sequential = False
 
     best_fits = [0.342, 0.40, 0.08, 0.235]
-    simulation_taus = np.linspace(2.1, 4.1, 40, endpoint=True)
+    simulation_taus = np.linspace(2.1, 3.1, 20, endpoint=True)
 
     data_file_path = Path(
         f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
