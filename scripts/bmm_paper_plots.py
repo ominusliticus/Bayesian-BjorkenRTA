@@ -22,6 +22,58 @@ def hydro_type_from_string(hydro_name: str) -> int:
         case 'mvah':
             return 4
 
+
+def get_temp(
+        energy_density: float,
+        mass: float,
+) -> float:
+    from scipy.special import kn
+    
+    # calculate energy density given temperature and mass
+    def e(temp, mass):
+        z = mass / temp
+        result = (z ** 2 * kn(2, z) / 2 + z ** 3 * kn(1, z) / 6)
+        return 3 * temp ** 4 * result / np.pi ** 2
+
+    # calculate equilibrium pressure given temperature and mass
+    def p(temp, mass):
+        z = mass / temp
+        return z ** 2 * temp ** 4 * kn(2, z) / (2 * np.pi ** 2)
+
+    # invert given energy density
+    t_min = 0.001 / 0.197
+    t_max = 2.0 / 0.197
+    x_1 = t_min
+    x_2 = t_max
+
+    n = 0
+    flag = 0
+    copy = 0
+    while flag != 1 and n <= 2000:
+        mid = (x_1 + x_2) / 2.0
+        e_mid = e(mid, mass)
+        e_1 = e(x_1, mass)
+
+        if np.abs(e_mid - energy_density) < 1e-6:
+            break
+
+        if (e_mid - energy_density) * (e_1 - e_mid) <= 0.0:
+            x_2 = mid
+        else:
+            x_1 = mid
+
+        n += 1
+        if n == 1:
+            copy = mid
+
+        if n > 4:
+            if np.abs(copy - mid) < 1e-6:
+                flag = 1
+            copy = mid
+        
+    return mid
+
+
 def extract_numbers_from_file(
     hydro_name: str,
     path_to_output: Path,
@@ -89,6 +141,7 @@ def return_residual(
 if __name__ == "__main__":
     hydro_names = ['ce', 'dnmr', 'mis', 'vah', 'mvah', 'exact']
     colors = mp.get_cmap(10, 'tab10')
+    eta_S = 0.39
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(3 * 5, 1.2 * 5))
     fig.patch.set_facecolor('white')
@@ -99,8 +152,9 @@ if __name__ == "__main__":
             extract_numbers_from_file(
                 hydro_name=hydro_name,
                 # path_to_output='../output/magenta',
-                path_to_output='../output/maroon',
+                # path_to_output='../output/maroon',
                 # path_to_output='../output/blue',
+                path_to_output='../output/test_no_filesystem',
                 mass=0.200 / 0.197,
             )
         )
@@ -114,6 +168,12 @@ if __name__ == "__main__":
             r'$\pi / (\mathcal E + \mathcal P_\mathrm{eq})$',
             r'$\Pi / (\mathcal E + \mathcal P_\mathrm{eq})$'
         ]):
+            tau_R = np.array([
+                5 * eta_S * get_temp(
+                    energy_density=output[hydro_name][1],
+                    mass=0.200 / 0.197
+                )
+            ])
             ax[j].plot(
                 output[hydro_name][0],
                 output[hydro_name][j + 1],
@@ -150,6 +210,12 @@ if __name__ == "__main__":
         for i, hydro_name in enumerate(hydro_names):
             if hydro_name == 'exact':
                 continue
+            tau_R = np.array([
+                5 * eta_S * get_temp(
+                    energy_density=output[hydro_name][1],
+                    mass=0.200 / 0.197
+                )
+            ])
             resids = return_residual(output[hydro_name], output['exact'])
             ax2.plot(
                 output[hydro_name][0],
@@ -160,7 +226,7 @@ if __name__ == "__main__":
         ax2.set_xlim(1, 1000)
         mp.costumize_axis(
             ax=ax2,
-            x_title=r'$\tau / \tau_0$',
+            x_title=r'$\tau / \tau_R$',
             y_title=''
         ) 
         ax2.set_xscale('log')
