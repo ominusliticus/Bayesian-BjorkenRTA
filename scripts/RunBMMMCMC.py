@@ -460,48 +460,19 @@ def RunBMMMCMC(
     return bmm_mcmc_chains, weights
 
 
-if __name__ == "__main__":
-    local_params = {
-        'tau_0': 0.1,
-        'e0': 12.4991,
-        'pt0': 6.0977,
-        'pl0': 0.0090,
-        'tau_f': 12.1,
-        'mass': 0.2 / 0.197,
-        'C': 5 / (4 * np.pi),
-        'hydro_type': 0
-    }
-    hydro_names = ['ce', 'dnmr', 'mvah']
-    # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
-    # hydro_names = ['mvah']
-
-    # Weights parameters are not names explicitly   
-    # but we do explicitly includes the bounds for the wieghts
-    parameter_names = ['C']
-    parameter_ranges = np.array(
-        [
-            *[np.array([0, 10]) for _ in range(len(hydro_names))],
-            [1 / (4 * np.pi), 10 / (4 * np.pi)]
-        ]
-    )
-
-    # output_folder = 'very_large_mcmc_run_1'
-    output_folder = 'bmm_runs/simultaneous_error=0.20'
-    # output_folder = 'bmm_runs_2/sequential_error=0.20'
-
-    use_PL_PT = False
-    generate_new_data = False
-    # TODO: Need to convert such that we only use one emulator for all runs
-    # also need to modify to make this an option, we can understand hwo 
-    # how emulation error really propagates (though error bars should account)
-    # for this ---------------v
-    use_existing_emulators = True
-    read_mcmc_from_file = True
-    run_sequential = False
-
-    best_fits = [0.342, 0.40, 0.08, 0.235]
-    simulation_taus = np.linspace(2.1, 3.1, 20, endpoint=True)
-
+def main(
+        local_params: Dict[str, Union[float, int]],
+        hydro_names: List[str],
+        parameter_names: List[str],
+        parameter_ranges: np.ndarray,
+        simulation_taus: np.ndarray,
+        output_folder: str,
+        use_PL_PT: bool,
+        generate_new_data: bool,
+        use_existing_emulators: bool,
+        read_mcmc_from_file: bool,
+        run_sequential: bool,
+) -> None:
     data_file_path = Path(
         f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
     try:
@@ -619,4 +590,41 @@ if __name__ == "__main__":
         ran_sequentially=run_sequential,
         use_PL_PT=use_PL_PT,
         output_dir=output_folder
+    )
+
+
+if __name__ == "__main__":
+    main(
+        local_params = {
+            'tau_0': 0.1,
+            'e0': 12.4991,
+            'pt0': 6.0977,
+            'pl0': 0.0090,
+            'tau_f': 12.1,
+            'mass': 0.2 / 0.197,
+            'C': 5 / (4 * np.pi),
+            'hydro_type': 0
+        },
+        hydro_names = ['ce', 'dnmr', 'mvah'],
+        # Weights parameters are not names explicitly   
+        # but we do explicitly includes the bounds for the weights
+        parameter_names = ['C'],
+        parameter_ranges = np.array(
+            [
+                *[np.array([0, 10]) for _ in range(3)],
+                [1 / (4 * np.pi), 10 / (4 * np.pi)]
+            ],
+        ),
+        simulation_taus = np.linspace(2.1, 3.1, 40, endpoint=True),
+        # output_folder = 'bmm_runs/simultaneous_error=0.05',
+        output_folder = 'bmm_runs/sequential_error=0.05_2',
+        use_PL_PT = False,
+        generate_new_data = False,
+        # TODO: Need to convert such that we only use one emulator for all runs
+        # also need to modify to make this an option, we can understand hwo 
+        # how emulation error really propagates (though error bars should account)
+        # for this ---------------v
+        use_existing_emulators = True,
+        read_mcmc_from_file = True,
+        run_sequential = True,
     )
