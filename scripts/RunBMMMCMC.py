@@ -91,7 +91,7 @@ def run_hydro_from_posterior(
             for mcmc_step in tqdm(mcmc_chains[name]):
                 output = code_api.process_hydro(
                     params_dict=params_dict,
-                    parameter_names=parameter_names,
+                    parameter_names=params_names,
                     design_point=mcmc_step.reshape(-1,),
                     use_PL_PT=use_PL_PT
                 )
@@ -102,7 +102,7 @@ def run_hydro_from_posterior(
             for mcmc_step in tqdm(mcmc_chains[:, len(hydro_names):]):
                 output = code_api.process_hydro(
                     params_dict=params_dict,
-                    parameter_names=parameter_names,
+                    parameter_names=params_names,
                     design_point=mcmc_step,
                     use_PL_PT=use_PL_PT
                 )

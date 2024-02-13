@@ -423,7 +423,7 @@ class HydroBayesianAnalysis(object):
                              diag_kind='kde',
                              kind='hist',
                              hue='hydro')
-            g.legend()
+            g.fig.legend()
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
 
