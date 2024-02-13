@@ -159,6 +159,7 @@ def run_hydro_from_posterior(
                 x_title=r'$\tau / \tau_R$ [fm/c]',
                 y_title=f'{col_name} [Gev/fm$^{-3}$]'
             )
+            ax[i, j].set_xlim(left=0)
             ax[i, j].text(0.9, 0.95, f'{hydro_name}', ha='left', va='top',
                           transform=ax[i, j].transAxes)
 
