@@ -33,7 +33,7 @@ def split_data_for_sequential_run(
     ) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.RandomState()
 
-    entries = data.shape[0] 
+    entries = data.shape[0]
     training_indices_1 = rng.choice(
         np.arange(entries),
         size=entries // 2,
@@ -50,19 +50,18 @@ def convert_hydro_name_to_int(name: str) -> int:
     Returns integer corresponding to the hydro in C++ code.
     See documentation or ../src/main.cpp: int main() for options
     '''
-    match name:
-        case 'ce':
-            return 0
-        case 'dnmr':
-            return 1
-        case 'mis':
-            return 2
-        case 'vah':
-            return 3
-        case 'mvah':
-            return 4
-        case 'exact':
-            return 5
+    if name == 'ce':
+        return 0
+    if name == 'dnmr':
+        return 1
+    if name == 'mis':
+        return 2
+    if name == 'vah':
+        return 3
+    if name == 'mvah':
+        return 4
+    if name == 'exact':
+        return 5
 
 
 def run_hydro_from_posterior(
@@ -449,7 +448,7 @@ if __name__ == "__main__":
     # hydro_names = ['ce', 'dnmr', 'mis', 'mvah']
     # hydro_names = ['mvah']
 
-    # Weights parameters are not names explicitly   
+    # Weights parameters are not names explicitly
     # but we do explicitly includes the bounds for the wieghts
     parameter_names = ['C']
     parameter_ranges = np.array(
@@ -459,7 +458,6 @@ if __name__ == "__main__":
         ]
     )
 
-    # output_folder = 'very_large_mcmc_run_1'
     # output_folder = 'bmm_runs_2/simultaneous_error=0.20'
     output_folder = 'bmm_runs_2/sequential_error=0.20'
 
@@ -520,7 +518,7 @@ if __name__ == "__main__":
             points_per_feat=10,
             number_steps=20_000,
             use_existing_emulators=use_existing_emulators,
-            read_mcmc_from_file=read_mcmc_from_file,  # TODO: Return to variable
+            read_mcmc_from_file=read_mcmc_from_file,
             use_PL_PT=use_PL_PT,
         )
         fixed_values = dict((name, np.mean(val[0]))
@@ -534,7 +532,7 @@ if __name__ == "__main__":
     # TODO:
     #   - Add plotting for the posterior of the inference parameters when doing simultaneous calibration
     #   - Add plotting routine that plots the predictive posterior giving the weight average of the hydrodynamic theories and the exact solutions
-    #   - Split large MCMC chains into smaller ones, se 10_000 steps at a time, and them combine them after everything has been run calculating the 
+    #   - Split large MCMC chains into smaller ones, se 10_000 steps at a time, and them combine them after everything has been run calculating the
     #       various quantities by looping over the separately stored runs
     bmm_mcmc_chains, weights  = RunBMMMCMC(
         hydro_names=hydro_names,
@@ -567,7 +565,7 @@ if __name__ == "__main__":
         bmm_mcmc_chains.shape[-1]
     )
     weights = weights[0] # This still needs to be figured out, as weights has
-                         # an extra dimension that keeps track of where the 
+                         # an extra dimension that keeps track of where the
                          # evaluation happened, ideally it'll promoted to a GP
     points_to_keep = 100
     run_hydro_from_posterior(

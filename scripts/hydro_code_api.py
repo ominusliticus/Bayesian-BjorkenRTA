@@ -142,6 +142,10 @@ class HydroCodeAPI:
 
         out_list = []
         for i in range(len(f_e)):
+            print(f_e[i])
+            print(f_pi[i])
+            print(f_Pi[i])
+            print()
             tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
                                 f_pi[i].split()[1], f_Pi[i].split()[1],\
                                 f_e[i].split()[2]
@@ -168,16 +172,19 @@ class HydroCodeAPI:
         '''
         Open output file from running Boltzmann RTA solution
         '''
+        mass = 0.197 * params_dict["mass"]
+        print(mass)
+        print(self.output_path)
         with open(
                 self.output_path
-                + f'/exact_m={0.197 * params_dict["mass"]:.3f}GeV.dat',
+                + f'/exact_m={mass:.3f}GeV.dat',
                 'r'
                 ) as f_exact:
             output = np.array([[
                                 float(entry)
                                 for entry in line.split()]
                                for line in f_exact.readlines()])
-            
+
         if use_PL_PT:
             return output
         else:
@@ -209,19 +216,18 @@ class HydroCodeAPI:
                                                        use_PL_PT))
 
     def map_hydro_to_number(self, hydro: str) -> int:
-        match hydro:
-            case 'ce':
-                return 0
-            case 'dnmr':
-                return 1
-            case 'mis':
-                return 2
-            case 'vah':
-                return 3
-            case 'mvah':
-                return 4
-            case 'exact':
-                return 5
+        if hydro == 'ce':
+            return 0
+        if hydro == 'dnmr':
+            return 1
+        if hydro == 'mis':
+            return 2
+        if hydro == 'vah':
+            return 3
+        if hydro == 'mvah':
+            return 4
+        if hydro == 'exact':
+            return 5
 
     def run_hydro(self,
                   params_dict: Dict[str, float],
@@ -262,7 +268,7 @@ class HydroCodeAPI:
                     [[(tau_f / tau_0 - 1.0) * 20.0
                       for tau_f in simulation_taus]
                      for design_point in design_points])
-            
+
             itr = hydro_names.index(key)
             params_dict['hydro_type'] = self.map_hydro_to_number(key)
             output = np.array(
@@ -305,7 +311,7 @@ class HydroCodeAPI:
             for j, tau in enumerate(simulation_taus):
                 with open(
                         ('{}/{}_simulation_points_n='
-                         + '{}_tau={}.dat').
+                         + '{}_tau={:.3f}.dat').
                         format(self.output_path,
                                name,
                                len(parameter_names),

@@ -52,3 +52,6 @@ compile_commands.json
 fmt/
 
 debugging*
+
+**.un*
+**.swap

@@ -29,19 +29,18 @@ def convert_hydro_name_to_int(name: str) -> int:
     Returns integer corresponding to the hydro in C++ code.
     See documentation or ../src/main.cpp: int main() for options
     '''
-    match name:
-        case 'ce':
-            return 0
-        case 'dnmr':
-            return 1
-        case 'mis':
-            return 2
-        case 'vah':
-            return 3
-        case 'mvah':
-            return 4
-        case 'exact':
-            return 5
+    if name == 'ce':
+        return 0
+    if name == 'dnmr':
+        return 1
+    if name == 'mis':
+        return 2
+    if name == 'vah':
+        return 3
+    if name == 'mvah':
+        return 4
+    if name == 'exact':
+        return 5
 
 
 def get_navier_stokes_ic(
@@ -714,7 +713,7 @@ if __name__ == "__main__":
     #     best_fits=best_fits,
     # )
 
-    hydro_names = ['ce', 'dnmr', 'mvah', 'exact']
+    hydro_names = ['ce', 'dnmr', 'mvah']
     compare_all_emulators(hydro_names=hydro_names,
                           simulation_taus=simulation_taus,
                           output_dir='./pickle_files/emulator_validation',

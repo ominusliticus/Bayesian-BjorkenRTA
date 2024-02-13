@@ -21,12 +21,12 @@ TST_INVERSION_FILES := $(patsubst $(TST)%.cpp,$(OBJ)%.o,$(TST_INVERSION))
 UNAME_S := $(shell uname -s)
 $(info $$UNAME_S is [$(UNAME_S)])
 ifeq ($(UNAME_S),Linux)
-	CC = g++ -std=c++20 -Wall -Wextra -fsanitize=address #-g3
+	CC = g++ -std=c++17 -Wall -Wextra # -fsanitize=address #-g3
 	OPT = -O3 -funroll-loops -finline-functions -fopenmp # -fno-stack-protector
 
 	# Armadillo instructions
 	ARMA_INC = $(THIRD_PARTY)armadillo/include/
-	ARMA_LIB = -lopenblas -llapack
+	ARMA_LIB = -L /usr/local/src/openblas/0.3.12/gcc/Sandy.Bridge/lib -lopenblas
 	
 	LIBS = -lpthread $(ARMA_LIB)
 	INCLUDE = -I /usr/local/include -I $(ARMA_INC) -I $(INC)

@@ -36,16 +36,16 @@ template <typename... Args>
 void Print(std::ostream& out, Args&&... args)
 {
     // Uses C++17 Folding Expressions
-    ((out << std::forward<Args>(args) << '\t'), ...);
-    out << '\n';
+    ((out << std::forward<Args>(args) << ' '), ...);
+    out << std::endl;
 }
 
 template <typename... Args>
 void Print_Error(std::ostream& out, Args&&... args)
 {
     // Uses C++17 Folding Expressions
-    ((out << std::forward<Args>(args) << '\t'), ...);
-    out << '\n';
+    ((out << std::forward<Args>(args) << ' '), ...);
+    out << std::endl;
 }
 
 #define DEBUG 0

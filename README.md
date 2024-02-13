@@ -84,7 +84,7 @@ The libraries you need to run the python code are
 | `matplotlib`      | `pydoe`         | 
 | `multiprocessing` | `scipy`         |
 | `numpy`           | `seaborn`       |
-| `panda`           | `scikit-learn`  |
+| `pandas`          | `scikit-learn`  |
 | `pickle`          | `subprocess`    |
 | `ptemcee`         | `tqdm`          |
 
