@@ -184,7 +184,7 @@ class HydroEmulator:
                     (key, np.array(hydro_simulations[key]))
                     for key in hydro_simulations)
 
-                nan_detected = np.array([0, 0, 0, 0], dtype=bool)
+                nan_detected = np.array(len(hydro_names) * [0], dtype=bool)
                 for m, key in enumerate(hydro_names):
                     if np.any(np.isnan(hydro_simulations[key])):
                         nan_detected[m] = True

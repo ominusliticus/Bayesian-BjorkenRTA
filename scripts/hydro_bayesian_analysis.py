@@ -31,6 +31,8 @@ from typing import Dict, List  # Dict and List args need to be added for all
 import numpy as np
 # import ptemcee
 import my_ptemcee as ptemcee
+import emcee
+import zeus
 
 # For plotting posteriors
 import seaborn as sns
@@ -55,6 +57,7 @@ from os import cpu_count
 # Run MCMC calibration in parallel
 from multiprocessing import Manager, Process
 from multiprocessing import current_process
+from multiprocessing import Pool
 
 from typing import Tuple
 from typing import Type
@@ -84,6 +87,7 @@ class HydroBayesianAnalysis(object):
             parameter_names: List[str],
             parameter_ranges: np.ndarray,
             simulation_taus: np.ndarray,
+            mixing_method: str = 'dirichlet',
             do_bmm: bool = False,
     ) -> None:
         print("Initializing Bayesian Analysis class")
@@ -95,10 +99,13 @@ class HydroBayesianAnalysis(object):
         self.simulation_taus = simulation_taus
         self.do_bmm = do_bmm
         self.do_calibration_simultaneous = False
+        self.mixing_method = mixing_method
 
         self.MCMC_chains = None   # Dict[str, np.ndarray]
         self.evidence = None      # Dict[str, float]
         self.bmm_MCMC_chains = None
+
+        self.running_mixing = False
 
     def log_prior(self,
                   evaluation_point: np.ndarray,
@@ -108,7 +115,7 @@ class HydroBayesianAnalysis(object):
         ------------
         evaluation_points    - 1d-array with shape (n,m). \n
                                Value of parameters used to evaluate model \n
-        design_range         - 2d-array with shape (m,2). \n
+        parameter_range      - 2d-array with shape (m,2). \n
                                Give upper and lower limits of parameter values
 
         where m = number of parameters in inference
@@ -225,6 +232,52 @@ class HydroBayesianAnalysis(object):
                 raise print('Diagonal has negative entry')
 
         return np.array(running_log_likelihood)
+    
+    def log_posterior(
+        self,
+        evaluation_point: np.ndarray,
+        parameter_ranges: np.ndarray,
+        true_observables: np.ndarray,
+        true_errors: np.ndarray,
+        hydro_name: str,
+        GP_emulator: Dict
+    ) -> float:
+        '''
+        Parameters:
+        ------------
+        evaluation_points    - 1d-array with shape (n,m). \n
+                               Value of parameters used to evaluate model \n
+        parameter_range      - 2d-array with shape (m,2). \n
+                               Give upper and lower limits of parameter values
+        true_observables     - data \n
+        true_error           - data error \n
+        hydro_name           - string containing hydro theory: 'ce', 'dnmr',
+                                                               'vah', 'mvah'\n
+        GP_emulator          - dictionary(hydro_name: emulator_list), \n
+                                emulator_list[0] - energery density \n
+                                emulator_list[1] - shear stress  \n
+                                emulator_list[2] - bulk stress
+
+
+
+        where m = number of parameters in inference
+
+        Returns:
+        --------
+        float - log of posterior
+        '''
+        log_p = self.log_prior(
+            evaluation_point=evaluation_point,
+            parameter_ranges=parameter_ranges,
+        )
+        log_l = self.log_likelihood(
+            evaluation_point=evaluation_point,
+            true_observables=true_observables,
+            true_errors=true_errors,
+            hydro_name=hydro_name,
+            GP_emulator=GP_emulator,
+        )
+        return log_p + log_l
 
     def run_calibration(
             self,
@@ -277,43 +330,43 @@ class HydroBayesianAnalysis(object):
                     itr: Optional[int] = None,
             ):
                 starting_guess = np.array(
-                    [self.parameter_ranges[:, 0] +
-                    np.random.rand(nwalkers, self.num_params) *
-                    np.diff(self.parameter_ranges).reshape(-1,)
-                    for _ in range(ntemps)])
-                sampler = ptemcee.Sampler(nwalkers=nwalkers,
-                                        dim=self.num_params,
-                                        ntemps=ntemps,
-                                        Tmax=1000,
-                                        threads=cpu_count(),
-                                        logl=self.log_likelihood,
-                                        logp=self.log_prior,
-                                        loglargs=[true_observables[:, 1:4],
-                                                    true_error,
-                                                    hydro_name,
-                                                    GP_emulators],
-                                        logpargs=[self.parameter_ranges])
-                
-                if itr is None:
-                    desc = None
-                else:
-                    desc = hydro_name
-                position = itr
+                    [
+                        self.parameter_ranges[:, 0] +
+                        np.random.rand(nwalkers, self.num_params) *
+                        np.diff(self.parameter_ranges).reshape(-1,)
+                    ]
+                )[0]
+                with Pool() as pool:
+                    sampler = emcee.EnsembleSampler(
+                        nwalkers=nwalkers,
+                        ndim=self.num_params,
+                        pool=pool,
+                        log_prob_fn=self.log_posterior,
+                        args=[
+                            self.parameter_ranges,
+                            true_observables[:, 1:4],
+                            true_error,
+                            hydro_name,
+                            GP_emulators],
+                    )
+                    
+                    if itr is None:
+                        desc = None
+                    else:
+                        desc = hydro_name
+                    position = itr
 
-                x = sampler.run_mcmc(p0=starting_guess,
-                                    iterations=nburn,
-                                    swap_ratios=True,
-                                    desc=desc,
-                                    position=position,)
-                sampler.reset()
-                x = sampler.run_mcmc(p0=x[0],
-                                    iterations=nsteps,
-                                    storechain=True,
-                                    swap_ratios=True,
-                                    desc=desc,
-                                    position=position,)
+                    x = sampler.run_mcmc(
+                        initial_state=starting_guess,
+                        nsteps=nburn + nsteps,
+                        progress=True,
+                        progress_kwargs={
+                            'desc': desc, 
+                            'position': position
+                        },
+                    )
 
-                output_dict[hydro_name] = np.array(sampler.chain)
+                output_dict[hydro_name] = np.array(sampler.get_chain(discard=nburn))
 
             if run_parallel:
                 manager = Manager()
@@ -371,13 +424,19 @@ class HydroBayesianAnalysis(object):
             if self.do_bmm and self.bmm_MCMC_chains is None:
                 print("No chains to plot. Please run calibration")
                 return
+        
+        try:
+            (cmd(['mkdir', '-p', f'{output_dir}/plots'])
+                .check_returncode())
+        except (CalledProcessError):
+            print(f"Could not create dir {output_dir}/plots")
 
         # TODO: Add true and MAP values to plot
         # pallette = sns.color_palette('Colorblind')
         
         weights_offset = len(self.hydro_names)
         if self.do_calibration_simultaneous:
-            data = self.bmm_MCMC_chains[0, ..., weights_offset:].reshape(
+            data = self.bmm_MCMC_chains[0,..., weights_offset:].reshape(
                 -1,
                 len(self.parameter_names)
             )
@@ -398,7 +457,7 @@ class HydroBayesianAnalysis(object):
         else:
             dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
             for i, name in enumerate(self.hydro_names):
-                data = self.MCMC_chains[name][0].reshape(
+                data = self.MCMC_chains[name].reshape(
                     -1,
                     len(self.parameter_names)
                 )
@@ -427,11 +486,6 @@ class HydroBayesianAnalysis(object):
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
 
-            try:
-                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
-                    .check_returncode())
-            except (CalledProcessError):
-                print(f"Could not create dir {output_dir}/plots")
             g.savefig(
                 f'{output_dir}/plots/all_corner_plot_n={self.num_params}.pdf')
 
@@ -624,6 +678,31 @@ class HydroBayesianAnalysis(object):
         ws = np.exp(log_ws)
         # print("From inside log_likelihood", ll, ws)
         return (ll, ws)
+    
+    def mixing_log_posterior(
+        self,
+        evaluation_point: np.ndarray,
+        parameter_ranges: np.ndarray,
+        true_observables: np.ndarray,
+        true_errors: np.ndarray,
+        hydro_names: List[str],
+        GP_emulator: Dict,
+        fixed_evaluation_parameters_for_models: Dict[str, np.ndarray] = None
+    ) -> Tuple[float, np.ndarray]:
+        log_p = self.log_prior(
+            evaluation_point=evaluation_point,
+            parameter_ranges=parameter_ranges,
+        )
+        log_l, ws = self.mixing_log_likelihood(
+            evaluation_point=evaluation_point,
+            true_observables=true_observables,
+            true_errors=true_errors,
+            hydro_names=hydro_names,
+            GP_emulator=GP_emulator,
+            fixed_evaluation_parameters_for_models=fixed_evaluation_parameters_for_models
+        )
+
+        return log_p + log_l, ws
 
     def run_mixing(
         self,
@@ -635,7 +714,7 @@ class HydroBayesianAnalysis(object):
         GP_emulators: Dict,
         output_path: str,
         do_calibration_simultaneous: bool = False,
-        fixed_evaluation_points_models: Dict[str, np.ndarray] = None,
+        fixed_evaluation_points_for_models: Dict[str, np.ndarray] = None,
         read_from_file: bool = False,
     ) -> np.ndarray:
         '''
@@ -677,14 +756,6 @@ class HydroBayesianAnalysis(object):
             nwalkers = 20 * self.num_params
             n_models = len(self.hydro_names)
 
-            # manager = Manager()
-            # sampler = manager.dict()
-            # for name in hydro_names:
-            #     sampler[name] = []
-
-            # def for_multiprocessing(sampler: Dict[str, float], name: str, **kwargs):
-            #     sampler[name] = ptemcee.Sampler(**kwargs)
-
             if do_calibration_simultaneous:
                 starting_guess = np.array(
                     [self.parameter_ranges[:, 0] +
@@ -692,7 +763,7 @@ class HydroBayesianAnalysis(object):
                             nwalkers,
                             self.num_params + n_models
                     ) * np.diff(self.parameter_ranges).reshape(-1,)
-                        for _ in range(ntemps)])
+                    ])[0]
             else:
                 # only need to initialize walkers for the weights
                 starting_guess = np.array(
@@ -703,49 +774,38 @@ class HydroBayesianAnalysis(object):
                     ) *
                         np.diff(self.parameter_ranges[:n_models])
                         .reshape(-1,)
-                        for _ in range(ntemps)])
+                        ])[0]
 
-            # TODO: For the case where the fixed evaluation points are not
-            #       given, run the calibration and extract the MAP values
-            #       from the posteriors
+            self.running_mixing = True
+            with Pool() as pool:
+                sampler = emcee.EnsembleSampler(
+                    nwalkers=nwalkers,
+                    ndim=n_models + self.num_params 
+                    if do_calibration_simultaneous else 
+                    n_models,
+                    log_prob_fn=self.mixing_log_posterior,
+                    kwargs={
+                        'parameter_ranges': self.parameter_ranges 
+                        if do_calibration_simultaneous else
+                        self.parameter_ranges[:n_models],
+                        'true_observables': exact_observables[:, 1:4],
+                        'true_errors': exact_error,
+                        'hydro_names': self.hydro_names,
+                        'GP_emulator': GP_emulators,
+                        'fixed_evaluation_parameters_for_models': fixed_evaluation_points_for_models,
+                    },
+                    blobs_dtype=[('weights', np.ndarray)],
+                    pool=pool
+                )
 
-            sampler = ptemcee.Sampler(
-                nwalkers=nwalkers,
-                dim=(self.num_params + n_models
-                     if do_calibration_simultaneous else
-                     n_models),
-                ntemps=ntemps, Tmax=1000,
-                threads=cpu_count(),
-                logl=self.mixing_log_likelihood,
-                logp=self.log_prior,
-                loglargs=[exact_observables[:, 1:4],
-                          exact_error,
-                          self.hydro_names,
-                          GP_emulators,
-                          fixed_evaluation_points_models],
-                logpargs=([self.parameter_ranges]
-                          if do_calibration_simultaneous else
-                          [self.parameter_ranges[:n_models]]),
-                do_bmm=True,
-                num_models=n_models,
-                num_observations=exact_observables.shape[0]
-            )
-            print('burn in sampling started')
-            x = sampler.run_mcmc(p0=starting_guess,
-                                 iterations=nburn,
-                                 swap_ratios=True)
-            print('Burn in completed.')
+                sampler.run_mcmc(
+                    initial_state=starting_guess,
+                    nsteps=nsteps + nburn,
+                    progress=True,
+                )
 
-            sampler.reset()
-
-            print("Now running the samples")
-            x = sampler.run_mcmc(p0=x[0],
-                                 iterations=nsteps,
-                                 storechain=True,
-                                 swap_ratios=True)
-
-            self.bmm_MCMC_chains = sampler.chain
-            self.weights = sampler.weights
+                self.bmm_MCMC_chains = sampler.get_chain(discard=nburn)
+                self.weights = sampler.get_blobs(discard=nburn)
 
             try:
                 (cmd(['mkdir', '-p', f'{output_path}'])
