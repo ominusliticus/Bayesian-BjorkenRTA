@@ -177,7 +177,7 @@ class HydroCodeAPI:
                                 float(entry)
                                 for entry in line.split()]
                                for line in f_exact.readlines()])
-            
+
         if use_PL_PT:
             return output
         else:
@@ -262,7 +262,7 @@ class HydroCodeAPI:
                     [[(tau_f / tau_0 - 1.0) * 20.0
                       for tau_f in simulation_taus]
                      for design_point in design_points])
-            
+
             itr = hydro_names.index(key)
             params_dict['hydro_type'] = self.map_hydro_to_number(key)
             output = np.array(

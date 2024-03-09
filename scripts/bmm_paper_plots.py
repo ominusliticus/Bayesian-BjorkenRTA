@@ -1,12 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import my_plotting as mp
+from tqdm import tqdm
 from pathlib import Path
 from typing import Tuple
-
+from typing import Dict
+from typing import Union
+from matplotlib.cm import plasma
 from hydro_code_api import HydroCodeAPI as HCA
-
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from my_plotting import costumize_axis
+from subprocess import run as cmd
 
 
 def hydro_type_from_string(hydro_name: str) -> int:
@@ -21,6 +25,8 @@ def hydro_type_from_string(hydro_name: str) -> int:
             return 3
         case 'mvah':
             return 4
+        case 'exact':
+            return 5
 
 
 def get_temp(
@@ -28,7 +34,7 @@ def get_temp(
         mass: float,
 ) -> float:
     from scipy.special import kn
-    
+
     # calculate energy density given temperature and mass
     def e(temp, mass):
         z = mass / temp
@@ -70,12 +76,13 @@ def get_temp(
             if np.abs(copy - mid) < 1e-6:
                 flag = 1
             copy = mid
-        
-    return mid
+
+    return mid, p(mid, mass)
 
 
 def extract_numbers_from_file(
     hydro_name: str,
+    params_dict: Dict[str, Union[float, int]],
     path_to_output: Path,
     mass: float,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -127,15 +134,139 @@ def return_residual(
     return ret_val
 
 
-if __name__ == "__main__":
-    hydro_names = ['ce', 'dnmr', 'mis'] # , 'vah', 'mvah', 'exact']
+def make_hydro_heatmap(
+        params_dict: Dict[str, Union[float, str]],
+        use_PL_PT: bool,
+        output_dir: Path,
+) -> None:
+    hca = HCA(str(Path(output_dir).absolute()))
+    param_names = ['C']
+    hydro_names = ['ce', 'dnmr', 'mvah']
+
+    fig, ax = plt.subplots(
+            nrows=len(hydro_names),
+            ncols=3,
+            figsize=(3 * 7, len(hydro_names) * 7))
+    fig.patch.set_facecolor('white')
+
+    p1_name = (r'${\mathcal P_T} / \mathcal P_\mathrm{eq]$'
+               if use_PL_PT else
+               r'$\pi/(\mathcal E + \mathcal P_\mathrm{eq})$')
+    p2_name = (r'${\mathcal P_L} / \mathcal P_\mathrm{eq]$'
+               if use_PL_PT else
+               r'$\Pi/(\mathcal E + \mathcal P_\mathrm{eq})$')
+    col_names = [r'$\mathcal{E} / \mathcal{E}_0$', p1_name, p2_name]
+
+    exact_output = hca.process_hydro(
+        params_dict=params_dict,
+        parameter_names=param_names,
+        design_point=[0.39],
+        use_PL_PT=use_PL_PT,
+    )
+    exact_output = exact_output.T
+
+    exact_tau = exact_output[0]
+    exact_e = exact_output[1]
+    exact_pt = exact_output[2]
+    exact_pl = exact_output[3]
+    exact_p = exact_output[4]
+
+    exact_pi = 2 * (exact_pt - exact_pl) / 3
+    exact_Pi = (2 * exact_pt + exact_pl) / 3 - exact_p
+    exact_h = exact_e + exact_p
+
+    e0 = exact_e[0]
+    exact_output_array = np.array([
+        exact_tau,
+        exact_e / e0,
+        exact_pi / exact_h,
+        exact_Pi / exact_h]
+    ).T
+    exact_tau_R = np.array([
+        5 * 0.39 / get_temp(
+            energy_density=exact_ee * e0,
+            mass=params_dict['mass']
+        )[0]
+        for exact_ee in exact_output_array[..., 1].reshape(-1,)
+    ])
+    for i, hydro_name in enumerate(hydro_names):
+        output_array = []
+        for eta_s in tqdm(np.linspace(0.08, 0.80, 200)):
+            params_dict['hydro_type'] = hydro_type_from_string(hydro_name)
+            output = hca.process_hydro(
+                params_dict=params_dict,
+                parameter_names=param_names,
+                design_point=[eta_s],
+                use_PL_PT=use_PL_PT,
+            )
+
+            output = output.T
+
+            tau = output[0]
+            e = output[1]
+            pt = output[2]
+            pl = output[3]
+            p = output[4]
+
+            pi = 2 * (pt - pl) / 3
+            Pi = (2 * pt + pl) / 3 - p
+            h = e + p
+
+            e0 = e[0]
+            output_array.append(np.array([tau, e / e0, pi / h, Pi / h]).T)
+
+
+        output_array = np.array(output_array)
+        print(output_array.shape)
+        for j, col_name in enumerate(col_names):
+            tau_R = np.array([
+                5 * eta_s / get_temp(
+                    energy_density=ee * e0,
+                    mass=params_dict['mass']
+                )[0]
+                for ee in output_array[..., 1].reshape(-1,)
+            ])
+            ax[i, j].hist2d(
+                output_array[..., 0].reshape(-1,) / tau_R,
+                output_array[..., j + 1].reshape(-1,),
+                bins=100,
+                cmap=plasma,
+                norm='log',
+                alpha=0.5,
+            )
+            ax[i, j].plot(
+                exact_output_array[..., 0].reshape(-1,) / exact_tau_R,
+                exact_output_array[..., j + 1].reshape(-1,),
+                color='black',
+            )
+            costumize_axis(
+                ax=ax[i, j],
+                x_title=r'$\tau / \tau_R$',
+                y_title=col_name
+            )
+            if j == 0:
+                ax[i, j].set_yscale('log')
+
+
+    plot_file = Path(f'{output_dir}/hydro_heatmaps.pdf').absolute()
+    try:
+        (cmd(['mkdir', '-p', str(plot_file.parent)])
+            .check_returncode())
+    except (CalledProcessError):
+        print(f"Could not create dir {plot_file}")
+    fig.tight_layout()
+    fig.savefig(str(plot_file))
+
+
+def make_residual_plots() -> None:
+    hydro_names = ['ce', 'dnmr', 'mis', 'vah', 'mvah', 'exact']
     colors = mp.get_cmap(10, 'tab10')
     eta_S = 0.39
 
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(3 * 5, 1.2 * 5))
     fig.patch.set_facecolor('white')
 
-    output_name = 'presentation_plots_4'
+    output_name = 'presentation_plots_2'
     output = dict(
         (
             hydro_name,
@@ -147,13 +278,13 @@ if __name__ == "__main__":
                 # path_to_output='../output/test_no_filesystem',
                 path_to_output='../output/' + output_name,
                 mass=0.200 / 0.197,
-            ) 
+            )
         )
         for hydro_name in hydro_names
     )
 
     for i, hydro_name in enumerate(hydro_names):
-        resids = return_residual(output[hydro_name], output[hydro_name])
+        resids = return_residual(output[hydro_name], output['exact'])
         for j, y_axis in enumerate([
             r'$\mathcal E / \mathcal E_0$',
             r'$\pi / (\mathcal E + \mathcal P_\mathrm{eq})$',
@@ -163,7 +294,7 @@ if __name__ == "__main__":
                 5 * eta_S / get_temp(
                     energy_density=e,
                     mass=0.200 / 0.197
-                ) * 0.197
+                )[0]
                 for e in output[hydro_name][1]
             ])
             ax[j].plot(
@@ -206,10 +337,10 @@ if __name__ == "__main__":
                 5 * eta_S / get_temp(
                     energy_density=e,
                     mass=0.200 / 0.197
-                ) * 0.197
+                )[0] * 0.197
                 for e in output[hydro_name][1]
             ])
-            resids = return_residual(output[hydro_name], output[hydro_name])
+            resids = return_residual(output[hydro_name], output['exact'])
             ax2.plot(
                 output[hydro_name][0] / tau_R,
                 resids[j],
@@ -221,7 +352,7 @@ if __name__ == "__main__":
             ax=ax2,
             x_title=r'$\tau / \tau_R$',
             y_title='%'
-        ) 
+        )
         ax2.set_xscale('log')
         ax2.set_yscale('log')
         ax2.locator_params('y', numticks=6)
@@ -230,3 +361,21 @@ if __name__ == "__main__":
     ax[0].set_yscale('log')
     fig.tight_layout()
     fig.savefig(f'./plots/{output_name}.pdf')
+
+
+if __name__ == "__main__":
+    print(get_temp(10.00, 0.200 / 0.197))
+    make_hydro_heatmap(
+        params_dict={
+            'tau_0': 0.1,
+            'e0': 12.4991,
+            'pt0': 6.0977,
+            'pl0': 0.0090,
+            'tau_f': 12.1,
+            'mass': 0.2 / 0.197,
+            'C': 5 / (4 * np.pi),
+            'hydro_type': 0
+        },
+        use_PL_PT=False,
+        output_dir='../plots',
+    )

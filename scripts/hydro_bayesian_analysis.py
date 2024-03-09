@@ -232,7 +232,7 @@ class HydroBayesianAnalysis(object):
                 raise print('Diagonal has negative entry')
 
         return np.array(running_log_likelihood)
-    
+
     def log_posterior(
         self,
         evaluation_point: np.ndarray,
@@ -314,7 +314,7 @@ class HydroBayesianAnalysis(object):
         where nwalkers = 20 * num_params
         """
 
-        self.n_observables = true_observables.shape[-1]      
+        self.n_observables = true_observables.shape[-1]
         if read_from_file:
             print("Reading mcmc_chain from file")
             with open(f'{output_path}/mcmc_chains.pkl',
@@ -323,7 +323,7 @@ class HydroBayesianAnalysis(object):
             return self.MCMC_chains
         else:
             nwalkers = 20 * self.num_params
-            
+
             def for_multiprocessing(
                     hydro_name: str,
                     output_dict: Type[Dict[str, np.ndarray]],
@@ -349,7 +349,7 @@ class HydroBayesianAnalysis(object):
                             hydro_name,
                             GP_emulators],
                     )
-                    
+
                     if itr is None:
                         desc = None
                     else:
@@ -361,7 +361,7 @@ class HydroBayesianAnalysis(object):
                         nsteps=nburn + nsteps,
                         progress=True,
                         progress_kwargs={
-                            'desc': desc, 
+                            'desc': desc,
                             'position': position
                         },
                     )
@@ -382,7 +382,7 @@ class HydroBayesianAnalysis(object):
                 _ = [job.start() for job in jobs]
                 _ = [job.join() for job in jobs]
 
-                self.MCMC_chains = dict(self.MCMC_chains)                    
+                self.MCMC_chains = dict(self.MCMC_chains)
             else:
                 self.MCMC_chains = {}
                 for i, name in enumerate(self.hydro_names):
@@ -424,7 +424,7 @@ class HydroBayesianAnalysis(object):
             if self.do_bmm and self.bmm_MCMC_chains is None:
                 print("No chains to plot. Please run calibration")
                 return
-        
+
         try:
             (cmd(['mkdir', '-p', f'{output_dir}/plots'])
                 .check_returncode())
@@ -433,14 +433,14 @@ class HydroBayesianAnalysis(object):
 
         # TODO: Add true and MAP values to plot
         # pallette = sns.color_palette('Colorblind')
-        
+
         weights_offset = len(self.hydro_names)
         if self.do_calibration_simultaneous:
-            data = self.bmm_MCMC_chains[0,..., weights_offset:].reshape(
+            data = self.bmm_MCMC_chains[..., weights_offset:].reshape(
                 -1,
                 len(self.parameter_names)
             )
-            
+
             df = pd.DataFrame(dict((name, data[:, k])
                                    for k, name in enumerate(axis_names)))
             g = sns.pairplot(
@@ -499,70 +499,80 @@ class HydroBayesianAnalysis(object):
             path to where the MCMC runs are stored, and corresponding plots
             are to be outputed
         use_median: bool (default: False)
-            Calculate median (and quartiles), as opposed to mean (and 
+            Calculate median (and quartiles), as opposed to mean (and
             standard deviation), for the posteriors
         """
         # TODO: We could make these density plots on log scale instead
-        if self.bmm_MCMC_chains is not None:
-            n_models = len(self.hydro_names)
-            weights = self.weights[0].reshape(
-                -1,
-                *self.weights.shape[-2:],
-            )
-            n_observation = weights.shape[-1]
-            assert n_observation == self.simulation_taus.shape[0]
+        if self.bmm_MCMC_chains is None:
+            print("No weights to plot. Please run mixing")
+            return
 
-            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7, 7))
-            fig.patch.set_facecolor('white')
-            cmap = mp.get_cmap(10, 'tab10')
-            for i in range(n_models):
-                if use_median:
-                    q1, median, q2 = np.quantile(
-                        a=weights[:, i],
-                        q=(0.25, 0.50, 0.75)
-                    )
-                    ax.plot(
-                        self.simulation_taus,
-                        median,
-                        lw=2,
-                        color=cmap(i),
-                        label=self.hydro_names[i]
-                    )
-                    ax.fill_between(
-                        self.self.simulation_taus,
-                        q1,
-                        q2,
-                        color=cmap(i),
-                        alpha=0.5
-                    )
-                else:
-                    mean = np.mean(weights[:, i], axis=0)
-                    std = np.std(weights[:, i], axis=0)
-                    ax.plot(
-                        self.simulation_taus,
-                        mean,
-                        lw=2,
-                        color=cmap(i),
-                        label=self.hydro_names[i]
-                    )
-                    ax.fill_between(
-                        self.simulation_taus,
-                        mean + std,
-                        mean - std,
-                        color=cmap(i),
-                        alpha=0.5,
-                    )
-            mp.costumize_axis(ax, r'$\tau$ [fm/c]', r'$w(\tau)$')
-            ax.set_ylim(bottom=0)
-            ax.legend(fontsize=20)
+        # emcee blobs returens array with shape (nsteps, nwalkers)
+        # and dtype [('weight', 'O')].
+        # At each entry, it stores an array with shape
+        # (n_observables, n_observations)
+        weights = np.array([
+            [
+                arr[0]  for arr in arrs
+            ]
+            for arrs in self.weights
+        ])
+        weights = weights.reshape(-1, *weights.shape[-2:])
+        n_observation = weights.shape[-1]
+        assert n_observation == self.simulation_taus.shape[0]
 
-            try:
-                (cmd(['mkdir', '-p', f'{output_dir}/plots'])
-                    .check_returncode())
-            except (CalledProcessError):
-                print(f"Could not create dir {output_dir}/plots")
-            fig.savefig(
-                f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(7, 7))
+        fig.patch.set_facecolor('white')
+        cmap = mp.get_cmap(10, 'tab10')
+        n_models = len(self.hydro_names)
+        for i in range(n_models):
+            if use_median:
+                q1, median, q2 = np.quantile(
+                    a=weights[:, i],
+                    q=(0.25, 0.50, 0.75)
+                )
+                ax.plot(
+                    self.simulation_taus,
+                    median,
+                    lw=2,
+                    color=cmap(i),
+                    label=self.hydro_names[i]
+                )
+                ax.fill_between(
+                    self.self.simulation_taus,
+                    q1,
+                    q2,
+                    color=cmap(i),
+                    alpha=0.5
+                )
+            else:
+                mean = np.mean(weights[:, i], axis=0)
+                std = np.std(weights[:, i], axis=0)
+                ax.plot(
+                    self.simulation_taus,
+                    mean,
+                    lw=2,
+                    color=cmap(i),
+                    label=self.hydro_names[i]
+                )
+                ax.fill_between(
+                    self.simulation_taus,
+                    mean + std,
+                    mean - std,
+                    color=cmap(i),
+                    alpha=0.5,
+                )
+        mp.costumize_axis(ax, r'$\tau$ [fm/c]', r'$w(\tau)$')
+        ax.set_ylim(bottom=0)
+        ax.legend(fontsize=20)
+
+        try:
+            (cmd(['mkdir', '-p', f'{output_dir}/plots'])
+                .check_returncode())
+        except (CalledProcessError):
+            print(f"Could not create dir {output_dir}/plots")
+        fig.savefig(
+            f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
 
 
     # Expand to included Bayesian Model mixing for paper (will migrate
@@ -574,18 +584,18 @@ class HydroBayesianAnalysis(object):
             x: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """
-        Calculates the position-dependent weights with missing method 
+        Calculates the position-dependent weights with missing method
         `self.missing method`.
         Supported mixing methods include:
             - dirichlet
             - gauss_process
-        Defaults to Dirichlet mixing 
+        Defaults to Dirichlet mixing
 
         Parameters:
         ===========
         evaluation_point: np.ndarray
             The array containing the sampled parameters for the inferences
-        
+
         x: Optional[np.ndarray] (default: None)
             Location to evaluation weight
         """
@@ -678,7 +688,7 @@ class HydroBayesianAnalysis(object):
         ws = np.exp(log_ws)
         # print("From inside log_likelihood", ll, ws)
         return (ll, ws)
-    
+
     def mixing_log_posterior(
         self,
         evaluation_point: np.ndarray,
@@ -749,7 +759,7 @@ class HydroBayesianAnalysis(object):
             with open(f'{output_path}/bmm_mcmc_weights.pkl',
                       'rb') as f:
                 self.weights = pickle.load(f)
-            
+
             return self.bmm_MCMC_chains, self.weights
         else:
 
@@ -780,12 +790,12 @@ class HydroBayesianAnalysis(object):
             with Pool() as pool:
                 sampler = emcee.EnsembleSampler(
                     nwalkers=nwalkers,
-                    ndim=n_models + self.num_params 
-                    if do_calibration_simultaneous else 
+                    ndim=n_models + self.num_params
+                    if do_calibration_simultaneous else
                     n_models,
                     log_prob_fn=self.mixing_log_posterior,
                     kwargs={
-                        'parameter_ranges': self.parameter_ranges 
+                        'parameter_ranges': self.parameter_ranges
                         if do_calibration_simultaneous else
                         self.parameter_ranges[:n_models],
                         'true_observables': exact_observables[:, 1:4],

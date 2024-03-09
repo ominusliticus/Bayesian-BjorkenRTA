@@ -29,20 +29,30 @@ from matplotlib.cm import plasma
 
 
 def split_data_for_sequential_run(
-        data: np.ndarray
+        taus: np.ndarray,
+        data: np.ndarray,
+        error: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.RandomState()
 
-    entries = data.shape[0]
-    training_indices_1 = rng.choice(
+    entries = taus.shape[0]
+    training_indices = rng.choice(
         np.arange(entries),
         size=entries // 2,
         replace=False
     )
 
-    training_indices_2 = training_indices_1 - 1
+    testing_indices = training_indices - 1
+    taus_1 = taus[training_indices]
+    taus_2 = taus[testing_indices]
 
-    return data[training_indices_1], data[training_indices_2]
+    n_1 = np.argsort(taus_1)
+    n_2 = np.argsort(taus_2)
+
+    return (n_1, n_2), \
+            (taus_1[n_1], taus_2[n_2]), \
+            (data[training_indices][n_1], data[testing_indices][n_2]), \
+            (error[training_indices][n_1], error[testing_indices][n_2])
 
 
 def convert_hydro_name_to_int(name: str) -> int:
@@ -74,9 +84,10 @@ def run_hydro_from_posterior(
         ran_sequentially: bool,
         use_PL_PT: bool,
         output_dir: Path,
+        hydro_to_gen_data: str,
 ) -> None:
     code_api = HCA(str(Path('./swap').absolute()))
-    params_dict['hydro_type'] = convert_hydro_name_to_int('exact')
+    params_dict['hydro_type'] = convert_hydro_name_to_int(hydro_to_gen_data)
     exact_output = code_api.process_hydro(
         params_dict=params_dict.copy(),
         parameter_names=params_names,
@@ -187,8 +198,14 @@ def run_hydro_from_posterior(
             # y_title=f'{col_name} [gev/fm$^{-3}$]'
         # )
 
+    plot_file = Path(f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
+    try:
+        (cmd(['mkdir', '-p', str(plot_file.parent)])
+            .check_returncode())
+    except (CalledProcessError):
+        print(f"Could not create dir {data_file_path}")
     fig.tight_layout()
-    fig.savefig(f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
+    fig.savefig(str(plot_file))
     # fig2.savefig(f'{output_dict}/plots/weight_average_of_hydro_runs_for_posteriors.pdf')
 
 
@@ -284,12 +301,13 @@ def SampleObservables(error_level: float,
                       true_params: Dict[str, float],
                       parameter_names: List[str],
                       simulation_taus: np.ndarray,
-                      use_PL_PT: bool) -> np.ndarray:
+                      use_PL_PT: bool,
+                      hydro_to_gen_data: str) -> np.ndarray:
     num_taus = simulation_taus.shape[0]
     code_api = HCA(str(Path('./swap').absolute()))
 
     # Generate experimental data
-    true_params['hydro_type'] = convert_hydro_name_to_int('exact')
+    true_params['hydro_type'] = convert_hydro_name_to_int(hydro_to_gen_data)
     output = code_api.process_hydro(params_dict=true_params,
                                     parameter_names=parameter_names,
                                     design_point=[true_params[key] for key in
@@ -333,7 +351,8 @@ def RunVeryLargeMCMC(
         number_steps: int,
         use_existing_emulators: bool,
         read_mcmc_from_file: bool,
-        use_PL_PT: bool
+        use_PL_PT: bool,
+        calibration_indices: Optional[np.ndarray],
     ) -> Dict[str, np.ndarray]:
     '''
     Runs the entire analysis suite, including the emulator fitting
@@ -368,20 +387,31 @@ def RunVeryLargeMCMC(
                    parameter_names=parameter_names,
                    parameter_ranges=parameter_ranges,
                    simulation_taus=simulation_taus)
-    mcmc_chains = ba_class.run_calibration(nsteps=number_steps,
-                                           nburn=100 * len(parameter_names),
-                                           ntemps=20,
-                                           true_observables=exact_pseudo,
-                                           true_error=pseudo_error,
-                                           GP_emulators=emulator_class.GP_emulators,
-                                           read_from_file=read_mcmc_from_file,
-                                           output_path=output_dir,
-                                           run_parallel=True)
+
+    if calibration_indices is not None:
+        emulators = dict(
+            (key, [emulator_class.GP_emulators[key][n_1]
+                   for n_1 in calibration_indices])
+            for key in emulator_class.GP_emulators.keys()
+        )
+
+    mcmc_chains = ba_class.run_calibration(
+            nsteps=number_steps,
+            nburn=100 * len(parameter_names),
+            ntemps=20,
+            true_observables=exact_pseudo,
+            true_error=pseudo_error,
+            GP_emulators=emulator_class.GP_emulators
+                if calibration_indices is None else emulators,
+            read_from_file=read_mcmc_from_file,
+            output_path=output_dir,
+            run_parallel=True
+    )
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
 
-    # ba_class.plot_posteriors(output_dir=output_dir,
-                            #  axis_names=[r'$\mathcal C$'])
+    ba_class.plot_posteriors(output_dir=output_dir,
+                             axis_names=[r'$\mathcal C$'])
 
     return mcmc_chains
 
@@ -403,6 +433,7 @@ def RunBMMMCMC(
     read_mcmc_from_file: bool,
     use_PL_PT: bool,
     run_sequential: bool,
+    mixing_indices: Optional[np.ndarray],
 ) -> None:
     '''
     Runs the entire analysis suite, including the emulator fitting
@@ -443,13 +474,21 @@ def RunBMMMCMC(
                    simulation_taus=simulation_taus,
                    do_bmm=True)
 
+    if mixing_indices is not None:
+        emulators = dict(
+            (key, [emulator_class.GP_emulators[key][n_1]
+                   for n_1 in mixing_indices])
+            for key in emulator_class.GP_emulators.keys()
+        )
+
     bmm_mcmc_chains, weights = ba_class.run_mixing(
         nsteps=number_steps,
         nburn=100 * len(parameter_ranges),
         ntemps=10,
         exact_observables=exact_pseudo,
         exact_error=pseudo_error,
-        GP_emulators=emulator_class.GP_emulators,
+        GP_emulators=emulator_class.GP_emulators
+            if mixing_indices is None else emulators,
         read_from_file=read_mcmc_from_file,
         do_calibration_simultaneous=(not run_sequential),
         fixed_evaluation_points_for_models=fixed_values,
@@ -459,9 +498,9 @@ def RunBMMMCMC(
         with open(output_dir + '/bmm_mcmc_run.pkl', 'wb') as f:
             pickle.dump(ba_class.MCMC_chains, f)
 
-    # ba_class.plot_posteriors(output_dir=output_dir,
-    #                          axis_names=[r'$\mathcal C$'])
-    # ba_class.plot_weights(output_dir=output_dir)
+    ba_class.plot_posteriors(output_dir=output_dir,
+                             axis_names=[r'$\mathcal C$'])
+    ba_class.plot_weights(output_dir=output_dir)
 
     return bmm_mcmc_chains, weights
 
@@ -481,6 +520,7 @@ def main(
         use_existing_emulators: bool,
         read_mcmc_from_file: bool,
         run_sequential: bool,
+        hydro_to_gen_data: str,
 ) -> None:
     data_file_path = Path(
         f'./pickle_files/{output_folder}/pseudo_data.pkl').absolute()
@@ -497,6 +537,7 @@ def main(
                 parameter_names=parameter_names,
                 simulation_taus=simulation_taus,
                 use_PL_PT=use_PL_PT,
+                hydro_to_gen_data=hydro_to_gen_data,
             )
             pickle_output = (exact_pseudo, pseudo_error)
             pickle.dump(pickle_output, f)
@@ -509,21 +550,20 @@ def main(
     # print(pseudo_error)
 
     if run_sequential:
-        simulation_taus_1, simulation_taus_2 = split_data_for_sequential_run(
-            simulation_taus
-        )
-        exact_pseudo_1, exact_pseudo_2 = split_data_for_sequential_run(
-            exact_pseudo
-        )
-        pseudo_error_1, pseudo_error_2 = split_data_for_sequential_run(
-            pseudo_error
+        (calibration_indices, mixing_indices), \
+        (simulation_taus_1, simulation_taus_2), \
+        (exact_pseudo_1, exact_pseudo_2), \
+        (pseudo_error_1, pseudo_error_2) =  split_data_for_sequential_run(
+            simulation_taus,
+            exact_pseudo,
+            pseudo_error,
         )
         mcmc_chains = RunVeryLargeMCMC(
             hydro_names=hydro_names,
             parameter_names=parameter_names,
             parameter_ranges=parameter_ranges[len(hydro_names):],
             simulation_taus=simulation_taus_1,
-          exact_pseudo=exact_pseudo_1,
+            exact_pseudo=exact_pseudo_1,
             pseudo_error=pseudo_error_1,
             output_dir=f'./pickle_files/{output_folder}',
             emulator_dir=emulator_dir,
@@ -533,6 +573,7 @@ def main(
             use_existing_emulators=use_existing_emulators,
             read_mcmc_from_file=read_mcmc_from_file,  # TODO: Return to variable
             use_PL_PT=use_PL_PT,
+            calibration_indices=calibration_indices if run_sequential else None
         )
         fixed_values = dict((name, np.mean(val[0]))
                             for name, val in mcmc_chains.items())
@@ -567,6 +608,7 @@ def main(
         read_mcmc_from_file=read_mcmc_from_file,
         use_PL_PT=use_PL_PT,
         run_sequential=run_sequential,
+        mixing_indices=mixing_indices if run_sequential else None
     )
 
     if run_sequential:
@@ -589,16 +631,15 @@ def main(
                 mcmc_chains[key]
             )
             for key in hydro_names
-        ) if run_sequential else bmm_mcmc_chains[
-            ::(bmm_mcmc_chains.shape[0] // points_to_keep)
-        ],
+        ) if run_sequential else bmm_mcmc_chains,
         weights= 0,  # weights[::(weights.shape[1] // points_to_keep)],
         params_names=parameter_names,
         hydro_names=hydro_names,
         params_dict=local_params.copy(),
         ran_sequentially=run_sequential,
         use_PL_PT=use_PL_PT,
-        output_dir=output_folder
+        output_dir=output_folder,
+        hydro_to_gen_data=hydro_to_gen_data,
     )
 
 
@@ -606,85 +647,96 @@ if __name__ == "__main__":
 
     # hydro_names = ['ce', 'dnmr', 'mis', 'vah', 'mvah']
     emulator_dir = './pickle_files/emulators'
+    output_dir = '/matrix_run_4'
     use_existing_emulator = False
     hydro_names = ['ce', 'dnmr', 'mvah']
 
-    for time_interval in [2.1]:
-        for error in [0.01, 0.05, 0.10, 0.20]:
-            for data_points in [10, 20, 40, 80]:
+    counter = 0
+    for name in ['exact', 'dnmr']:
+        for time_interval in [2.1]:
+            for error in [0.01, 0.10]:
+                for data_points in [10, 100]:
+                    print(name, time_interval, error, data_points, counter)
 
-                main(
-                    local_params = {
-                        'tau_0': 0.1,
-                        'e0': 10.000,
-                        'pt0': 1.0,
-                        'pl0': 2.0,
-                        'tau_f': 12.1,
-                        'mass': 0.2 / 0.197,
-                        'C': 5 / (4 * np.pi),
-                        'hydro_type': 0
-                    },
-                    hydro_names = hydro_names,
-                    # Weights parameters are not names explicitly
-                    # but we do explicitly includes the bounds for the weights
-                    parameter_names = ['C'],
-                    parameter_ranges = np.array(
-                        [
-                            *[np.array([0, 10]) for _ in range(len(hydro_names))],
-                            [1 / (4 * np.pi), 10 / (4 * np.pi)]
-                        ],
-                    ),
-                    num_steps_calibration=1_000,
-                    num_steps_mixing=1_000,
-                    simulation_taus = np.linspace(
-                        time_interval,
-                        time_interval + 8.0,
-                        data_points,
-                        endpoint=True
-                    ),
-                    output_folder = f'matrix_runs_2/sequential_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
-                    emulator_dir=emulator_dir,
-                    use_PL_PT = False,
-                    generate_new_data = True,
-                    use_existing_emulators = use_existing_emulator,
-                    read_mcmc_from_file = False,
-                    run_sequential = True,
-                )
+                    if counter < 0:
+                        counter = counter + 1
+                        continue
 
-                main(
-                    local_params = {
-                        'tau_0': 0.1,
-                        'e0': 12.4991,
-                        'pt0': 6.0977,
-                        'pl0': 0.0090,
-                        'tau_f': 12.1,
-                        'mass': 0.2 / 0.197,
-                        'C': 5 / (4 * np.pi),
-                        'hydro_type': 0
-                    },
-                    hydro_names = hydro_names,
-                    # Weights parameters are not names explicitly
-                    # but we do explicitly includes the bounds for the weights
-                    parameter_names = ['C'],
-                    parameter_ranges = np.array(
-                        [
-                            *[np.array([0, 10]) for _ in range(len(hydro_names))],
-                            [1 / (4 * np.pi), 10 / (4 * np.pi)]
-                        ],
-                    ),
-                    num_steps_calibration=None,
-                    num_steps_mixing=1_000,
-                    simulation_taus = np.linspace(
-                        time_interval,
-                        time_interval + 8.0,
-                        data_points,
-                        endpoint=True
-                    ),
-                    output_folder = f'matrix_runs/simultaneous_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
-                    emulator_dir=emulator_dir,
-                    use_PL_PT = False,
-                    generate_new_data = True,
-                    use_existing_emulators = use_existing_emulator,
-                    read_mcmc_from_file = False,
-                    run_sequential = False,
-                )
+                    counter = counter + 1
+                    main(
+                        local_params = {
+                            'tau_0': 0.1,
+                            'e0': 12.4991,
+                            'pt0': 6.0977,
+                            'pl0': 0.0090,
+                            'tau_f': 12.1,
+                            'mass': 0.2 / 0.197,
+                            'C': 5 / (4 * np.pi),
+                            'hydro_type': 0
+                        },
+                        hydro_names = hydro_names,
+                        # Weights parameters are not names explicitly
+                        # but we do explicitly includes the bounds for the weights
+                        parameter_names = ['C'],
+                        parameter_ranges = np.array(
+                            [
+                                *[np.array([0, 10]) for _ in range(len(hydro_names))],
+                                [1 / (4 * np.pi), 10 / (4 * np.pi)]
+                            ],
+                        ),
+                        num_steps_calibration=1_000,
+                        num_steps_mixing=1_000,
+                        simulation_taus = np.linspace(
+                            time_interval,
+                            time_interval + 8.0,
+                            data_points,
+                            endpoint=True
+                        ),
+                        output_folder = f'{output_dir}/{name}_sequential_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
+                        emulator_dir=emulator_dir,
+                        use_PL_PT = False,
+                        generate_new_data = True,
+                        use_existing_emulators = use_existing_emulator,
+                        read_mcmc_from_file = False,
+                        run_sequential = True,
+                        hydro_to_gen_data=name,
+                    )
+
+                    main(
+                        local_params = {
+                            'tau_0': 0.1,
+                            'e0': 12.4991,
+                            'pt0': 6.0977,
+                            'pl0': 0.0090,
+                            'tau_f': 12.1,
+                            'mass': 0.2 / 0.197,
+                            'C': 5 / (4 * np.pi),
+                            'hydro_type': 0
+                        },
+                        hydro_names = hydro_names,
+                        # Weights parameters are not names explicitly
+                        # but we do explicitly includes the bounds for the weights
+                        parameter_names = ['C'],
+                        parameter_ranges = np.array(
+                            [
+                                *[np.array([0, 10]) for _ in range(len(hydro_names))],
+                                [1 / (4 * np.pi), 10 / (4 * np.pi)]
+                            ],
+                        ),
+                        num_steps_calibration=None,
+                        num_steps_mixing=1_000,
+                        simulation_taus = np.linspace(
+                            time_interval,
+                            time_interval + 8.0,
+                            data_points,
+                            endpoint=True
+                        ),
+                        output_folder = f'{output_dir}/{name}_simultaneous_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
+                        emulator_dir=emulator_dir,
+                        use_PL_PT = False,
+                        generate_new_data = False,
+                        use_existing_emulators = True,
+                        read_mcmc_from_file = True,
+                        run_sequential = False,
+                        hydro_to_gen_data=name,
+                    )
