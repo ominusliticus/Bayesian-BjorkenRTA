@@ -117,6 +117,9 @@ class HydroEmulator:
                 self.design_points = np.array(
                     [[float(entry) for entry in line.split()]
                      for line in f.readlines()])
+                self.test_points = np.linspace(parameter_ranges[:, 0],
+                                               parameter_ranges[:, 1],
+                                               10)
 
             f_pickle_emulators = open(
                 '{}/all_emulators_n={}.pkl'.
@@ -248,7 +251,7 @@ class HydroEmulator:
                             print("NaN encountered for design point:\n{}\n{}".
                                   format(design_points, data))
                             print("Error occured in iteration ({},{},{})".
-                                  format(i, j, m))
+                                  format(itr, j, m))
 
                         f_emulator_scores.write(
                             f'''Runnig fit for {name} at time {tau} fm/c
@@ -312,7 +315,7 @@ class HydroEmulator:
                       parameter_ranges: np.ndarray,
                       simulation_taus: np.ndarray,
                       hydro_names: List[str],
-                      use_existing_emulators: bool,
+                      use_existing_hydro_simulation: bool,
                       use_PL_PT: bool,
                       output_statistics: bool,
                       plot_emulator_vs_test_points: bool,
@@ -332,7 +335,7 @@ class HydroEmulator:
             cmd(['mkdir', '-p', f'{output_path}/plots']).check_returncode()
         except (CalledProcessError):
             print(f'Failed to create dir {output_path}')
-        if use_existing_emulators:
+        if use_existing_hydro_simulation:
             with open('{}/testing_points_n={}.dat'.
                       format(output_path, len(parameter_names)), 'r') as f:
                 self.test_points = np.array(
