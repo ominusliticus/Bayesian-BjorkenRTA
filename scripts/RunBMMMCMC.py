@@ -1,5 +1,6 @@
 #!/bin/python3
 # My code
+from matplotlib.cm import plasma
 from hydro_bayesian_analysis import HydroBayesianAnalysis as HBA
 from hydro_code_api import HydroCodeAPI as HCA
 from hydro_emulation import HydroEmulator as HE
@@ -25,34 +26,34 @@ from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
 
-from matplotlib.cm import plasma
-
 
 def split_data_for_sequential_run(
-        taus: np.ndarray,
-        data: np.ndarray,
-        error: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    taus: np.ndarray,
+    data: np.ndarray,
+    error: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.RandomState()
 
     entries = taus.shape[0]
+    universal_set = np.arange(entries)
     training_indices = rng.choice(
-        np.arange(entries),
+        universal_set,
         size=entries // 2,
         replace=False
     )
 
-    testing_indices = training_indices - 1
+    testing_indices = np.setdiff1d(
+        universal_set, training_indices, assume_unique=True)
     taus_1 = taus[training_indices]
     taus_2 = taus[testing_indices]
 
     n_1 = np.argsort(taus_1)
     n_2 = np.argsort(taus_2)
 
-    return (n_1, n_2), \
-            (taus_1[n_1], taus_2[n_2]), \
-            (data[training_indices][n_1], data[testing_indices][n_2]), \
-            (error[training_indices][n_1], error[testing_indices][n_2])
+    return (training_indices[n_1], testing_indices[n_2]), \
+        (taus_1[n_1], taus_2[n_2]), \
+        (data[training_indices][n_1], data[testing_indices][n_2]), \
+        (error[training_indices][n_1], error[testing_indices][n_2])
 
 
 def convert_hydro_name_to_int(name: str) -> int:
