@@ -96,6 +96,14 @@ def run_hydro_from_posterior(
         use_PL_PT=use_PL_PT
     )
 
+    exact_tau_R = np.array([
+        5 * params_dict['C'] / get_temp(
+            energy_density=e,
+            mass=params_dict['mass']
+        )
+        for e in exact_output[:, 1]
+    ])
+
     output_dict = dict((key, []) for key in hydro_names)
     if ran_sequentially:
         for name in hydro_names:
@@ -123,19 +131,21 @@ def run_hydro_from_posterior(
     output_array = np.array([
         output_dict[name] for name in hydro_names
     ])
+    print(output_array.shape)
     del output_dict
 
     fig, ax = plt.subplots(
-            nrows=len(hydro_names),
-            ncols=3,
-            figsize=(3 * 7, len(hydro_names) * 7))
+        nrows=len(hydro_names),
+        ncols=3,
+        figsize=(3 * 7, len(hydro_names) * 7)
+    )
     fig.patch.set_facecolor('white')
 
     # fig2, ax2 = plt.subplots(nrows=1, ncols=3, figszie=(3 * 7, 7))
     # fig2.patch.set_facecolor('white')
 
-    p1_name = r'${\mathcal P_T}$' if use_PL_PT else r'$\pi$'
-    p2_name = r'${\mathcal P_L}$' if use_PL_PT else r'$\Pi$'
+    p1_name = r'${\mathcal P_T} / \mathcal P$' if use_PL_PT else r'$\bar\pi$'
+    p2_name = r'${\mathcal P_L} / \mathcal P$' if use_PL_PT else r'$\bar\Pi$'
 
     col_names = [r'$\mathcal{E}$', p1_name, p2_name]
     for j, col_name in enumerate(col_names):
@@ -149,39 +159,43 @@ def run_hydro_from_posterior(
             ])
             ax[i, j].hist2d(
                 output_array[i, ..., 0].reshape(-1,) / tau_R,
-                output_array[i, ..., j + 1].reshape(-1,) * 0.197,
+                (output_array[i, ..., j + 1].reshape(-1,)
+                    / output_array[i, ..., -1].reshape(-1,)
+                 if use_PL_PT else
+                 output_array[i, ..., j + 1].reshape(-1,)
+                    / (output_array[i, ..., 1]
+                       + output_array[i, ..., -1]).reshape(-1,)),
                 bins=100,
                 cmap=plasma,
                 norm='log',
                 alpha=0.5,
             )
 
-            tau_R = np.array([
-                5 * params_dict['C'] / get_temp(
-                    energy_density=e,
-                    mass=params_dict['mass']
-                )
-                for e in exact_output[i, ..., 1].reshape(-1,)
-            ])
             ax[i, j].plot(
-                exact_output[:, 0] / tau_R,
-                exact_output[:, j + 1] * 0.197,
+                exact_output[:, 0] / exact_tau_R,
+                (exact_output[i, j + 1] / exact_output[i, -1]
+                 if use_PL_PT else
+                 exact_output[i, j + 1]
+                    / (exact_output[i, 1]
+                       + exact_output[i, -1]).reshape(-1,)),
                 color='black',
                 lw=2,
             )
             costumize_axis(
                 ax=ax[i, j],
-                x_title=r'$\tau / \tau_R$ [fm/c]',
-                y_title=f'{col_name} [Gev/fm$^{-3}$]'
+                x_title=r'$\tau / \tau_R$',
+                y_title=f'{col_name}'
             )
             ax[i, j].set_xlim(left=0)
             ax[i, j].text(0.9, 0.95, f'{hydro_name}', ha='left', va='top',
                           transform=ax[i, j].transAxes)
 
+        # To plot the weighted average, instead of plotting the full hydro run,
+        # just plot a scatter plot of the observation times and the weights
         # ax2[j].hist2d(
             # output_dict[0, :, 0].reshape(-1),
             # (
-                # weights.transpose() * output_dict[..., j + 1]
+            # weights.transpose() * output_dict[..., j + 1]
             # ).reshape(-1,),
             # bins=100,
             # cmap=plasma,
@@ -199,7 +213,8 @@ def run_hydro_from_posterior(
             # y_title=f'{col_name} [gev/fm$^{-3}$]'
         # )
 
-    plot_file = Path(f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
+    plot_file = Path(
+        f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
     try:
         (cmd(['mkdir', '-p', str(plot_file.parent)])
             .check_returncode())
