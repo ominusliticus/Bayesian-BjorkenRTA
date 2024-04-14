@@ -66,7 +66,7 @@ void Run1MeV(void)
     auto start = std::chrono::steady_clock::now();
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
-    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.001 / 0.197, 3.0 / (4.0 * PI));
+    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.001 / 0.197, 3.0 / (4.0 * PI), false);
     Print(std::cout, params);
 
     auto                 eaxct_start = std::chrono::steady_clock::now();
@@ -145,7 +145,7 @@ void Run50MeV(void)
     auto start = std::chrono::steady_clock::now();
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
-    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.050 / 0.197, 3.0 / (4.0 * PI));
+    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.050 / 0.197, 3.0 / (4.0 * PI), false);
     Print(std::cout, params);
 
     auto                 eaxct_start = std::chrono::steady_clock::now();
@@ -224,7 +224,7 @@ void Run200MeV(void)
     auto start = std::chrono::steady_clock::now();
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
-    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.2 / 0.197, 3.0 / (4.0 * PI));
+    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 0.2 / 0.197, 3.0 / (4.0 * PI), false);
     Print(std::cout, params);
 
     auto                 eaxct_start = std::chrono::steady_clock::now();
@@ -303,7 +303,7 @@ void Run1GeV(void)
     auto start = std::chrono::steady_clock::now();
     Print(std::cout, "Calculating exact solution:\n");
     SimulationParameters params;
-    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 1.0 / 0.197, 3.0 / (4.0 * PI));
+    params.SetParameters(0.1, 12.4991, 6.0677, 0.0090, 12.1, 1.0 / 0.197, 3.0 / (4.0 * PI), false);
     Print(std::cout, params);
 
     auto                 eaxct_start = std::chrono::steady_clock::now();

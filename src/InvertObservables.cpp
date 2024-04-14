@@ -41,24 +41,37 @@ static hydro::AltAnisoHydroEvolution evo;
 
 /// hydro_fields is vector of the form (E, PT, PL)
 /// aniso_vars is vector of the form (Log(alpha), Lambda, xi)
-vec ComputeF(const vec& hydro_fields, double mass, const vec& aniso_vars)
+vec ComputeF(const vec& hydro_fields, double mass, const vec& aniso_vars, bool b_2dim)
 {
-    double micro_energy_density = evo.IntegralJ(2, 0, 0, 0, mass, aniso_vars) / aniso_vars(0);
-    double micro_trans_pressure = evo.IntegralJ(2, 0, 1, 0, mass, aniso_vars) / aniso_vars(0);
-    double micro_long_pressure  = evo.IntegralJ(2, 2, 0, 0, mass, aniso_vars) / aniso_vars(0);
+    if (b_2dim)
+    {
+        double micro_energy_density = evo.IntegralJ(2, 0, 0, 0, mass, vec{ 1.0, aniso_vars(0), aniso_vars(1) });
+        double micro_trans_pressure = evo.IntegralJ(2, 0, 1, 0, mass, vec{ 1.0, aniso_vars(0), aniso_vars(1) });
 
-    vec local
-        = { micro_energy_density - hydro_fields(0), micro_trans_pressure - hydro_fields(1), micro_long_pressure - hydro_fields(2) };
-    return local;
+        vec local = { micro_energy_density - hydro_fields(0), micro_trans_pressure - hydro_fields(1) };
+        return local;
+    }
+    else
+    {
+        double alpha                = aniso_vars(0);
+        double micro_energy_density = evo.IntegralJ(2, 0, 0, 0, mass, aniso_vars) / alpha;
+        double micro_trans_pressure = evo.IntegralJ(2, 0, 1, 0, mass, aniso_vars) / alpha;
+        double micro_long_pressure  = evo.IntegralJ(2, 2, 0, 0, mass, aniso_vars) / alpha;
+
+        vec local = { micro_energy_density - hydro_fields(0),
+                      micro_trans_pressure - hydro_fields(1),
+                      micro_long_pressure - hydro_fields(2) };
+        return local;
+    }
 }
 
 /// hydro_fields is vector of the form (E, PT, PL)
 /// aniso_vars is vector of the form (Log(alpha), Lambda, xi)
 /// Line backtracing algorithm taken from Numerical Recipes pgs. 478-489
-double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& delta_aniso_vars, double mass)
+static double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& delta_aniso_vars, double mass, bool b_2dim)
 {
     vec    aniso_vars_update = aniso_vars;
-    vec    F                 = ComputeF(hydro_fields, mass, aniso_vars_update);
+    vec    F                 = ComputeF(hydro_fields, mass, aniso_vars_update, b_2dim);
     double mag_F2            = 0.5 * std::pow(arma::norm(F, 2), 2.0);
     double mag_dX            = arma::norm(delta_aniso_vars, 2);
 
@@ -97,7 +110,7 @@ double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& 
         mag_F2_prev       = mag_F2_current;
         step_adj          = std::fmax(step_adj_root, 0.1 * step_adj);
         aniso_vars_update = aniso_vars + step_adj * delta_aniso_vars;    // Might want to insert alpha here
-        F                 = ComputeF(hydro_fields, mass, aniso_vars_update);
+        F                 = ComputeF(hydro_fields, mass, aniso_vars_update, b_2dim);
         mag_F2_current    = 0.5 * std::pow(arma::norm(F, 2), 2.0);
     }
     return step_adj;
@@ -105,43 +118,85 @@ double LineBackTrack(const vec& hydro_fields, const vec& aniso_vars, const vec& 
 
 // ----------------------------------------
 
-void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_vars)
+void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_vars, bool b_2dim)
 {
-    constexpr double step_max = 10.0;
-    // The aniso variables are of the form (Log(alpha), Lambda, xi)
-    vec       delta_aniso_vars = { 0.0, 0.0, 0.0 };
-    const vec hydro_fields     = { E, PT, PL };
-    vec       F                = ComputeF(hydro_fields, mass, aniso_vars);
-    bool      converged        = false;
-    // for (size_t n = 0; n < 10000; ++n)
-    size_t n = 0;
-    while (!converged)
-    {
-        mat J            = evo.ComputeJacobian(mass, aniso_vars);
-        delta_aniso_vars = -J.i() * F;
-        // rescale if difference is too large
-        double mag_delta_aniso_vars = arma::norm(delta_aniso_vars, 2);
-        if (mag_delta_aniso_vars > step_max)
-        {
-            for (auto& x : delta_aniso_vars)
-                x *= step_max / mag_delta_aniso_vars;
-            mag_delta_aniso_vars = step_max;
-        }
-        double step_adj = LineBackTrack(hydro_fields, aniso_vars, delta_aniso_vars, mass);
-        // Update aniso variables
-        aniso_vars = aniso_vars + step_adj * delta_aniso_vars;
-        F          = ComputeF(hydro_fields, mass, aniso_vars);
-        if (aniso_vars(0) < 0.0 || aniso_vars(1) < 0.0 || aniso_vars(2) < -1.0)
-            Print(std::cout, "Variable inversion gave unphysical anisotropic parameters.");
-        // Check for convergence
-        if (step_adj * mag_delta_aniso_vars < tol_dX && arma::norm(F, 2) < tol_F)
-        {
-            converged = true;
-            return;
-        }
-        ++n;
-    }
-    Print(std::cerr, "Failed to converge within steps");
-    Print(std::cout, "Failed to converge: convergence should not fail. Try increasing N_max");
-}
+    constexpr double max_step_size = 10.0;
 
+    auto iterate = [mass, b_2dim, max_step_size](const vec& hydro_fields, vec& aniso_vars, vec& delta_aniso_vars, vec& F)
+    {
+        bool   converged = false;
+        size_t n         = 0;
+        while (!converged)
+        {
+            // Print(std::cout, F);
+            mat J = evo.ComputeJacobian(mass, b_2dim ? vec{ 1.0, aniso_vars(0), aniso_vars(1) } : aniso_vars);
+            if (b_2dim)
+            {
+                auto Jprime      = mat{ { J(0, 1), J(0, 2) }, { J(1, 1), J(1, 2) } };
+                delta_aniso_vars = -Jprime.i() * F;
+            }
+            else delta_aniso_vars = -J.i() * F;
+            // rescale if difference is too large
+            double mag_delta_aniso_vars = arma::norm(delta_aniso_vars, 2);
+            if (mag_delta_aniso_vars > max_step_size)
+            {
+                for (auto& x : delta_aniso_vars)
+                    x *= max_step_size / mag_delta_aniso_vars;
+                mag_delta_aniso_vars = max_step_size;
+            }
+            double step_adj = LineBackTrack(hydro_fields, aniso_vars, delta_aniso_vars, mass, b_2dim);
+            // Update aniso variables
+            aniso_vars = aniso_vars + step_adj * delta_aniso_vars;
+            F          = ComputeF(hydro_fields, mass, aniso_vars, b_2dim);
+            // TODO: Check for unphysical values in the the cases where we have 2d and 3d inversion
+            // if (aniso_vars(0) < 0.0 || aniso_vars(1) < 0.0 || aniso_vars(2) < -1.0)
+            // {
+            //     Print(std::cout, "Variable inversion gave unphysical anisotropic parameters.");
+            //     aniso_vars(0) = 1.0;
+            //     aniso_vars(1) = 0.0;
+            //     aniso_vars(2) = 0.0;
+            //     return;
+            // }
+            // if (n % 100 == 0)
+            // {
+            //     Print(std::cout, aniso_vars);
+            //     Print(std::cout, hydro_fields);
+            //     Print(std::cout, F);
+            //     Print(std::cout, J);
+            //     Print(std::cout, arma::norm(F, 2), tol_F);
+            //     Print(std::cout, step_adj * mag_delta_aniso_vars, tol_dX);
+            //     Print(std::cout, "------------------");
+            // }
+
+            // Check for convergence
+            if (b_2dim && step_adj * mag_delta_aniso_vars < tol_dX)
+            {
+                converged = true;
+                return;
+            }
+            if (step_adj * mag_delta_aniso_vars < tol_dX && arma::norm(F, 2) < tol_F)
+            {
+                converged = true;
+                return;
+            }
+            ++n;
+        }
+        Print(std::cerr, "Failed to converge within steps");
+    };
+
+    // The aniso variables are of the form (Log(alpha), Lambda, xi)
+    if (b_2dim)
+    {
+        vec       delta_aniso_vars = { 0.0, 0.0 };
+        const vec hydro_fields     = { E, PT };
+        vec       F                = ComputeF(hydro_fields, mass, aniso_vars, b_2dim);
+        iterate(hydro_fields, aniso_vars, delta_aniso_vars, F);
+    }
+    else
+    {
+        vec       delta_aniso_vars = { 0.0, 0.0, 0.0 };
+        const vec hydro_fields     = { E, PT, PL };
+        vec       F                = ComputeF(hydro_fields, mass, aniso_vars, b_2dim);
+        iterate(hydro_fields, aniso_vars, delta_aniso_vars, F);
+    }
+}

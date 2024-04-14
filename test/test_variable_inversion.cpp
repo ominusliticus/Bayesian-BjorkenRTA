@@ -70,7 +70,7 @@ int main()
     // // Print(std::cout, e, pt, pl);
 
     vec soln = { 1.0, 1.0, 1.0 };
-    FindAnisoVariables(e, pt, pl, mass, soln);
+    FindAnisoVariables(e, pt, pl, mass, soln, false);
     evaluate_truthfulness(X_soln, soln, value);
     if (value) Print(std::cout, "test_inversion: Nominal case: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "test_inversion: Nominal case: \033[1;31mFAILS!\033[0m");
@@ -87,7 +87,7 @@ int main()
     e      = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
     pt     = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
     pl     = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
-    FindAnisoVariables(e, pt, pl, mass, soln);
+    FindAnisoVariables(e, pt, pl, mass, soln, false);
     evaluate_truthfulness(X, soln, value);
     if (value) Print(std::cout, "test_inversion: Green case: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "test_inversion: Green case: \033[1;31mFAILS!\033[0m");
@@ -102,7 +102,7 @@ int main()
     e      = mvah.IntegralJ(2, 0, 0, 0, mass, X) / alpha;
     pt     = mvah.IntegralJ(2, 0, 1, 0, mass, X) / alpha;
     pl     = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
-    FindAnisoVariables(e, pt, pl, mass, soln);
+    FindAnisoVariables(e, pt, pl, mass, soln, false);
     evaluate_truthfulness(X, soln, value);
     if (value) Print(std::cout, "test_inversion: Magenta case: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "test_inversion: Magenta case: \033[1;31mFAILS!\033[0m");
@@ -119,7 +119,7 @@ int main()
     pl     = mvah.IntegralJ(2, 2, 0, 0, mass, X) / alpha;
     // soln   = vec{ 0.01, 2.0, 1200.0 };
     soln = vec{ 1.0, mvah.InvertEnergyDensity(e, mass), 2.0 * std::pow(10.0, std::log10(pt / pl)) };
-    FindAnisoVariables(e, pt, pl, mass, soln);
+    FindAnisoVariables(e, pt, pl, mass, soln, false);
     evaluate_truthfulness(X, soln, value);
     if (value) Print(std::cout, "test_inversion: Maroon case: \033[1;32mPASSES!\033[0m");
     else Print(std::cout, "test_inversion: Maroon case: \033[1;31mFAILS!\033[0m");

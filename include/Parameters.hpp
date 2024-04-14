@@ -42,10 +42,10 @@ struct SimulationParameters {
     static SimulationParameters ParseCmdLine(int cmdln_count, char** cmdln_args);
 
     void SetParameter(const char* name, double value);
-    void SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _eta_s);
+    void SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _eta_s, bool b_2dim);
     void SetInitialConditions();
     void SetInitialTemperature();
-    void SetAnisotropicVariables();
+    void SetAnisotropicVariables(bool b_2dim);
 
     friend std::ostream& operator<<(std::ostream& out, SimulationParameters& params);
 

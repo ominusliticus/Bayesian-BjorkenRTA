@@ -74,7 +74,8 @@ SimulationParameters::SimulationParameters(const char* filename)
     step_size = tau_0 / 20;
     steps     = std::ceil((tau_f - tau_0) / step_size);
 
-    if (this->type == 3 || this->type == 4) SetAnisotropicVariables();
+    if (this->type == 3) SetAnisotropicVariables(true);
+    else if (this->type == 4 || this->type == 5) SetAnisotropicVariables(false);
     SetInitialTemperature();
     fin.close();
 }    // end SimulationParameters::SimulationParameters(...)
@@ -93,7 +94,8 @@ SimulationParameters SimulationParameters::ParseCmdLine(int cmdln_count, char** 
         params.SetParameter(cmdln_args[i], std::atof(cmdln_args[i + 1]));
     params.type = std::atoi(cmdln_args[cmdln_count - 2]);
     params.SetInitialTemperature();
-    if (params.type == 3 || params.type == 4 || params.type == 5) params.SetAnisotropicVariables();
+    if (params.type == 3) params.SetAnisotropicVariables(true);
+    else if (params.type == 4 || params.type == 5) params.SetAnisotropicVariables(false);
     return params;
 }
 
@@ -161,7 +163,14 @@ void SimulationParameters::SetParameter(const char* name, double value)
 
 // ----------------------------------------
 
-void SimulationParameters::SetParameters(double _tau_0, double _e0, double _pt0, double _pl0, double _tau_f, double _mass, double _C)
+void SimulationParameters::SetParameters(double _tau_0,
+                                         double _e0,
+                                         double _pt0,
+                                         double _pl0,
+                                         double _tau_f,
+                                         double _mass,
+                                         double _C,
+                                         bool   b_2dim)
 {
     tau_0 = _tau_0;
     e0    = _e0;
@@ -175,7 +184,7 @@ void SimulationParameters::SetParameters(double _tau_0, double _e0, double _pt0,
     steps     = std::ceil((tau_f - tau_0) / step_size);
 
     SetInitialTemperature();
-    SetAnisotropicVariables();
+    SetAnisotropicVariables(b_2dim);
 }
 
 // ----------------------------------------
@@ -199,12 +208,25 @@ void SimulationParameters::SetInitialTemperature()
     T0 = mvah.InvertEnergyDensity(e0, mass);
 }
 
-void SimulationParameters::SetAnisotropicVariables()
+void SimulationParameters::SetAnisotropicVariables(bool b_2dim)
 {
     double x = std::log10(pt0 / pl0);
-    vec    X = { 1.0, T0, 2.0 * std::pow(10.0, x) };
-    FindAnisoVariables(e0, pt0, pl0, mass, X);
-    alpha_0  = X(0);
-    Lambda_0 = X(1);
-    xi_0     = X(2);
+    if (b_2dim)
+    {
+        vec X = { T0, 2.0 * std::pow(10.0, x) };
+        FindAnisoVariables(e0, pt0, pl0, mass, X, b_2dim);
+
+        alpha_0  = 1.0;
+        Lambda_0 = X(0);
+        xi_0     = X(1);
+    }
+    else
+    {
+        vec X = { 1.0, T0, 2.0 * std::pow(10.0, x) };
+        FindAnisoVariables(e0, pt0, pl0, mass, X, b_2dim);
+
+        alpha_0  = X(0);
+        Lambda_0 = X(1);
+        xi_0     = X(2);
+    }
 }

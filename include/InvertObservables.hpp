@@ -37,10 +37,10 @@
 using vec = arma::vec;
 using mat = arma::mat;
 
-constexpr double tol_dX = 1e-2;
+constexpr double tol_dX = 1e-5;
 constexpr double tol_F  = 1e-5;
 constexpr size_t N_max  = 100;
 
-void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_vars);
+void FindAnisoVariables(double E, double PT, double PL, double mass, vec& aniso_vars, bool b_2dim);
 
 #endif
