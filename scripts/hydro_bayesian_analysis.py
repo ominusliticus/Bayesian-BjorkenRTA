@@ -366,7 +366,8 @@ class HydroBayesianAnalysis(object):
                         },
                     )
 
-                output_dict[hydro_name] = np.array(sampler.get_chain(discard=nburn))
+                output_dict[hydro_name] = np.array(
+                    sampler.get_chain(discard=nburn))
 
             if run_parallel:
                 manager = Manager()
@@ -452,7 +453,7 @@ class HydroBayesianAnalysis(object):
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
             g.savefig('{}/plots/bmm_simultaneous_corner_plot_n={}.pdf'.
-                        format(output_dir, self.num_params))
+                      format(output_dir, self.num_params))
 
         else:
             dfs = pd.DataFrame(columns=[*axis_names, 'hydro'])
@@ -462,7 +463,7 @@ class HydroBayesianAnalysis(object):
                     len(self.parameter_names)
                 )
                 df = pd.DataFrame(dict((name, data[:, k])
-                                        for k, name in enumerate(axis_names)))
+                                       for k, name in enumerate(axis_names)))
                 g1 = sns.pairplot(
                     data=df,
                     corner=True,
@@ -472,7 +473,7 @@ class HydroBayesianAnalysis(object):
                 g1.map_lower(sns.kdeplot, levels=4, color='black')
                 g1.tight_layout()
                 g1.savefig('{}/plots/{}_corner_plot_n={}.pdf'.
-                            format(output_dir, name, self.num_params))
+                           format(output_dir, name, self.num_params))
 
                 df['hydro'] = name
                 dfs = pd.concat([dfs, df], ignore_index=True)
@@ -482,7 +483,6 @@ class HydroBayesianAnalysis(object):
                              diag_kind='kde',
                              kind='hist',
                              hue='hydro')
-            g.fig.legend()
             g.map_lower(sns.kdeplot, levels=4, color='black')
             g.tight_layout()
 
@@ -513,7 +513,7 @@ class HydroBayesianAnalysis(object):
         # (n_observables, n_observations)
         weights = np.array([
             [
-                arr[0]  for arr in arrs
+                arr[0] for arr in arrs
             ]
             for arrs in self.weights
         ])
@@ -574,7 +574,6 @@ class HydroBayesianAnalysis(object):
         fig.savefig(
             f'{output_dir}/plots/bmm_weights_n={self.num_params}.pdf')
 
-
     # Expand to included Bayesian Model mixing for paper (will migrate
     # everything to Taweret later)
 
@@ -598,19 +597,26 @@ class HydroBayesianAnalysis(object):
 
         x: Optional[np.ndarray] (default: None)
             Location to evaluation weight
+
+        Returns:
+        ========
+        log_weights, log_likelihood: tuple
+            The log weights have the shape (n_models, n_obseravations) and
+            the log_likelihood is the dirichlet function evaluated with shape
+            (n_observations,)
         """
         if self.mixing_method == 'dirichlet':
-            # log_ws will have shape (m_models, n_observations) after
-            # transpose
-            return np.log(
+            alphas = np.abs(1 / evaluation_point[:self.num_models])
+            log_ws = np.log(
                 dirichlet(
-                    np.abs(1 / evaluation_point[:self.num_models])
+                    alphas
                 ).rvs(size=self.true_observables.shape[0])).T
+            ws_ll = dirichlet.logpdf(np.exp(log_ws), alphas)
+            return log_ws, ws_ll
         elif self.mixing_method == 'gauss_process':
             pass
         else:
             print('mixing method not supported')
-
 
     def mixing_log_likelihood(
         self,
@@ -647,7 +653,7 @@ class HydroBayesianAnalysis(object):
         self.true_observables = true_observables
         # log_ws will have shape (m_models, n_observation_times) after
         # transpose
-        log_ws = self.get_weights(
+        log_ws, ws_ll = self.get_weights(
             evaluation_point=evaluation_point,
             x=true_observables[:, 0]
         )
@@ -683,11 +689,16 @@ class HydroBayesianAnalysis(object):
 
         # The sampler is coded such that it expects the weights to have the shape
         # (n_models, n_observation_times)
-        ll = np.prod(np.logaddexp.reduce(
-            log_ws + model_log_likelihoods, axis=1))
+        ll = np.sum(
+            np.logaddexp.reduce(
+                log_ws + model_log_likelihoods,
+                axis=0
+            )
+        )
         ws = np.exp(log_ws)
         # print("From inside log_likelihood", ll, ws)
-        return (ll, ws)
+        # TODO: Add the likelihood evaluation for the Dirichlet distributions
+        return (ll + np.sum(ws_ll), ws)
 
     def mixing_log_posterior(
         self,
@@ -784,7 +795,7 @@ class HydroBayesianAnalysis(object):
                     ) *
                         np.diff(self.parameter_ranges[:n_models])
                         .reshape(-1,)
-                        ])[0]
+                    ])[0]
 
             self.running_mixing = True
             with Pool() as pool:
