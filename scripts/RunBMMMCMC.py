@@ -1,5 +1,6 @@
 #!/bin/python3
 # My code
+from matplotlib.cm import plasma
 from hydro_bayesian_analysis import HydroBayesianAnalysis as HBA
 from hydro_code_api import HydroCodeAPI as HCA
 from hydro_emulation import HydroEmulator as HE
@@ -25,14 +26,12 @@ from matplotlib import rc
 rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman']})
 rc('text', usetex=True)
 
-from matplotlib.cm import plasma
-
 
 def split_data_for_sequential_run(
-        taus: np.ndarray,
-        data: np.ndarray,
-        error: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    taus: np.ndarray,
+    data: np.ndarray,
+    error: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
     rng = np.random.RandomState()
 
     entries = taus.shape[0]
@@ -50,9 +49,9 @@ def split_data_for_sequential_run(
     n_2 = np.argsort(taus_2)
 
     return (n_1, n_2), \
-            (taus_1[n_1], taus_2[n_2]), \
-            (data[training_indices][n_1], data[testing_indices][n_2]), \
-            (error[training_indices][n_1], error[testing_indices][n_2])
+        (taus_1[n_1], taus_2[n_2]), \
+        (data[training_indices][n_1], data[testing_indices][n_2]), \
+        (error[training_indices][n_1], error[testing_indices][n_2])
 
 
 def convert_hydro_name_to_int(name: str) -> int:
@@ -125,9 +124,9 @@ def run_hydro_from_posterior(
     del output_dict
 
     fig, ax = plt.subplots(
-            nrows=len(hydro_names),
-            ncols=3,
-            figsize=(3 * 7, len(hydro_names) * 7))
+        nrows=len(hydro_names),
+        ncols=3,
+        figsize=(3 * 7, len(hydro_names) * 7))
     fig.patch.set_facecolor('white')
 
     # fig2, ax2 = plt.subplots(nrows=1, ncols=3, figszie=(3 * 7, 7))
@@ -180,7 +179,7 @@ def run_hydro_from_posterior(
         # ax2[j].hist2d(
             # output_dict[0, :, 0].reshape(-1),
             # (
-                # weights.transpose() * output_dict[..., j + 1]
+            # weights.transpose() * output_dict[..., j + 1]
             # ).reshape(-1,),
             # bins=100,
             # cmap=plasma,
@@ -198,7 +197,8 @@ def run_hydro_from_posterior(
             # y_title=f'{col_name} [gev/fm$^{-3}$]'
         # )
 
-    plot_file = Path(f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
+    plot_file = Path(
+        f'./pickle_files/{output_dir}/plots/hydro_runs_for_posteriors.pdf')
     try:
         (cmd(['mkdir', '-p', str(plot_file.parent)])
             .check_returncode())
@@ -259,14 +259,15 @@ def get_temp(
 
     return mid
 
+
 def get_navier_stokes_ic(
         energy_density: float, mass: float, eta_s: float, tau: float
 ) -> Tuple[float, float]:
     from scipy.special import kn
     from scipy.integrate import quad
 
-
     # Function needed to calculate beta_pi
+
     def I_42_1(temp, mass):
         def k0n(z):
             return quad(
@@ -320,9 +321,9 @@ def SampleObservables(error_level: float,
 
     # despite the poor variable choice name here, if `use_PL_PT` is False
     # all instances of (pt, pl) variables should be interpreted as (pi, Pi)
-    E = np.array([output[int(i)-1, 1] for i in observ_indices])
-    pt = np.array([output[int(i)-1, 2] for i in observ_indices])
-    pl = np.array([output[int(i)-1, 3] for i in observ_indices])
+    E = np.array([output[int(i) - 1, 1] for i in observ_indices])
+    pt = np.array([output[int(i) - 1, 2] for i in observ_indices])
+    pl = np.array([output[int(i) - 1, 3] for i in observ_indices])
 
     pt_err = error_level * pt
     pl_err = error_level * pl
@@ -338,22 +339,22 @@ def SampleObservables(error_level: float,
 
 
 def RunVeryLargeMCMC(
-        hydro_names: List[str],
-        parameter_names: List[str],
-        parameter_ranges: np.ndarray,
-        simulation_taus: np.ndarray,
-        exact_pseudo: np.ndarray,
-        pseudo_error: np.ndarray,
-        output_dir: str,
-        emulator_dir: str,
-        local_params: Dict[str, float],
-        points_per_feat: int,
-        number_steps: int,
-        use_existing_emulators: bool,
-        read_mcmc_from_file: bool,
-        use_PL_PT: bool,
-        calibration_indices: Optional[np.ndarray],
-    ) -> Dict[str, np.ndarray]:
+    hydro_names: List[str],
+    parameter_names: List[str],
+    parameter_ranges: np.ndarray,
+    simulation_taus: np.ndarray,
+    exact_pseudo: np.ndarray,
+    pseudo_error: np.ndarray,
+    output_dir: str,
+    emulator_dir: str,
+    local_params: Dict[str, float],
+    points_per_feat: int,
+    number_steps: int,
+    use_existing_emulators: bool,
+    read_mcmc_from_file: bool,
+    use_PL_PT: bool,
+    calibration_indices: Optional[np.ndarray],
+) -> Dict[str, np.ndarray]:
     '''
     Runs the entire analysis suite, including the emulator fitting
     and saves MCMC chains and outputs plots
@@ -396,16 +397,16 @@ def RunVeryLargeMCMC(
         )
 
     mcmc_chains = ba_class.run_calibration(
-            nsteps=number_steps,
-            nburn=100 * len(parameter_names),
-            ntemps=20,
-            true_observables=exact_pseudo,
-            true_error=pseudo_error,
-            GP_emulators=emulator_class.GP_emulators
-                if calibration_indices is None else emulators,
-            read_from_file=read_mcmc_from_file,
-            output_path=output_dir,
-            run_parallel=True
+        nsteps=number_steps,
+        nburn=100 * len(parameter_names),
+        ntemps=20,
+        true_observables=exact_pseudo,
+        true_error=pseudo_error,
+        GP_emulators=emulator_class.GP_emulators
+        if calibration_indices is None else emulators,
+        read_from_file=read_mcmc_from_file,
+        output_path=output_dir,
+        run_parallel=True
     )
     with open(output_dir + '/long_mcmc_run.pkl', 'wb') as f:
         pickle.dump(ba_class.MCMC_chains, f)
@@ -488,7 +489,7 @@ def RunBMMMCMC(
         exact_observables=exact_pseudo,
         exact_error=pseudo_error,
         GP_emulators=emulator_class.GP_emulators
-            if mixing_indices is None else emulators,
+        if mixing_indices is None else emulators,
         read_from_file=read_mcmc_from_file,
         do_calibration_simultaneous=(not run_sequential),
         fixed_evaluation_points_for_models=fixed_values,
@@ -551,9 +552,9 @@ def main(
 
     if run_sequential:
         (calibration_indices, mixing_indices), \
-        (simulation_taus_1, simulation_taus_2), \
-        (exact_pseudo_1, exact_pseudo_2), \
-        (pseudo_error_1, pseudo_error_2) =  split_data_for_sequential_run(
+            (simulation_taus_1, simulation_taus_2), \
+            (exact_pseudo_1, exact_pseudo_2), \
+            (pseudo_error_1, pseudo_error_2) = split_data_for_sequential_run(
             simulation_taus,
             exact_pseudo,
             pseudo_error,
@@ -588,7 +589,7 @@ def main(
     #   - Add plotting routine that plots the predictive posterior giving the weight average of the hydrodynamic theories and the exact solutions
     #   - Split large MCMC chains into smaller ones, se 10_000 steps at a time, and them combine them after everything has been run calculating the
     #       various quantities by looping over the separately stored runs
-    bmm_mcmc_chains, weights  = RunBMMMCMC(
+    bmm_mcmc_chains, weights = RunBMMMCMC(
         hydro_names=hydro_names,
         simulation_taus=simulation_taus_2
         if run_sequential else simulation_taus,
@@ -620,10 +621,9 @@ def main(
         -1,
         bmm_mcmc_chains.shape[-1]
     )
-    weights = weights[0] # This still needs to be figured out, as weights has
-                         # an extra dimension that keeps track of where the
-                         # evaluation happened, ideally it'll promoted to a GP
-    points_to_keep = 100
+    weights = weights[0]  # This still needs to be figured out, as weights has
+    # an extra dimension that keeps track of where the
+    # evaluation happened, ideally it'll promoted to a GP
     run_hydro_from_posterior(
         mcmc_chains=dict(
             (
@@ -632,7 +632,7 @@ def main(
             )
             for key in hydro_names
         ) if run_sequential else bmm_mcmc_chains,
-        weights= 0,  # weights[::(weights.shape[1] // points_to_keep)],
+        weights=0,  # weights[::(weights.shape[1] // points_to_keep)],
         params_names=parameter_names,
         hydro_names=hydro_names,
         params_dict=local_params.copy(),
@@ -664,7 +664,7 @@ if __name__ == "__main__":
 
                     counter = counter + 1
                     main(
-                        local_params = {
+                        local_params={
                             'tau_0': 0.1,
                             'e0': 12.4991,
                             'pt0': 6.0977,
@@ -674,36 +674,38 @@ if __name__ == "__main__":
                             'C': 5 / (4 * np.pi),
                             'hydro_type': 0
                         },
-                        hydro_names = hydro_names,
+                        hydro_names=hydro_names,
                         # Weights parameters are not names explicitly
-                        # but we do explicitly includes the bounds for the weights
-                        parameter_names = ['C'],
-                        parameter_ranges = np.array(
+                        # but we do explicitly includes the bounds for the
+                        # weights
+                        parameter_names=['C'],
+                        parameter_ranges=np.array(
                             [
-                                *[np.array([0, 10]) for _ in range(len(hydro_names))],
+                                *[np.array([0, 10])
+                                  for _ in range(len(hydro_names))],
                                 [1 / (4 * np.pi), 10 / (4 * np.pi)]
                             ],
                         ),
                         num_steps_calibration=1_000,
                         num_steps_mixing=1_000,
-                        simulation_taus = np.linspace(
+                        simulation_taus=np.linspace(
                             time_interval,
                             time_interval + 8.0,
                             data_points,
                             endpoint=True
                         ),
-                        output_folder = f'{output_dir}/{name}_sequential_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
+                        output_folder=f'{output_dir}/{name}_sequential_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
                         emulator_dir=emulator_dir,
-                        use_PL_PT = False,
-                        generate_new_data = True,
-                        use_existing_emulators = use_existing_emulator,
-                        read_mcmc_from_file = False,
-                        run_sequential = True,
+                        use_PL_PT=False,
+                        generate_new_data=True,
+                        use_existing_emulators=use_existing_emulator,
+                        read_mcmc_from_file=False,
+                        run_sequential=True,
                         hydro_to_gen_data=name,
                     )
 
                     main(
-                        local_params = {
+                        local_params={
                             'tau_0': 0.1,
                             'e0': 12.4991,
                             'pt0': 6.0977,
@@ -713,30 +715,32 @@ if __name__ == "__main__":
                             'C': 5 / (4 * np.pi),
                             'hydro_type': 0
                         },
-                        hydro_names = hydro_names,
+                        hydro_names=hydro_names,
                         # Weights parameters are not names explicitly
-                        # but we do explicitly includes the bounds for the weights
-                        parameter_names = ['C'],
-                        parameter_ranges = np.array(
+                        # but we do explicitly includes the bounds for the
+                        # weights
+                        parameter_names=['C'],
+                        parameter_ranges=np.array(
                             [
-                                *[np.array([0, 10]) for _ in range(len(hydro_names))],
+                                *[np.array([0, 10])
+                                  for _ in range(len(hydro_names))],
                                 [1 / (4 * np.pi), 10 / (4 * np.pi)]
                             ],
                         ),
                         num_steps_calibration=None,
                         num_steps_mixing=1_000,
-                        simulation_taus = np.linspace(
+                        simulation_taus=np.linspace(
                             time_interval,
                             time_interval + 8.0,
                             data_points,
                             endpoint=True
                         ),
-                        output_folder = f'{output_dir}/{name}_simultaneous_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
+                        output_folder=f'{output_dir}/{name}_simultaneous_error_time={time_interval:.1f}={error:.2f}_points={data_points}',
                         emulator_dir=emulator_dir,
-                        use_PL_PT = False,
-                        generate_new_data = False,
-                        use_existing_emulators = True,
-                        read_mcmc_from_file = True,
-                        run_sequential = False,
+                        use_PL_PT=False,
+                        generate_new_data=False,
+                        use_existing_emulators=True,
+                        read_mcmc_from_file=True,
+                        run_sequential=False,
                         hydro_to_gen_data=name,
                     )
