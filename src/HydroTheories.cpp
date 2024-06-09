@@ -941,7 +941,7 @@ namespace hydro {
 
     // -----------------------------------------
 
-    // Function does in intermittent RK step and checks if xi > -1
+    // Function does an intermittent RK step and checks if xi > -1
     // If not, it calls itself with a subdivision of the current interval
     // (t,t+dt) to improve the "convergence" (not sure what to call it)
     vec AltAnisoHydroEvolution::RK4Update(vec& X_current, double t, double dt, double T, TransportCoefficients& tc, const SP& params)
@@ -1041,7 +1041,7 @@ namespace hydro {
         std::fstream          bulk_plot(file / fmt::format("mvah_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         std::fstream          shear_plot(file / fmt::format("mvah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 #else
-        char file[1024];
+        char         file[1024];
         sprintf(file, "%s/%s", file_path, fmt::format("mvah_e_m={:.3f}GeV.dat", 0.197 * m).c_str());
         std::fstream e_plot(file, std::ios::out);
 
@@ -1120,7 +1120,7 @@ namespace hydro {
             if (!recursion_steps.empty() && recursion_steps.back() < 1)
             {
                 print_output = true;
-                dt           = std::pow(10.0, recursion_level) * dt;
+                dt           = dt * 10.0;
                 recursion_steps.pop_back();
                 --recursion_level;
             }
@@ -1131,8 +1131,8 @@ namespace hydro {
             {
                 ++recursion_level;
                 print_output = false;
-                dt           = std::pow(10.0, -recursion_level) * dt;
-                recursion_steps.push_back(static_cast<int>(std::pow(10.0, recursion_level)));
+                dt           = dt / 10.0;
+                recursion_steps.push_back(10);
             }
             else
             {
