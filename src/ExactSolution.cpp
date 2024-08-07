@@ -754,7 +754,7 @@ namespace exact {
             double new_pL        = GetMoments(tau, params, Moment::PL);
             double new_peq       = GetMoments(tau, params, Moment::PEQ);
 #endif
-            Print(fout, tau, new_e_density, new_pT, new_pL, new_peq);
+            Print(fout, tau, new_e_density, new_pT, new_pL, new_peq, 1.0 / D[i]);
         }
         fout.close();
     }

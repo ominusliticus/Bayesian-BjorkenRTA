@@ -1041,7 +1041,7 @@ namespace hydro {
         std::fstream          bulk_plot(file / fmt::format("mvah_bulk_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
         std::fstream          shear_plot(file / fmt::format("mvah_shear_m={:.3f}GeV.dat", 0.197 * m), std::ios::out);
 #else
-        char         file[1024];
+        char file[1024];
         sprintf(file, "%s/%s", file_path, fmt::format("mvah_e_m={:.3f}GeV.dat", 0.197 * m).c_str());
         std::fstream e_plot(file, std::ios::out);
 
@@ -1110,7 +1110,7 @@ namespace hydro {
                 double pi = 2.0 * (pt - pl) / 3.0;
                 double Pi = (2.0 * pt + pl) / 3.0 - p;
 
-                Print(e_plot, t, e, p, pt, pl, X(2));
+                Print(e_plot, t, e, p, pt, pl, X(2), T);
                 Print(bulk_plot, t, Pi, tc.zetaBar_zT);
                 Print(shear_plot, t, pi, tc.zetaBar_zL);
                 ++n;
