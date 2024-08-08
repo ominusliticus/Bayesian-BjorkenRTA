@@ -24,8 +24,9 @@
 # Description: Interface to facilitate reading in files outputted from running
 #              C++ hydro code
 
-from typing import List, Dict
+from typing import Dict
 from pathlib import Path
+import numpy as np
 
 
 def convert_to_PL_and_PT(
@@ -40,6 +41,7 @@ def convert_to_PL_and_PT(
     pt = Pi + pi / 2 + p
     pl = Pi - pi + p
     return pt, pl
+
 
 def read_hydro_ouput(
     hydro_name: str,
@@ -72,7 +74,7 @@ def read_hydro_ouput(
                             f_pi[i].split()[1], f_Pi[i].split()[1],\
                             f_e[i].split()[2]
         if use_PL_PT:
-            p1, p2 = self.convert_to_PL_and_PT(
+            p1, p2 = convert_to_PL_and_PT(
                 float(p),
                 float(pi),
                 float(Pi)

@@ -29,6 +29,9 @@
 from os import chdir as cd
 from subprocess import run as cmd
 from subprocess import CalledProcessError
+from typing import List
+from hydro_code_cmdln_options import HydroCodeCmdOptions
+from pathlib import Path
 
 
 class HydroCodeAPI:
@@ -42,17 +45,22 @@ class HydroCodeAPI:
     """
 
     def __init__(self, output_path: str) -> None:
-        self.output_path = output_path
+
+        self.output_path = output_path / "code_output"
 
         try:
-            cmd(['mkdir', '-p', output_path]).check_returncode()
+            cmd(['mkdir', '-p',
+                 str(output_path.absolute())]).check_returncode()
         except (CalledProcessError):
             print(f'Failed to create dir {output_path}')
         # data slots for storing hydro runs
+        finally:
+            pass
 
-    def print_commandline_args(self,
-                               params_dict: Dict[str, float]
-                               ) -> List[str]:
+    def print_commandline_args(
+                self,
+                params_dict: HydroCodeCmdOptions
+    ) -> List[str]:
         '''
         Function ouputs file "params.txt" to the Code/util folder to
         be used by the Code/build/exact_solution.x program
@@ -66,9 +74,11 @@ class HydroCodeAPI:
             return_val += f' {keys[i]} {values[i]}'
         return return_val.split()
 
-    def execute_hydro_code(self,
-                           params_dict: Dict[str, float],
-                           which_hydro: int) -> None:
+    def execute_hydro_code(
+                self,
+                params_dict: HydroCodeCmdOptions,
+                which_hydro: int
+    ) -> None:
         '''
         Function calls the C++ excecutable that run hydro calculations
         '''
