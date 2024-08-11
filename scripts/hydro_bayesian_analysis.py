@@ -24,15 +24,10 @@
 # Description: This file defines the Bayesian inference routines used for
 #              parameter estimation and model comparison
 
-# For changing directories to C++ programming and runnning files
-from typing import Dict, List  # Dict and List args need to be added for all
-
 # Typical functionality for data manipulation and generation of latin hypercube
 import numpy as np
 # import ptemcee
-import my_ptemcee as ptemcee
 import emcee
-import zeus
 
 # For plotting posteriors
 import seaborn as sns
@@ -55,13 +50,20 @@ from subprocess import CalledProcessError
 from os import cpu_count
 
 # Run MCMC calibration in parallel
-from multiprocessing import Manager, Process
-from multiprocessing import current_process
+from multiprocessing import Manager
+from multiprocessing import Process
 from multiprocessing import Pool
 
+from typing import List
+from typing import Dict
 from typing import Tuple
 from typing import Type
 from typing import Optional
+
+# for type indentification
+from sklearn.gaussian_process import GaussianProcessRegressor
+
+from pathlib import Path
 
 
 class HydroBayesianAnalysis(object):
@@ -87,6 +89,7 @@ class HydroBayesianAnalysis(object):
             parameter_names: List[str],
             parameter_ranges: np.ndarray,
             simulation_taus: np.ndarray,
+            output_path: Path,
             mixing_method: str = 'dirichlet',
             do_bmm: bool = False,
     ) -> None:
@@ -107,9 +110,19 @@ class HydroBayesianAnalysis(object):
 
         self.running_mixing = False
 
-    def log_prior(self,
-                  evaluation_point: np.ndarray,
-                  parameter_ranges: np.ndarray) -> float:
+        try:
+            self.mcmc_run_output_path = output_path / "mcmc_run"
+            (cmd(['mkdir', '-p',
+                  f'{str(self.mcmc_run_output_output_path)}'])
+                .check_returncode())
+        except (CalledProcessError):
+            print(f"Could not create dir {output_path}")
+
+    def log_prior(
+            self,
+            evaluation_point: np.ndarray,
+            parameter_ranges: np.ndarray
+    ) -> float:
         '''
         Parameters:
         ------------
@@ -134,75 +147,82 @@ class HydroBayesianAnalysis(object):
         else:
             return -np.inf
 
-    def log_likelihood(self,
-                       evaluation_point: np.ndarray,
-                       true_observables: np.ndarray,
-                       true_errors: np.ndarray,
-                       hydro_name: str,
-                       GP_emulator: Dict) -> np.ndarray:
+    def _predict_observable(
+            self,
+            evaluation_points: np.ndarray,
+            hydro_name: str,
+            tau_index: int,
+            GP_emulator: List[List[GaussianProcessRegressor]],
+    ) -> np.ndarray:
+        """
+        Function takes in the emulators list, and tau_index corresponding
+        to the observation to be evaluated at and returns the predicted
+        observables.
+
+        Parameters:
+        ------------
+        evaluation_points - array of points from parameter space on which
+                            to evaluate he likelihood (generally supplied
+                            by an Monte Carlo Sampler)
+        hydro_name        - name of hydro theory for which to run emulator
+        tau_index         - index specifying the entry in
+                            self.simulation_taus array to evaluate
+                            emulator for
+
+        Returns:
+        -----------
+        Tuple[emulator prediction, emulation error]
+        """
+        means = []
+        variances = []
+        for i in range(self.n_observables):
+            prediction, error = \
+                GP_emulator[tau_index][i].predict(
+                    np.array(evaluation_points).reshape(1, -1),
+                    return_std=True)
+            mean = prediction.reshape(-1, 1)
+            std = error.reshape(-1,)
+
+            means.append(mean)
+            variances.append(std ** 2)
+        return np.hstack(means), np.diag(np.array(variances).flatten())
+
+    def log_likelihood(
+            self,
+            evaluation_point: np.ndarray,
+            true_observables: np.ndarray,
+            true_errors: np.ndarray,
+            hydro_name: str,
+            GP_emulator: Dict[str, List[List[GaussianProcessRegressor]]],
+    ) -> np.ndarray:
         '''
         Parameters:
         ------------
-        evaluation_points    - 1d-array like (1, num_params) \n
-        true_observables     - data \n
-        true_error           - data error \n
-        hydro_name           - string containing hydro theory: 'ce', 'dnmr',
-                                                               'vah', 'mvah'\n
-        GP_emulator          - dictionary(hydro_name: emulator_list), \n
-                                emulator_list[0] - energery density \n
-                                emulator_list[1] - shear stress  \n
-                                emulator_list[2] - bulk stress
+        evaluation_points - 1d-array like (1, num_params) \n
+        true_observables  - data \n
+        true_error        - data error \n
+        hydro_name        - string containing hydro theory: 'ce', 'dnmr',
+                                                            'vah', 'mvah'\n
+        GP_emulator       - dictionary(hydro_name: emulator_list), \n
+                             emulator_list[0] - energery density \n
+                             emulator_list[1] - shear stress  \n
+                             emulator_list[2] - bulk stress
 
 
         Returns:
         -----------
         Float - log-likelihood
         '''
-        def predict_observable(evaluation_points: np.ndarray,
-                               hydro_name: str,
-                               tau_index: int,
-                               GP_emulator: Dict) -> np.ndarray:
-            """
-            Function takes in the emulators list, and tau_index corresponding
-            to the observation to be evaluated at and returns the predicted
-            observables.
-
-            Parameters:
-            ------------
-            evaluation_points - array of points from parameter space on which
-                                to evaluate he likelihood (generally supplied
-                                by an Monte Carlo Sampler)
-            hydro_name        - name of hydro theory for which to run emulator
-            tau_index         - index specifying the entry in
-                                self.simulation_taus array to evaluate
-                                emulator for
-
-            Returns:
-            -----------
-            Tuple[emulator prediction, emulation error]
-            """
-            means = []
-            variances = []
-            for i in range(self.n_observables):
-                prediction, error = \
-                    GP_emulator[hydro_name][tau_index][i].predict(
-                        np.array(evaluation_points).reshape(1, -1),
-                        return_std=True)
-                mean = prediction.reshape(-1, 1)
-                std = error.reshape(-1,)
-
-                means.append(mean)
-                variances.append(std ** 2)
-            return np.hstack(means), np.diag(np.array(variances).flatten())
 
         self.n_observables = true_observables.shape[-1]
 
         running_log_likelihood = [] if self.do_bmm else 0.0
         for k in range(true_observables.shape[0]):
             emulation_values, emulation_variance = \
-                predict_observable(evaluation_point,
-                                   hydro_name,
-                                   k, GP_emulator)
+                self._predict_observable(
+                    evaluation_point,
+                    hydro_name,
+                    k, GP_emulator)
 
             y = np.array(emulation_values).flatten() - \
                 np.array(true_observables[k]).flatten()
@@ -234,13 +254,13 @@ class HydroBayesianAnalysis(object):
         return np.array(running_log_likelihood)
 
     def log_posterior(
-        self,
-        evaluation_point: np.ndarray,
-        parameter_ranges: np.ndarray,
-        true_observables: np.ndarray,
-        true_errors: np.ndarray,
-        hydro_name: str,
-        GP_emulator: Dict
+            self,
+            evaluation_point: np.ndarray,
+            parameter_ranges: np.ndarray,
+            true_observables: np.ndarray,
+            true_errors: np.ndarray,
+            hydro_name: str,
+            GP_emulator: Dict[str, List[List[GaussianProcessRegressor]]],
     ) -> float:
         '''
         Parameters:
@@ -279,15 +299,65 @@ class HydroBayesianAnalysis(object):
         )
         return log_p + log_l
 
+    def _for_multiprocessing(
+            self,
+            nwalkers: int,
+            nburn: int,
+            nsteps: int,
+            hydro_name: str,
+            output_dict: Type[Dict[str, np.ndarray]],
+            true_observables: np.ndarray,
+            true_error: np.ndarrya,
+            GP_emulators: Dict[str, List[List[GaussianProcessRegressor]]],
+            itr: Optional[int] = None,
+    ):
+        starting_guess = np.array(
+            [
+                self.parameter_ranges[:, 0] +
+                np.random.rand(nwalkers, self.num_params) *
+                np.diff(self.parameter_ranges).reshape(-1,)
+            ]
+        )[0]
+        with Pool() as pool:
+            sampler = emcee.EnsembleSampler(
+                nwalkers=nwalkers,
+                ndim=self.num_params,
+                pool=pool,
+                log_prob_fn=self.log_posterior,
+                args=[
+                    self.parameter_ranges,
+                    true_observables[:, 1:4],
+                    true_error,
+                    hydro_name,
+                    GP_emulators],
+            )
+
+            if itr is None:
+                desc = None
+            else:
+                desc = hydro_name
+            position = itr
+
+            _ = sampler.run_mcmc(
+                initial_state=starting_guess,
+                nsteps=nburn + nsteps,
+                progress=True,
+                progress_kwargs={
+                    'desc': desc,
+                    'position': position
+                },
+            )
+
+        output_dict[hydro_name] = np.array(
+            sampler.get_chain(discard=nburn))
+
     def run_calibration(
             self,
             nsteps: int,
             nburn: int,
-            ntemps: int,
             true_observables: np.ndarray,
             true_error: np.ndarray,
             GP_emulators: Dict,
-            output_path: str,
             read_from_file: bool = False,
             run_parallel: bool = False,
     ) -> Dict[str, np.ndarray]:
@@ -302,8 +372,6 @@ class HydroBayesianAnalysis(object):
         exact_error : (n,3) np.ndarray where n is the number of\n
                       simulation_taus passed at initialization
         GP_emulators : Dictionary of list of emulators
-        output_path : Define path where to output mcmc chains to load previous
-                      runs
         read_from_file : Boolean, read last run only works if existing run
                          exists.
 
@@ -317,57 +385,12 @@ class HydroBayesianAnalysis(object):
         self.n_observables = true_observables.shape[-1]
         if read_from_file:
             print("Reading mcmc_chain from file")
-            with open(f'{output_path}/mcmc_chains.pkl',
+            with open(f'{str(self.mcmc_run_output_path / "mcmc_chains.pkl")}',
                       'rb') as f:
                 self.MCMC_chains = pickle.load(f)
             return self.MCMC_chains
         else:
             nwalkers = 20 * self.num_params
-
-            def for_multiprocessing(
-                    hydro_name: str,
-                    output_dict: Type[Dict[str, np.ndarray]],
-                    itr: Optional[int] = None,
-            ):
-                starting_guess = np.array(
-                    [
-                        self.parameter_ranges[:, 0] +
-                        np.random.rand(nwalkers, self.num_params) *
-                        np.diff(self.parameter_ranges).reshape(-1,)
-                    ]
-                )[0]
-                with Pool() as pool:
-                    sampler = emcee.EnsembleSampler(
-                        nwalkers=nwalkers,
-                        ndim=self.num_params,
-                        pool=pool,
-                        log_prob_fn=self.log_posterior,
-                        args=[
-                            self.parameter_ranges,
-                            true_observables[:, 1:4],
-                            true_error,
-                            hydro_name,
-                            GP_emulators],
-                    )
-
-                    if itr is None:
-                        desc = None
-                    else:
-                        desc = hydro_name
-                    position = itr
-
-                    x = sampler.run_mcmc(
-                        initial_state=starting_guess,
-                        nsteps=nburn + nsteps,
-                        progress=True,
-                        progress_kwargs={
-                            'desc': desc,
-                            'position': position
-                        },
-                    )
-
-                output_dict[hydro_name] = np.array(
-                    sampler.get_chain(discard=nburn))
 
             if run_parallel:
                 manager = Manager()
@@ -375,10 +398,18 @@ class HydroBayesianAnalysis(object):
                 for name in self.hydro_names:
                     self.MCMC_chains[name] = None
 
-                jobs = [Process(target=for_multiprocessing,
-                                args=(name,
-                                      self.MCMC_chains,
-                                      i))
+                jobs = [Process(target=self._for_multiprocessing,
+                                args=(
+                                    nwalkers,
+                                    nburn,
+                                    nsteps,
+                                    name,
+                                    self.MCMC_chains,
+                                    true_observables,
+                                    true_error,
+                                    GP_emulators,
+                                    i
+                                ))
                         for i, name in enumerate(self.hydro_names)]
                 _ = [job.start() for job in jobs]
                 _ = [job.join() for job in jobs]
@@ -387,15 +418,9 @@ class HydroBayesianAnalysis(object):
             else:
                 self.MCMC_chains = {}
                 for i, name in enumerate(self.hydro_names):
-                    for_multiprocessing(name, self.MCMC_chains)
+                    self._for_multiprocessing(name, self.MCMC_chains)
 
-            try:
-                (cmd(['mkdir', '-p', f'{output_path}'])
-                    .check_returncode())
-            except (CalledProcessError):
-                print(f"Could not create dir {output_path}")
-
-            with open(f'{output_path}/mcmc_chains.pkl',
+            with open(f'{str(self.mcmc_run_output_path / "mcmc_chains.pkl")}',
                       'wb') as f:
                 pickle.dump(self.MCMC_chains, f)
 

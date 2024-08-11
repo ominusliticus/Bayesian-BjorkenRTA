@@ -57,13 +57,12 @@ class HydroCodeAPI:
         finally:
             pass
 
-    def print_commandline_args(
+    def _print_commandline_args(
                 self,
                 params_dict: HydroCodeCmdOptions
     ) -> List[str]:
         '''
-        Function ouputs file "params.txt" to the Code/util folder to
-        be used by the Code/build/exact_solution.x program
+        formats parameters to be passed to C++ programs
         '''
         keys = list(params_dict.keys())
         values = list(params_dict.values())
