@@ -20,7 +20,7 @@
 #  SOFTWARE OR THE USE OF OTHER DEALINGS IN THE SOFTWARE
 #
 # Author: Kevin Ingles
-# File: HydroBayesianAnalysis.py
+# File: hydro_bayesian_analysis.py
 # Description: This file defines the Bayesian inference routines used for
 #              parameter estimation and model comparison
 
@@ -45,9 +45,6 @@ import pickle
 # To create output directories if they don't already exist
 from subprocess import run as cmd
 from subprocess import CalledProcessError
-
-# maximize processes used
-from os import cpu_count
 
 # Run MCMC calibration in parallel
 from multiprocessing import Manager

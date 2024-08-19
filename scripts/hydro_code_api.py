@@ -44,7 +44,7 @@ class HydroCodeAPI:
                   output from
     """
 
-    def __init__(self, output_path: str) -> None:
+    def __init__(self, output_path: Path) -> None:
 
         self.output_path = output_path / "code_output"
 
@@ -75,16 +75,15 @@ class HydroCodeAPI:
 
     def execute_hydro_code(
                 self,
-                params_dict: HydroCodeCmdOptions,
-                which_hydro: int
+                cmdln_options: HydroCodeCmdOptions,
     ) -> None:
         '''
         Function calls the C++ excecutable that run hydro calculations
         '''
         cd('../')
         cmd_list = ['./build/exact_solution.x',
-                    *self.print_commandline_args(params_dict),
-                    f'{which_hydro}',
+                    *self._print_commandline_args(cmdln_options),
+                    f"{cmdln_options['hydro_type']}",
                     self.output_path]
         try:
             cmd(cmd_list).check_returncode()

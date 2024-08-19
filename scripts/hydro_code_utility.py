@@ -24,69 +24,105 @@
 # Description: Interface to facilitate reading in files outputted from running
 #              C++ hydro code
 
-from typing import Dict
+from hydro_code_cmdln_options import HydroCodeCmdOptions
 from pathlib import Path
 import numpy as np
 
 
-def convert_to_PL_and_PT(
-    p: np.ndarray,
-    pi: np.ndarray,
-    Pi: np.ndarray
-) -> np.ndarray:
+def convert_hydro_name_to_int(name: str) -> int:
     '''
-    Converts input shear and bulk pressure to longitudinal and transverse
-    pressure
+    Returns integer corresponding to the hydro in C++ code.
+    See documentation or ../src/main.cpp: int main() for options
     '''
-    pt = Pi + pi / 2 + p
-    pl = Pi - pi + p
-    return pt, pl
+    match name:
+        case 'ce':
+            return 0
+        case 'dnmr':
+            return 1
+        case 'mis':
+            return 2
+        case 'vah':
+            return 3
+        case 'mvah':
+            return 4
+        case 'exact':
+            return 5
+
+
+def convert_int_to_hydro_name(n: int) -> str:
+    '''
+    Take integer corresponding to the hydro in C++ code and returns name.
+    See documentation or ../src/main.cpp: int main() for options
+    '''
+    match n:
+        case 0:
+            return 'ce'
+        case 1:
+            return 'dnmr'
+        case 2:
+            return 'mis'
+        case 3:
+            return 'vah'
+        case 4:
+            return 'mvah'
+        case 5:
+            return 'exact'
 
 
 def read_hydro_ouput(
-    hydro_name: str,
-    params_dict: Dict[str, float],
-    use_PL_PT: bool,
+    cmdln_options: HydroCodeCmdOptions,
     path_to_output: Path,
 ) -> np.ndarray:
     '''
     Opens outputted files from C++ programs and extract output
     '''
-    mass = 0.197 * params_dict['mass']  # in MeV
-    prefix = '/' + hydro_name + '_'
+    path_to_output = path_to_output / "code_output"
+    if cmdln_options['hydro_type'] == 5:  # Run exact hydro
+        with open(
+                path_to_output,
+                + f'/exact_m={0.197 * cmdln_options["mass"]:.3f}GeV.dat',
+                'r'
+                ) as f_exact:
+            output = np.array([[float(entry)
+                                for entry in line.split()]
+                               for line in f_exact.readlines()])
 
-    f_e = open(
-        path_to_output + prefix + 'e' + f'_m={mass:.3f}GeV.dat',
-        'r'
-        ).readlines()
-    f_pi = open(
-        path_to_output + prefix + 'shear' + f'_m={mass:.3f}GeV.dat',
-        'r'
-        ).readlines()
-    f_Pi = open(
-        path_to_output + prefix + 'bulk' + f'_m={mass:.3f}GeV.dat',
-        'r'
-        ).readlines()
+        out_list = []
+        for entry in output:
+            tau, e, pt, pl, p = entry
+            shear = (2.0 / 3.0) * (pt - pl)
+            bulk = (pl + 2.0 * pt) / 3.0 - p
 
-    out_list = []
-    for i in range(len(f_e)):
-        tau, e, pi, Pi, p = f_e[i].split()[0], f_e[i].split()[1],\
-                            f_pi[i].split()[1], f_Pi[i].split()[1],\
-                            f_e[i].split()[2]
-        if use_PL_PT:
-            p1, p2 = convert_to_PL_and_PT(
-                float(p),
-                float(pi),
-                float(Pi)
-            )
-        else:
-            p1, p2 = float(pi), float(Pi)
+            out_list.append([tau, e, shear, bulk, p])
 
-        out_list.append([float(tau),
-                         float(e),
-                         float(p1),
-                         float(p2),
-                         float(p)])
+            return np.array(out_list)
+    else:
+        hydro_name = convert_int_to_hydro_name(n=cmdln_options['hydro_type'])
+        mass = 0.197 * cmdln_options['mass']  # in MeV
+        prefix = '/' + hydro_name + '_'
+
+        f_e = open(
+            path_to_output + prefix + 'e' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+        f_pi = open(
+            path_to_output + prefix + 'shear' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+        f_Pi = open(
+            path_to_output + prefix + 'bulk' + f'_m={mass:.3f}GeV.dat',
+            'r'
+            ).readlines()
+
+        out_list = []
+        for i in range(len(f_e)):
+            tau, e, shear, bulk, p = f_e[i].split()[0], f_e[i].split()[1], \
+                                     f_pi[i].split()[1], f_Pi[i].split()[1], \
+                                     f_e[i].split()[2]
+            out_list.append([float(tau),
+                             float(e),
+                             float(shear),
+                             float(bulk),
+                             float(p)])
 
     return np.array(out_list)
-
